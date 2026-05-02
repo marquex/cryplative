@@ -1,0 +1,138 @@
+# Delegation System - Detailed Reference
+# Agent: claude-developer
+# Linked from: claude-developer-index.yaml
+
+architecture:
+  overview: |
+    The delegation system enables inter-agent communication in Cryplative. One agent
+    (the delegator) sends a task to another agent (the delegate) via the `claude` CLI.
+    The child runs as a separate process with its own context, and all communication
+    is logged to a shared JSONL file for auditability.
+
+  data_flow: |
+    1. Parent agent calls: bun .claude/skills/delegate/scripts/delegate.ts <agent> "<prompt>"
+    2. Script reads CRYPLATIVE_SESSION_ID from env (set by SessionStart via CLAUDE_ENV_FILE)
+    3. Script writes a "delegation" entry (delegation_type="skill") to _conversation.jsonl
+    4. Script spawns: claude --agent <agent> -p <prompt> (with CRYPLATIVE_SESSION_ID in env)
+    5. Child agent executes the task using its own tools/skills
+    6. Child's stdout is captured and passed through to parent
+    7. Script writes a "response" entry to _conversation.jsonl (linked via delegation_id)
+    8. Script exits with child's exit code
+
+  initial_prompt_flow: |
+    1. User runs: claude --agent <name> -p "<prompt>" (or without --agent)
+    2. SessionStart hook fires: detects agent name from agent_type (or "global"),
+       derives CRYPLATIVE_SESSION_ID deterministically from Claude session_id,
+       writes to CLAUDE_ENV_FILE
+    3. UserPromptSubmit hook fires: derives SAME session ID from input.session_id,
+       writes "initial_prompt" entry to _conversation.jsonl (only once, checks file for existing entry)
+    4. Agent processes the prompt and may delegate via delegate.ts
+
+delegate_script:
+  path: ".claude/skills/delegate/scripts/delegate.ts"
+  key_implementations:
+    - "Uses Bun.spawn() to launch child claude process (not node:child_process)"
+    - "Spreads Bun.env into child env to inherit all parent env vars"
+    - "Adds CRYPLATIVE_SESSION_ID to child env for session continuity"
+    - "Reads child stdout/stderr via Response(child.stdout).text() pattern"
+    - "Uses appendFile from node:fs/promises for writing to JSONL (safe for concurrent access)"
+    - "Creates session directory with mkdir if it doesn't exist (using Bun.file().exists() check)"
+    - "Truncates response_preview to 500 chars to keep log entries manageable"
+    - "Links delegation and response entries via delegation_id (del-<uuid>)"
+    - "Defaults from_agent to 'global' when CLAUDE_AGENT_NAME is not set"
+    - "Sets delegation_type='skill' on delegation entries to distinguish from internal subagent calls"
+  error_handling:
+    - "If child fails, response entry still written with error exit code"
+    - "Script exits with same exit code as child process"
+    - "Missing args -> usage message + exit 1"
+
+session_management:
+  session_dir: ".claude/sessions/<CRYPLATIVE_SESSION_ID>/"
+  files:
+    - name: _conversation.jsonl
+      purpose: "ALL session entries: user_prompt, initial_prompt, response, delegation"
+      format: "One JSON object per line (JSONL), append-only"
+      note: "This is the ONLY file in the session folder. No marker files, no separate log files."
+  entry_types:
+    user_prompt:
+      fields: "type, timestamp, from_agent, prompt"
+      source: "session-logger hook (UserPromptSubmit, interactive mode)"
+    initial_prompt:
+      fields: "type, timestamp, from_agent, prompt"
+      source: "session-logger hook (UserPromptSubmit, print mode via CRYPLATIVE_PRINT_MODE)"
+      note: "Only logged once per session (hasInitialPromptEntry guard)"
+    response:
+      fields: "type, timestamp, from_agent, response_preview, delegation_id (when from delegation), exit_code (when from delegate.ts)"
+      sources:
+        - "session-logger hook (Stop) — agent's final response"
+        - "session-logger hook (SubagentStop) — internal subagent response"
+        - "delegate.ts script — child agent response after /delegate skill call"
+    delegation:
+      fields: "type, timestamp, from_agent, delegation_type (skill|internal), prompt, delegation_id"
+      sources:
+        - "delegate.ts script (delegation_type='skill') — explicit /delegate skill calls"
+        - "session-logger hook (SubagentStop) (delegation_type='internal') — Claude's internal subagent mechanism"
+      note: "delegation_type differentiates explicit skill calls from Claude's internal subagent spawning"
+  removed_fields:
+    note: "The following fields were removed from all entry types (2026-05-02):"
+    fields:
+      - to_agent: "Removed — redundant with delegation_id"
+      - session_id: "Removed — never used by consumers"
+      - claude_session_id: "Removed — never used by consumers"
+  env_vars:
+    - name: CRYPLATIVE_SESSION_ID
+      purpose: "Shared UUID across all agents in a delegation chain"
+      generation: "Derived deterministically from Claude session_id (SHA-256 hash, UUID format)"
+      propagation: "SessionStart writes to CLAUDE_ENV_FILE -> Bash tool sources it -> delegate.ts reads it -> passes to child via Bun.spawn env"
+      critical_note: "NEVER trusted by hook processes! Hooks ALWAYS derive from input.session_id to prevent session ID leakage from parent env."
+    - name: CLAUDE_AGENT_NAME
+      purpose: "Name of the calling agent, used in from_agent field"
+      source: "Set by session-logger SessionStart hook from agent_type, propagated via CLAUDE_ENV_FILE to Bash commands"
+      default: '"global" when no --agent flag is used'
+    - name: CLAUDE_SESSION_ID
+      purpose: "Claude's internal session ID for correlation"
+      source: "Available in hook input as input.session_id, set by SessionStart hook in CLAUDE_ENV_FILE"
+
+session_logger_hook:
+  path: ".claude/hooks/session-logger.ts"
+  events: ["SessionStart", "UserPromptSubmit", "Stop", "SubagentStop"]
+  key_design_decisions:
+    - "ALL hooks derive session ID deterministically from input.session_id — NEVER from process.env.CRYPLATIVE_SESSION_ID"
+    - "This prevents session ID leakage when child claude processes inherit parent's env vars"
+    - "UserPromptSubmit reads agent_type from hook input (more reliable than env vars)"
+    - "hasInitialPromptEntry() reads last 50 lines of _conversation.jsonl to check for existing initial_prompt entry (no marker files)"
+    - "SubagentStop writes to _conversation.jsonl (not a separate file) to keep session folders clean"
+  env_var_leakage_bug:
+    description: |
+      When running `claude -p` from within a Claude session's Bash tool, the child process
+      inherits the parent's CRYPLATIVE_SESSION_ID from CLAUDE_ENV_FILE. If the child's hooks
+      checked process.env.CRYPLATIVE_SESSION_ID (via getOrDeriveSessionId), they'd use the
+      parent's session ID instead of deriving their own. This caused hooks to write to the
+      wrong session directory (which didn't exist), silently failing.
+    fix: "Removed getOrDeriveSessionId(). All hooks now use deriveSessionId(input.session_id) directly."
+    lesson: "Env vars set via CLAUDE_ENV_FILE leak to child processes spawned from Bash tool commands. Hook processes must not trust them — always derive from input."
+
+skill_structure:
+  delegate:
+    path: ".claude/skills/delegate/"
+    files:
+      - path: SKILL.md
+        role: "Skill description with YAML frontmatter (description, argument-hint)"
+      - path: scripts/delegate.ts
+        role: "The delegation script that spawns child agents"
+      - path: scripts/reference.md
+        role: "Detailed API reference for the delegation script (documents all entry types)"
+    usage_pattern: |
+      Agents invoke via Bash tool:
+        bun .claude/skills/delegate/scripts/delegate.ts <agent-name> "<prompt>"
+
+patterns_and_conventions:
+  - "Skills that execute scripts should have a scripts/ subfolder with the script and a reference.md"
+  - "The SKILL.md frontmatter 'description' field is what Claude uses to understand when to invoke the skill"
+  - "The 'argument-hint' field shows Claude the expected arguments format"
+  - "JSONL format is preferred for append-only logs (conversation, events) -- one JSON object per line"
+  - "UUID generation uses crypto.randomUUID() which is available in both Node and Bun"
+  - "Session directories are created lazily on first write, not proactively"
+  - "Test scripts that spawn hooks should strip session env vars from process.env to avoid interference"
+  - "Use 'value || undefined' instead of 'value ?? fallback' when empty strings should be treated as missing"
+  - "CRITICAL: Never use process.env.CRYPLATIVE_SESSION_ID in hook code — always derive from input.session_id"

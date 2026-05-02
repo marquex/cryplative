@@ -1,0 +1,81 @@
+# Validation Agents - Detailed Reference
+# Agent: claude-developer
+# Linked from: claude-developer-index.yaml
+
+overview: |
+  The primary and secondary agents are validation/test agents that exercise the
+  delegation system. They demonstrate the pattern of agent-to-agent communication
+  with scoped access control enforced by the enforce-agent-access hook.
+
+agent_definitions:
+  primary:
+    path: ".claude/agents/primary.md"
+    frontmatter:
+      name: primary
+      tools: ["Read", "Write", "Glob", "Grep", "Bash"]
+      skills: ["delegate", "agent-expertise"]
+      access_rules:
+        - path: ".claude/sessions/**"
+          permissions: ["read", "write"]
+        - path: ".claude/expertise/primary/**"
+          permissions: ["read", "write", "delete"]
+      hooks:
+        - matcher: "Read|Write|Edit|MultiEdit|Bash"
+          command: "bun .claude/scripts/enforce-agent-access.ts"
+    role: "Receives tasks, determines subtasks, delegates to secondary, combines results"
+    delegation_pattern: |
+      bun .claude/skills/delegate/scripts/delegate.ts secondary "<task>"
+
+  secondary:
+    path: ".claude/agents/secondary.md"
+    frontmatter:
+      name: secondary
+      tools: ["Read", "Glob", "Grep", "Bash"]
+      skills: ["agent-expertise"]
+      access_rules:
+        - path: ".claude/sessions/**"
+          permissions: ["read"]
+        - path: ".claude/expertise/secondary/**"
+          permissions: ["read", "write", "delete"]
+      hooks:
+        - matcher: "Read|Write|Edit|MultiEdit|Bash"
+          command: "bun .claude/scripts/enforce-agent-access.ts"
+    role: "Receives delegated tasks, returns structured responses"
+    response_format: "Result / Details / Summary sections"
+    note: "Has no Write tool — cannot write files, only read and execute bash"
+
+access_patterns:
+  observations:
+    - "Secondary has read-only access to sessions (can read conversation log but not write)"
+    - "Secondary has no Write tool, enforcing read-only at the tool level too"
+    - "Primary can write to sessions (creates conversation entries via delegation)"
+    - "Both agents have full access to their own expertise directories"
+    - "Neither agent can access the other's expertise directory"
+  access_propagation: |
+    When primary delegates to secondary via Bun.spawn, the child process inherits
+    the parent's environment. However, the enforce-agent-access hook runs in the
+    child's context and checks the CHILD's agent file (secondary.md), not the
+    parent's. So access control is per-agent, not inherited.
+
+hook_integration:
+  pattern: "Each agent declares the enforce-agent-access hook in its frontmatter hooks block"
+  matcher: "Read|Write|Edit|MultiEdit|Bash — covers all file-touching tools"
+  hook_type: "PreToolUse — runs before the tool executes, can allow or deny"
+  decision_format: |
+    JSON on stdout:
+      {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecision": "allow" | "deny",
+          "permissionDecisionReason": "..."
+        }
+      }
+  always_exits_zero: "The hook always exits 0; the decision rides in the JSON output"
+
+testing_approach:
+  manual_test: |
+    claude --agent primary -p "Delegate a test task to secondary and report results"
+  verification: |
+    Check .claude/sessions/<id>/_conversation.jsonl for delegation and response entries
+  cli_validation: |
+    claude agents — verify agent definitions load without errors

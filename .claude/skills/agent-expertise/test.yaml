@@ -1,0 +1,12 @@
+teams:
+  - team-name: Engineering
+    team-color: "#FF5733"
+    lead:
+      name: Engineering Lead
+      path: .pi/agents/engineering/engineering-lead/engineering-lead.md
+      color: "#AE1FF5"
+    members:
+      - name: Frontend Developer
+        path: .pi/agents/engineering/frontend-developer/frontend-developer.md
+        color: "#33FF57"
+        consult-when: UI components, layouts, client-side logic, webapp, styling, user experience

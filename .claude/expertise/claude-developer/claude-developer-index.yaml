@@ -1,0 +1,173 @@
+# Claude Developer Expertise Index
+# Agent: claude-developer
+# Domain: Claude Code extension development (.claude directory)
+
+project_setup:
+  conventions:
+    - "Expert agents defined in .claude/agents/ as markdown with YAML frontmatter"
+    - "Expertise stored in .claude/expertise/{agent-name}/ as YAML files"
+    - "Skills in .claude/skills/{skill-name}/ with SKILL.md and optional scripts/"
+    - "Hooks in .claude/scripts/ (e.g., enforce-agent-access.ts)"
+    - "Hook scripts live in .claude/hooks/ (e.g., session-logger.ts)"
+    - "TypeScript scripts use bun runtime"
+  dependencies:
+    - "js-yaml (in .claude/package.json)"
+    - "@types/bun (devDependency, required for Bun API type resolution)"
+  tsconfig:
+    path: ".claude/tsconfig.json"
+    note: "Must include both 'bun' and 'node' in 'types' array so the IDE resolves both Bun and Node type definitions"
+    key_options:
+      - '"types": ["bun", "node"] -- critical for mixed Bun/Node usage'
+      - '"moduleResolution": "bundler", "module": "esnext", "target": "esnext"'
+      - '"skipLibCheck": true, "noEmit": true'
+
+bun_runtime_patterns:
+  spawn_processes: "Use Bun.spawn() instead of node:child_process. Returns a Subprocess with stdout/stderr as ReadableStream, and .exited as a Promise<number>"
+  file_exists: "Use Bun.file(path).exists() instead of fs.existsSync(). Returns Promise<boolean>"
+  stdin_reading: "Use Bun.stdin.text() for reading all stdin as text (returns Promise<string>)"
+  fs_promises_ok: "appendFile, mkdir, readFile from 'node:fs/promises' work fine in Bun -- no need for Bun-specific alternatives"
+  env_access: "Bun.env is the equivalent of process.env"
+  gotchas:
+    - "existsSync is in 'node:fs' NOT 'node:fs/promises' -- easy mistake when importing"
+    - "When using Bun APIs (Bun.spawn, Bun.file, etc.), @types/bun must be installed or the IDE will show type errors"
+    - "Bun.spawn stdout/stderr are ReadableStream, not Buffer -- use 'await new Response(child.stdout).text()' to read them"
+    - "Bun.spawn accepts env as an object spread from Bun.env, not just process.env"
+
+delegation_system:
+  expertise-file: delegation-system.yaml
+  summary: "System for inter-agent communication via the delegate skill. One agent delegates a task to another, the child runs in its own claude process, and all communication is logged to a shared session file."
+  key_components:
+    - name: delegate skill
+      path: ".claude/skills/delegate/"
+      structure: "SKILL.md + scripts/delegate.ts + scripts/reference.md"
+    - name: session directory
+      path: ".claude/sessions/<CRYPLATIVE_SESSION_ID>/"
+      files: ["_conversation.jsonl (user_prompt/initial_prompt/response/delegation entries)"]
+      note: "Session folder should ONLY contain _conversation.jsonl. No marker files, no _subagent-log.jsonl, no other artifacts."
+    - name: session state directory
+      path: ".claude/sessions/.state/<claude_session_id>.json"
+      purpose: "DEPRECATED — no longer needed. Session ID is now derived deterministically from input.session_id in all hooks, so no shared state is required."
+      note: "Can be removed in future cleanup."
+    - name: session ID propagation
+      mechanism: "CRYPLATIVE_SESSION_ID env var is passed from parent to child claude process via Bun.spawn env spread"
+    - name: CLAUDE_ENV_FILE
+      note: "Exports written here by SessionStart hook propagate to Bash tool commands but NOT to other hook processes"
+  conversation_log_format:
+    file: "_conversation.jsonl"
+    entry_types:
+      - type: user_prompt
+        fields: "type, timestamp, from_agent, prompt"
+        source: "session-logger hook (UserPromptSubmit)"
+        note: "Used in interactive mode. ALL user prompts are logged (no guard). Every prompt submission creates a user_prompt entry."
+      - type: initial_prompt
+        fields: "type, timestamp, from_agent, prompt"
+        source: "session-logger hook (UserPromptSubmit)"
+        note: "Used in print mode (-p flag). Only logged once per session (hasInitialPromptEntry checks file content for existing entry). Detected via CRYPLATIVE_PRINT_MODE env var set by delegate.ts."
+      - type: response
+        fields: "type, timestamp, from_agent, response_preview (first 500 chars), delegation_id (when from delegation), exit_code (when from delegate.ts)"
+        sources:
+          - "session-logger hook (Stop) — agent's final response"
+          - "session-logger hook (SubagentStop) — internal subagent response"
+          - "delegate.ts script — child agent response after /delegate skill call"
+        note: "Unified entry type for ALL responses. Linked to a delegation entry via delegation_id when the response comes from a delegated agent."
+      - type: delegation
+        fields: "type, timestamp, from_agent, delegation_type (skill|internal), prompt, delegation_id"
+        sources:
+          - "delegate.ts script (delegation_type='skill') — explicit /delegate skill calls"
+          - "session-logger hook (SubagentStop) (delegation_type='internal') — Claude's internal subagent mechanism"
+        note: "delegation_type differentiates explicit skill calls from Claude's internal subagent spawning. For internal subagents, from_agent is resolved by scanning recent conversation log entries (findParentAgent), and prompt is extracted from hook input's prompt or tool_input fields (extractSubagentPrompt). Falls back to 'unknown' and placeholder string respectively."
+    removed_fields_note: "to_agent, session_id, and claude_session_id were removed from all entry types — redundant or unused."
+    note: "Append-only JSONL, safe for concurrent use. delegation_id links response to its delegation."
+    mode_detection:
+      mechanism: "CRYPLATIVE_PRINT_MODE env var set by delegate.ts in Bun.spawn env"
+      interactive: "No CRYPLATIVE_PRINT_MODE → all UserPromptSubmit events logged as user_prompt (no guard)"
+      print: "CRYPLATIVE_PRINT_MODE=1 → first UserPromptSubmit logged as initial_prompt (with hasInitialPromptEntry guard)"
+      note: "Claude Code hook inputs do NOT include a field to distinguish -p from interactive mode. SessionStart input has: session_id, transcript_path, cwd, permission_mode, hook_event_name, source. UserPromptSubmit adds: prompt. No stop_on_submit or print_mode field exists."
+    note: "Append-only JSONL, safe for concurrent use. delegation_id links response to its delegation."
+
+access_control:
+  hook: ".claude/scripts/enforce-agent-access.ts"
+  pattern: "PreToolUse hook reads agent frontmatter 'access' block, matches tool paths against glob rules"
+  verbs: ["read", "write", "delete"]
+  behavior: "fail-closed -- deny if no access block, deny if no matching rule"
+  tool_classification:
+    read_tools: ["Read", "Grep", "Glob"]
+    write_tools: ["Write", "Edit", "MultiEdit", "NotebookEdit"]
+    bash: "Classified by regex patterns for delete/write/readonly; unknown tools are skipped (allowed)"
+  path_resolution: "Resolves to absolute, then to relative from cwd. Rejects paths outside project (starting with ..)"
+  agent_frontmatter_hook: "Agents declare hooks in frontmatter to trigger enforce-agent-access on Read|Write|Edit|MultiEdit|Bash"
+  known_issues:
+    - "Commands without resolvable file paths (e.g., 'claude agents', 'ls') get denied with 'without resolvable path' -- this is a limitation of the Bash classification logic"
+
+validation_agents:
+  expertise-file: validation-agents.yaml
+  summary: "Primary and secondary test agents that exercise the delegation system. They have scoped access rules and use the enforce-agent-access hook."
+  primary:
+    path: ".claude/agents/primary.md"
+    skills: ["delegate", "agent-expertise"]
+    access: "read/write to .claude/sessions/**, full access to .claude/expertise/primary/**"
+    role: "Delegates tasks to secondary, combines results"
+  secondary:
+    path: ".claude/agents/secondary.md"
+    skills: ["agent-expertise"]
+    access: "read-only to .claude/sessions/**, full access to .claude/expertise/secondary/**"
+    role: "Receives delegated tasks, returns structured responses"
+
+current_agents:
+  - name: primary
+    purpose: "Test agent that delegates tasks to secondary"
+  - name: secondary
+    purpose: "Test agent that receives delegated tasks"
+current_skills:
+  - name: claude-developing
+    purpose: "Reference for Claude Code extension development"
+  - name: agent-expertise
+    purpose: "Manage structured YAML expertise files"
+  - name: delegate
+    purpose: "Delegate tasks to other agents with session logging"
+
+observations:
+  - date: "2026-05-02"
+    note: "Implemented the delegation system end-to-end: delegate skill, session logging, validation agents (primary/secondary), and verified enforce-agent-access hook works with delegated agents"
+  - date: "2026-05-02"
+    note: "Learned that the enforce-agent-access hook needs to handle /dev/null path carefully -- bash redirects like '>/dev/null' can trigger path-outside-project denials"
+  - date: "2026-05-02"
+    note: "Bun.spawn env spread must include ...Bun.env plus any custom vars; Claude CLI picks up env vars from the spawn environment, not from shell profile"
+  - date: "2026-05-02"
+    note: "CLAUDE_ENV_FILE exports only propagate to Bash tool commands, NOT to other hook processes. Hooks fired after SessionStart (e.g., UserPromptSubmit) are separate processes that don't source CLAUDE_ENV_FILE. Solution: SessionStart writes a state file (._state-<claude_session_id>.json) that other hooks can read."
+  - date: "2026-05-02"
+    note: "When testing hooks that read env vars, must isolate from the test runner's own env. Use { ...process.env } spread but strip session vars. The test runner itself may have CRYPLATIVE_SESSION_ID set."
+  - date: "2026-05-02"
+    note: "Empty string env vars ('') are NOT nullish -- they pass the ?? check but fail truthiness checks. Use 'process.env.VAR || undefined' pattern to treat empty strings as missing."
+  - date: "2026-05-02"
+    note: "The Stop hook event fires when Claude finishes responding, providing last_assistant_message on stdin. Subagents get SubagentStop instead. Added Stop handler to session-logger to log agent responses."
+  - date: "2026-05-02"
+    note: "Removed _initial_prompt_logged marker file from session folders. Instead, hasInitialPromptEntry() reads the last 50 lines of _conversation.jsonl to check if an initial_prompt entry already exists. Keeps session folders clean with only _conversation.jsonl."
+  - date: "2026-05-02"
+    note: "Moved session state files from .claude/sessions/._state-<id>.json to .claude/sessions/.state/<id>.json. Hidden .state/ directory keeps the sessions folder listing clean."
+  - date: "2026-05-02"
+    note: "enforce-agent-access hook blocks bash commands containing '2>&1' because the '>' in '2>&1' matches the WRITE_BASH_PATTERNS redirect regex. Use plain claude commands without stderr redirection to avoid this."
+  - date: "2026-05-02"
+    note: "CRITICAL BUG FIX: getOrDeriveSessionId() in session-logger checked process.env.CRYPLATIVE_SESSION_ID before deriving from input.session_id. When running `claude -p` from Bash tool, the child process inherits the parent's CRYPLATIVE_SESSION_ID from the Bash environment (set via CLAUDE_ENV_FILE). This caused the child's hooks to write to the WRONG session directory (the parent's, which didn't exist). Fix: ALL hooks must ALWAYS derive session ID deterministically from input.session_id, never trust process.env.CRYPLATIVE_SESSION_ID. That env var is ONLY for delegate.ts (consumed via Bash tool env), not for hook processes."
+  - date: "2026-05-02"
+    note: "CLAUDE_ENV_FILE exports propagate to Bash tool commands AND to child processes spawned from those commands (e.g., `claude -p`). This means CRYPLATIVE_SESSION_ID leaks from parent to child claude processes. The fix was to stop trusting this env var in hook code and always derive from input.session_id."
+  - date: "2026-05-02"
+    note: "Claude Code hook inputs do NOT include any field to distinguish -p (print) mode from interactive mode. SessionStart provides: session_id, transcript_path, cwd, permission_mode ('default'), hook_event_name, source ('startup'). UserPromptSubmit adds: prompt. There is no stop_on_submit, print_mode, or mode field. Detection requires an env var approach."
+  - date: "2026-05-02"
+    note: "Updated conversation logging to store ALL user prompts in interactive mode (type: user_prompt, no guard). In print mode (-p), first prompt is logged as initial_prompt (with guard). Mode detection uses CRYPLATIVE_PRINT_MODE=1 env var set by delegate.ts in the Bun.spawn env. This env var is inherited by the child's hook processes (unlike CLAUDE_ENV_FILE exports which only propagate to Bash tool commands)."
+  - date: "2026-05-02"
+    note: "Enhanced SubagentStop handler to also log a 'delegation' entry before the 'subagent_stop' entry. This unifies inter-agent communication logging: both explicit /delegate calls and Claude's internal subagent mechanism now produce delegation entries in _conversation.jsonl. The parent agent is resolved via findParentAgent() (scans recent conversation entries for the last non-subagent from_agent), and the prompt is extracted via extractSubagentPrompt() (checks input.prompt and input.tool_input fields). Both entries share a delegation_id for correlation."
+  - date: "2026-05-02"
+    note: "FIX: SubagentStop input does NOT include the original prompt/task given to the subagent in input.prompt or input.tool_input. However, the input includes 'agent_transcript_path' which points to the subagent's own conversation transcript (e.g., ~/.claude/projects/.../subagents/agent-<id>.jsonl). Reading the first user message from this transcript gives us the exact prompt. Updated extractSubagentPrompt() to use agent_transcript_path instead of transcript_path (which is the parent's transcript)."
+  - date: "2026-05-02"
+    note: "FIX: SubagentStop last_assistant_message can contain thinking blocks, tool_use blocks, and other non-text content. Added extractCleanResponse() that handles: (1) JSON content block arrays — extracts only type=text blocks, (2) XML thinking/anticipation tags — strips them with regex, (3) plain text — passes through unchanged. The subagent_stop response_preview now uses the cleaned response."
+  - date: "2026-05-02"
+    note: "GOTCHA: enforce-agent-access hook parses echo command arguments as paths. Using 'echo \"{json}\" | bun hook.ts' fails because the JSON string is matched as a path. Workaround: write test input to a temp file or use a test script with Bun.spawn stdin pipe."
+  - date: "2026-05-02"
+    note: "FIX: Claude Code spawns internal subagents with empty agent_type (e.g., for background processing). These appeared as phantom delegations with to_agent:'' in the conversation log. Added guard in handleSubagentStop to skip entries when agent_type is empty."
+  - date: "2026-05-02"
+    note: "SubagentStop input fields (confirmed from real session): session_id, transcript_path (parent), agent_id, agent_type, hook_event_name, stop_hook_active, permission_mode, agent_transcript_path (subagent's own transcript), last_assistant_message. The agent_transcript_path is the key to extracting the prompt — it points to the subagent's JSONL conversation file at ~/.claude/projects/<project-hash>/<session-id>/subagents/agent-<agent-id>.jsonl"
+  - date: "2026-05-02"
+    note: "Cleaned up _conversation.jsonl entry schema: (1) Removed to_agent from all entries (redundant with delegation_id), (2) Renamed subagent_stop type to response (unified response type for all sources), (3) Added delegation_type='skill'|'internal' to delegation entries to differentiate trigger source, (4) Removed session_id and claude_session_id from all entries (never used by consumers). Also cleaned up delegate.ts by removing unused claudeSessionId parameter."
+  - date: "2026-05-02"
+    note: "Updated findParentAgent() to skip entries with delegation_type='internal' instead of checking for subagent_stop type or missing to_agent field. This is cleaner since delegation_type is the canonical discriminator now."
