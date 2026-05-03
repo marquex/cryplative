@@ -19,6 +19,19 @@ The expertise folder should always have an index file for the mental model `.cla
 At the end of the session, the agent should update their expertise with any new thing they have learned.
 
 
+### Agent Hierarchy
+
+Agents are organized in a delegation hierarchy. Delegation always flows downward — from a manager to its subordinates. This creates a tree structure with no circular dependencies.
+
+- Every agent can have a **manager** (an agent that delegates to it). Documented in the system prompt.
+- Every agent can have **subordinates** (agents it delegates to). Declared in the `subordinates` frontmatter field and documented in the system prompt.
+- An agent at the top has no manager. A leaf agent has no subordinates.
+- The hierarchy can have many levels.
+
+Use the `hire-expert` skill to create new agents with proper hierarchy integration. When an agent is created, its manager's file is automatically updated to include it as a subordinate, and its subordinates' files are updated to reference it as their manager.
+
+### Agent File Template
+
 The basic structure of the expert agent file follows the template below:
 
 ```md
@@ -28,6 +41,7 @@ description: A brief description of the expert agent's domain, purpose and when 
 tools: Read, Grep, Glob
 skills:
   - agent-expertise
+subordinates: []  # list of agent names this agent can delegate to (omit if none)
 access:
   - path: .claude/expertise/expert-agent/**
     permissions: [read, write, delete]
@@ -43,6 +57,20 @@ hooks:
 
 [System prompt for the expert agent, its purposes and goals. It shouldn't include specific instructions, instead it needs to set the agent direction and the agent should learn how to achieve that goal by itself. Remark that the agent should build expertise on every session]
 
+{If this agent has subordinates, include a Delegation section:}
+
+## Delegation
+
+You can delegate tasks to the following subordinate agents:
+
+<!-- SUBORDINATES -->
+
+Use the delegate skill: `bun .claude/skills/delegate/scripts/delegate.ts <agent-name> "<task>"`
+
+{If this agent has a manager, mention it:}
+
+Your manager is `manager-name` — you receive delegated tasks from it.
+
 ## Restricted domain
 
 You have only access to the following folders:
@@ -55,8 +83,12 @@ This restriction is to keep you focused on your domain and avoid distractions. D
 
 The frontmatter of an expert agent has some specific content:
 - The `agent-expertise` skill teach the agent how to build expertise and how to use its long-term memory on every session.
+- The `delegate` skill is only included if the agent has subordinates (i.e., the `subordinates` list is non-empty).
+- The `subordinates` field is a list of agent names that this agent can delegate to. Omit if the agent is a leaf agent with no delegation capability.
 - The `access` section grants the agent permissions to read, write and delete files. It should include at least the path to the agent's expertise folder with read, write and delete permissions, and it can also include other paths with read permissions if needed.
-- The `hooks` section includes a hook that runs `enforce-agent-access.ts` before using any tool. That's the script that enforces the access restrictions, and injects the `<!-- ACCESS_RULES -->` in the agent's prompt with the specific access rules for that agent. It's important to keep the `<!-- ACCESS_RULES -->` placeholder in the prompt, so the agent can understand its access restrictions.
+- The `hooks` section includes a PreToolUse hook that runs `enforce-agent-access.ts` before using any tool. This script enforces the access restrictions AND enforces the delegation hierarchy — it denies delegation commands (`delegate.ts`) that target agents not listed in the `subordinates` frontmatter field.
+- The `<!-- ACCESS_RULES -->` placeholder in the system prompt is replaced by the PostToolUse hook `inject-agent-markers.ts` with the formatted list of access rules from the frontmatter. The replacement happens automatically when the agent file is written.
+- The `<!-- SUBORDINATES -->` placeholder (only for agents with subordinates) is replaced by the same PostToolUse hook with the formatted list of subordinate agents and their descriptions. The hook reads each subordinate's agent file to get the `description` field.
 
 
 ## Types of expert agents

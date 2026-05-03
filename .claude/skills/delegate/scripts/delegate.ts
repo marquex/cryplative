@@ -17,6 +17,7 @@
  */
 
 import { mkdir, appendFile } from "node:fs/promises";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 function main() {
@@ -43,6 +44,18 @@ function main() {
 
   // Determine the calling agent name (from env or default to "global")
   const fromAgent = process.env.CLAUDE_AGENT_NAME ?? "global";
+
+  // Enforce subordinates hierarchy before delegating.
+  // Read the calling agent's frontmatter and verify the target is listed
+  // as a subordinate. This is a belt-and-suspenders check alongside the
+  // enforce-agent-access PreToolUse hook.
+  if (fromAgent !== "global") {
+    const validationError = validateDelegation(fromAgent, agentName, projectDir);
+    if (validationError) {
+      console.error(validationError);
+      process.exit(1);
+    }
+  }
 
   // Generate a 6-char run ID for this agent invocation.
   // This is passed to the child process so its hooks use the same run_id.
@@ -74,6 +87,92 @@ function generateRunId(): string {
     result += chars[bytes[i] % chars.length];
   }
   return result;
+}
+
+/**
+ * Minimal YAML frontmatter parser — extracts the 'subordinates' list.
+ * Reuses the same pattern as enforce-agent-access.ts parseFrontmatter.
+ */
+function stripQuotes(s: string): string {
+  if (!s) return s;
+  if ((s.startsWith('"') && s.endsWith('"')) ||
+      (s.startsWith("'") && s.endsWith("'"))) {
+    return s.slice(1, -1);
+  }
+  return s;
+}
+
+function parseSubordinatesFromFrontmatter(md: string): string[] {
+  const m = md.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!m) return [];
+  const body = m[1]!;
+  const lines = body.split(/\r?\n/);
+  const subordinates: string[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i]!;
+    if (!line.trim()) { i++; continue; }
+
+    // Block form: subordinates:\n  - agent1\n  - agent2
+    if (/^subordinates\s*:\s*$/.test(line)) {
+      i++;
+      while (i < lines.length) {
+        const l = lines[i]!;
+        if (l.length && !/^\s/.test(l)) break;
+        if (!l.trim()) { i++; continue; }
+        const itemMatch = l.match(/^\s*-\s*(.+?)\s*$/);
+        if (itemMatch) subordinates.push(stripQuotes(itemMatch[1]!));
+        i++;
+      }
+      return subordinates;
+    }
+
+    // Inline form: subordinates: [agent1, agent2]
+    const kv = line.match(/^subordinates\s*:\s*(.*)$/);
+    if (kv) {
+      const rawVal = stripQuotes(kv[1]!.trim());
+      if (rawVal.startsWith('[') && rawVal.endsWith(']')) {
+        return rawVal
+          .slice(1, -1)
+          .split(',')
+          .map((s) => stripQuotes(s.trim()))
+          .filter(Boolean);
+      }
+    }
+    i++;
+  }
+  return subordinates;
+}
+
+/**
+ * Validate that the calling agent is allowed to delegate to the target agent.
+ * Returns an error message string if delegation is not allowed, or null if OK.
+ */
+function validateDelegation(fromAgent: string, targetAgent: string, projectDir: string): string | null {
+  const agentFile = join(projectDir, ".claude", "agents", `${fromAgent}.md`);
+  if (!existsSync(agentFile)) {
+    return `Delegation error: cannot find agent file for '${fromAgent}' at ${agentFile}`;
+  }
+
+  const content = readFileSync(agentFile, "utf-8");
+  const subordinates = parseSubordinatesFromFrontmatter(content);
+
+  if (subordinates.length === 0) {
+    return (
+      `Delegation error: agent '${fromAgent}' has no subordinates and cannot delegate to anyone. ` +
+      `Add a 'subordinates' field to the agent's frontmatter or remove the delegate skill.`
+    );
+  }
+
+  if (!subordinates.includes(targetAgent)) {
+    return (
+      `Delegation error: agent '${fromAgent}' cannot delegate to '${targetAgent}' — ` +
+      `authorized subordinates: [${subordinates.join(", ")}]`
+    );
+  }
+
+  return null;
 }
 
 /**

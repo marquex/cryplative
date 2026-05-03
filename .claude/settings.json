@@ -39,6 +39,16 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun .claude/hooks/inject-agent-markers.ts"
+          }
+        ]
+      }
     ]
   },
   "permissions": {

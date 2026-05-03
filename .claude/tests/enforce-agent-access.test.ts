@@ -292,6 +292,77 @@ const suite: TestSuite = {
         assertEqual(decision, 'deny');
       },
     },
+
+    // --- Delegation enforcement ---
+
+    {
+      description: 'allows primary to delegate to authorized subordinate (secondary)',
+      fn: async () => {
+        const { stdout } = await runHook(
+          '.claude/scripts/enforce-agent-access.ts',
+          {
+            agent_type: 'primary',
+            tool_name: 'Bash',
+            tool_input: { command: 'bun .claude/skills/delegate/scripts/delegate.ts secondary "do task"' },
+            cwd: PROJECT_DIR,
+          },
+        );
+        const { decision, reason } = parseDecision(stdout);
+        assertEqual(decision, 'allow');
+        assertIncludes(reason, 'authorized subordinate');
+      },
+    },
+
+    {
+      description: 'denies primary to delegate to unauthorized agent',
+      fn: async () => {
+        const { stdout } = await runHook(
+          '.claude/scripts/enforce-agent-access.ts',
+          {
+            agent_type: 'primary',
+            tool_name: 'Bash',
+            tool_input: { command: 'bun .claude/skills/delegate/scripts/delegate.ts unknown-agent "task"' },
+            cwd: PROJECT_DIR,
+          },
+        );
+        const { decision, reason } = parseDecision(stdout);
+        assertEqual(decision, 'deny');
+        assertIncludes(reason, "cannot delegate to 'unknown-agent'");
+        assertIncludes(reason, '[secondary]');
+      },
+    },
+
+    {
+      description: 'denies secondary to delegate (no subordinates defined)',
+      fn: async () => {
+        const { stdout } = await runHook(
+          '.claude/scripts/enforce-agent-access.ts',
+          {
+            agent_type: 'secondary',
+            tool_name: 'Bash',
+            tool_input: { command: 'bun .claude/skills/delegate/scripts/delegate.ts some-agent "task"' },
+            cwd: PROJECT_DIR,
+          },
+        );
+        const { decision, reason } = parseDecision(stdout);
+        assertEqual(decision, 'deny');
+        assertIncludes(reason, 'has no subordinates');
+      },
+    },
+
+    {
+      description: 'allows non-delegate bash commands from primary (no delegation detection)',
+      fn: async () => {
+        const { stdout } = await runHook('.claude/scripts/enforce-agent-access.ts', {
+          agent_type: 'primary',
+          tool_name: 'Bash',
+          tool_input: { command: 'ls .claude/sessions' },
+          cwd: PROJECT_DIR,
+        });
+        const { decision } = parseDecision(stdout);
+        assertEqual(decision, 'allow');
+      },
+    },
   ],
 };
 

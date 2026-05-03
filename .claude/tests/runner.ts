@@ -38,6 +38,7 @@ import sessionLoggerSuite from './session-logger.test';
 import yamlValidatorSuite from './yaml-validator.test';
 import sessionLoggingSuite from './session-logging.test';
 import delegationSuite from './delegation.test';
+import delegationEnforcementSuite from './delegation-enforcement.test';
 import accessControlSuite from './access-control.test';
 
 const ALL_SUITES: TestSuite[] = [
@@ -46,6 +47,7 @@ const ALL_SUITES: TestSuite[] = [
   yamlValidatorSuite,
   sessionLoggingSuite,
   delegationSuite,
+  delegationEnforcementSuite,
   accessControlSuite,
 ];
 

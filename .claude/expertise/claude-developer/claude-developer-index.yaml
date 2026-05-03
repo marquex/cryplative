@@ -119,7 +119,7 @@ delegation_system:
 
 access_control:
   hook: ".claude/scripts/enforce-agent-access.ts"
-  pattern: "PreToolUse hook reads agent frontmatter 'access' block, matches tool paths against glob rules"
+  pattern: "PreToolUse hook reads agent frontmatter 'access' block, matches tool paths against glob rules. Also enforces delegation hierarchy by checking 'subordinates' field."
   verbs: ["read", "write", "delete"]
   behavior: "fail-closed -- deny if no access block, deny if no matching rule"
   tool_classification:
@@ -128,8 +128,27 @@ access_control:
     bash: "Classified by regex patterns for delete/write/readonly; unknown tools are skipped (allowed)"
   path_resolution: "Resolves to absolute, then to relative from cwd. Rejects paths outside project (starting with ..)"
   agent_frontmatter_hook: "Agents declare hooks in frontmatter to trigger enforce-agent-access on Read|Write|Edit|MultiEdit|Bash"
+  delegation_enforcement:
+    mechanism: "detectDelegation() matches Bash commands containing 'delegate.ts <agent-name>' before the generic bash classification. Reads 'subordinates' from frontmatter (block or inline YAML list)."
+    rules:
+      - "No subordinates defined → deny delegation (agent cannot delegate to anyone)"
+      - "Target not in subordinates list → deny with list of authorized subordinates"
+      - "Target in subordinates list → allow (authorized subordinate)"
+    note: "Belt-and-suspenders: both the PreToolUse hook AND delegate.ts script check subordinates. The hook intercepts the Bash command before execution; the script checks before spawning the child process."
   known_issues:
     - "Commands without resolvable file paths (e.g., 'claude agents', 'ls') get denied with 'without resolvable path' -- this is a limitation of the Bash classification logic"
+
+marker_injection:
+  hook: ".claude/hooks/inject-agent-markers.ts"
+  event: "PostToolUse (global hook in .claude/settings.json)"
+  pattern: "After any Write/Edit/MultiEdit to a .claude/agents/*.md file, replaces HTML comment markers with formatted content derived from frontmatter"
+  markers:
+    - name: "<!-- ACCESS_RULES -->"
+      replacement: "Bullet list of access rules with permissions, e.g. `- \`.claude/sessions/**\` — read, write`"
+    - name: "<!-- SUBORDINATES -->"
+      replacement: "Bullet list of subordinate agents with descriptions, e.g. `- \`secondary\` — Description from agent file`. Reads each subordinate's .claude/agents/<name>.md to get the description field."
+  idempotent: "If no markers are found, the hook does nothing. If markers are already replaced, they won't match."
+  note: "This hook enables the hire-expert skill to use markers in its template. When the skill creates/updates an agent file with markers, the hook automatically replaces them. No manual maintenance of the Delegation or Restricted domain lists needed."
 
 validation_agents:
   expertise-file: validation-agents.yaml
@@ -157,6 +176,8 @@ current_skills:
     purpose: "Manage structured YAML expertise files"
   - name: delegate
     purpose: "Delegate tasks to other agents with session logging"
+  - name: hire-expert
+    purpose: "Flow-based skill to create new expert agents with delegation hierarchy support. 8-step process: parse description, ask follow-ups for missing info, confirm with user, create agent file, update manager agent, update subordinates' manager reference, create expertise folder, validate hierarchy consistency. Agents have a tree-structured hierarchy — manager/subordinates relationships are bidirectionally maintained across agent files."
 
 observations:
   - date: "2026-05-02"
@@ -231,6 +252,16 @@ observations:
     note: "BUG FIX: CLAUDE_AGENT_NAME env var leaked from parent to child in nested delegations. When global delegated to primary, and primary delegated to secondary, both delegation entries had from_agent='global'. Root cause: delegate.ts spread Bun.env (inheriting parent's CLAUDE_AGENT_NAME=global) but didn't override it with the target agent name. Fix: (1) delegate.ts now sets CLAUDE_AGENT_NAME=<target-agent> in child spawn env, (2) session-logger SessionStart now writes CLAUDE_AGENT_NAME to CLAUDE_ENV_FILE even for delegated sessions. Belt-and-suspenders: the env var from Bun.spawn propagates to the child process, and the CLAUDE_ENV_FILE export propagates to the child's Bash tool commands."
   - date: "2026-05-03"
     note: "Improved _conversation.jsonl entry schema: (1) Renamed 'from_agent' field to 'agent' across all entry types in both session-logger.ts and delegate.ts, (2) Added 'delegated_to' field to delegation entries containing the target agent name, (3) Changed the main agent's Stop event to produce type 'summary' instead of 'response' — 'response' is now reserved for delegated agent responses only. Updated findParentAgent() to read 'agent' field instead of 'from_agent'. Updated all tests to match."
+  - date: "2026-05-03"
+    note: "Created hire-expert skill — a flow-based skill (no scripts) that guides agents through creating new expert agents. The skill has a 6-step process: parse description, ask follow-ups for missing info, confirm with user, create agent file following the template, create expertise folder with index, and validate. Key design decision: the skill instructs the agent to derive folder access from the role description when possible, only asking for clarification when ambiguous."
+  - date: "2026-05-03"
+    note: "Added delegation hierarchy to hire-expert skill and expert-agents.md template. Agents now have a tree-structured hierarchy with manager/subordinates relationships. The 'subordinates' field in agent frontmatter declares who an agent can delegate to, and the 'delegate' skill is only included when subordinates exist. When hiring a new agent, the skill updates the manager's file (adds to subordinates list, adds delegate skill if needed, updates Delegation section in system prompt) and checks subordinates' files for manager reference consistency. The hierarchy ensures delegation flows strictly downward with no circular dependencies."
+  - date: "2026-05-03"
+    note: "Implemented delegation hierarchy enforcement at two levels: (1) enforce-agent-access.ts PreToolUse hook detects Bash commands calling delegate.ts, reads the calling agent's 'subordinates' frontmatter, and denies if target is not authorized; (2) delegate.ts script checks subordinates before spawning the child process. Belt-and-suspenders approach ensures the hierarchy is enforced regardless of how the command is invoked. Added parseSubordinatesFromFrontmatter() to delegate.ts and extended parseFrontmatter() in enforce-agent-access.ts to handle both block and inline YAML list formats for subordinates."
+  - date: "2026-05-03"
+    note: "Created inject-agent-markers.ts PostToolUse hook (registered in .claude/settings.json). Replaces <!-- ACCESS_RULES --> and <!-- SUBORDINATES --> HTML comment markers in agent files with formatted content from frontmatter after any Write/Edit/MultiEdit. ACCESS_RULES becomes a bullet list of paths with permissions. SUBORDINATES becomes a bullet list of agent names with their descriptions (read from each subordinate's agent file). This makes agent templates self-maintaining — the hire-expert skill writes markers and the hook fills them in automatically."
+  - date: "2026-05-03"
+    note: "Updated hire-expert SKILL.md template to use <!-- SUBORDINATES --> marker instead of hardcoded subordinate list. Updated expert-agents.md template similarly. Updated primary.md agent to use both markers and to declare subordinates in frontmatter. Updated delegate SKILL.md to document the enforcement mechanism."
 
 testing_system:
   expertise-file: testing-system.yaml
@@ -254,9 +285,10 @@ testing_system:
     - "Bun.file() expects a file path string, NOT a Blob. Write input to a temp file first, then pass Bun.file(tempPath) as stdin option."
     - "Bun.spawn env: spread Bun.env first, then override specific vars. Empty string overrides are valid (e.g., CRYPLATIVE_SESSION_ID: '' clears the var)."
   test_coverage:
-    enforce-agent-access: "17 tests: agent allow/deny, tool classification (Read/Write/Bash/Grep/WebFetch), path traversal, glob matching"
+    enforce-agent-access: "21 tests: agent allow/deny, tool classification (Read/Write/Bash/Grep/WebFetch), path traversal, glob matching, delegation enforcement (allow authorized, deny unauthorized, deny no-subordinates, allow non-delegate)"
     session-logger: "13 tests: SessionStart metadata, UserPromptSubmit print/interactive mode, Stop response, delegated mode skip, edge cases, agent_logs race condition (3 tests: missing response, no duplicate, tool_result ending)"
     yaml-validator: "6 tests: valid/invalid YAML, mixed files, empty dir, nested dirs, nonexistent dir"
     session-logging: "2 tests: basic -p session creation, --agent session with correct metadata"
     delegation: "2 tests: delegate script creates delegation+response entries, agent_logs for child (with assistant response verification)"
+    delegation-enforcement: "7 tests: script-level rejection (no subordinates, unauthorized target, global skip), hook-level blocking (primary→unauthorized, secondary→any), full e2e (primary→secondary success, no delegation entry for unauthorized target)"
     access-control: "3 tests: write deny outside domain, read allow inside domain, read-only session access"

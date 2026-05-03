@@ -24,6 +24,7 @@ bun .claude/skills/delegate/scripts/delegate.ts researcher "Analyze the current 
 ## Important Notes
 
 - The target agent must be defined in `.claude/agents/<agent-name>.md`.
+- The target agent must be listed in the calling agent's `subordinates` frontmatter field. Delegation is enforced at two levels: (1) the `enforce-agent-access` PreToolUse hook denies Bash commands that call `delegate.ts` with an unauthorized target, and (2) the `delegate.ts` script itself checks the calling agent's frontmatter before spawning the child process.
 - The `CRYPLATIVE_SESSION_ID` environment variable is automatically propagated to the child agent, ensuring all agents in a chain share the same session directory.
 - The child agent's response is printed to stdout, which you will see in your context.
 - Both the delegation and the response are logged to `.claude/sessions/<session-id>/_conversation.jsonl`.
