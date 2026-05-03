@@ -220,12 +220,20 @@ async function writeMetadata(
  * Handles both formats:
  * - stream-json: { type: "user"|"assistant", message: {...} } → extract message
  * - Claude transcript: { role: "user"|"assistant", ... } → keep as-is
+ *
+ * If lastAssistantMessage is provided, it's appended as the final assistant
+ * entry when the transcript's last filtered entry is not an assistant message.
+ * This handles a race condition where the Stop hook fires before the final
+ * assistant message is flushed to the transcript file on disk. The hook
+ * receives last_assistant_message in memory (via hook input), but the
+ * transcript file may lag by one entry.
  */
 async function filterTranscriptToAgentLogs(
   sessionPath: string,
   agentName: string,
   runId: string,
-  transcriptPath: string
+  transcriptPath: string,
+  lastAssistantMessage?: string
 ): Promise<void> {
   const agentLogsDir = join(sessionPath, "agent_logs");
   if (!existsSync(agentLogsDir)) {
@@ -257,6 +265,30 @@ async function filterTranscriptToAgentLogs(
         }
       } catch {
         continue;
+      }
+    }
+
+    // Race condition fix: if the last filtered entry is not an assistant
+    // message, the final assistant response hasn't been written to the
+    // transcript yet. Append it from the hook input's last_assistant_message.
+    if (lastAssistantMessage) {
+      const lastEntryIsAssistant =
+        filtered.length > 0 &&
+        (() => {
+          try {
+            return JSON.parse(filtered[filtered.length - 1]).role === "assistant";
+          } catch {
+            return false;
+          }
+        })();
+
+      if (!lastEntryIsAssistant) {
+        filtered.push(
+          JSON.stringify({
+            role: "assistant",
+            content: lastAssistantMessage,
+          })
+        );
       }
     }
 
@@ -443,14 +475,18 @@ async function handleStop(sessionsDir: string, input: HookInput) {
   // Copy the session transcript to agent_logs.
   // Use transcript_path from hook input (Stop includes it), falling back to
   // the transcript_path stored in metadata by SessionStart.
+  // Pass last_assistant_message so the final response is guaranteed to be
+  // in the log even if the transcript file hasn't been flushed yet.
   const transcriptPath =
     input.transcript_path ?? metadata?.transcript_path;
+  const cleanLastMessage = extractCleanResponse(lastMessage);
   if (transcriptPath && runId) {
     await filterTranscriptToAgentLogs(
       sessionPath,
       agentName,
       runId,
-      transcriptPath
+      transcriptPath,
+      cleanLastMessage
     );
   }
 
@@ -672,7 +708,9 @@ async function handleSubagentStop(sessionsDir: string, input: HookInput) {
 
   await appendFile(conversationFile, JSON.stringify(stopEntry) + "\n");
 
-  // Copy the subagent's transcript to agent_logs
+  // Copy the subagent's transcript to agent_logs.
+  // Pass cleanResponse so the final response is guaranteed to be in the log
+  // even if the transcript file hasn't been flushed yet.
   const agentTranscriptPath = input[
     "agent_transcript_path"
   ] as string | undefined;
@@ -681,7 +719,8 @@ async function handleSubagentStop(sessionsDir: string, input: HookInput) {
       sessionPath,
       subagentType,
       runId,
-      agentTranscriptPath
+      agentTranscriptPath,
+      cleanResponse
     );
   }
 

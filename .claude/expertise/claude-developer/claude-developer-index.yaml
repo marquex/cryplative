@@ -101,7 +101,6 @@ delegation_system:
       interactive: "No CRYPLATIVE_PRINT_MODE → all UserPromptSubmit events logged as user_prompt (no guard)"
       print: "CRYPLATIVE_PRINT_MODE=1 → first UserPromptSubmit logged as initial_prompt (with hasInitialPromptEntry guard)"
       note: "Claude Code hook inputs do NOT include a field to distinguish -p from interactive mode. SessionStart input has: session_id, transcript_path, cwd, permission_mode, hook_event_name, source. UserPromptSubmit adds: prompt. No stop_on_submit or print_mode field exists."
-    note: "Append-only JSONL, safe for concurrent use. delegation_id links response to its delegation."
 
 access_control:
   hook: ".claude/scripts/enforce-agent-access.ts"
@@ -205,3 +204,38 @@ observations:
     note: "enforce-agent-access hook blocks bash commands containing '2>&1' because the '>' in '2>&1' matches the WRITE_BASH_PATTERNS redirect regex. Use plain claude commands without stderr redirection to avoid this. Also, the extractBashTargets function treats '-name \"filename\"' as a file path, which can cause false denials for find commands."
   - date: "2026-05-03"
     note: "Added isSkillSetupMessage() filter to both delegate.ts and session-logger.ts filterTranscriptToAgentLogs(). Claude Code injects skill setup messages into subagents as user messages whose first content block starts with '<command-message>'. These can be very large (hundreds of lines of skill definitions) and are not relevant to the conversation. The filter skips user messages where content is a string starting with '<command-message>' or an array whose first element has type='text' and text starting with '<command-message>'. Handles leading whitespace via trimStart()."
+  - date: "2026-05-03"
+    note: "GOTCHA: enforce-agent-access hook blocks bash commands containing '2>&1' because the '>' in '2>&1' matches the WRITE_BASH_PATTERNS redirect regex `/>>?\\s*\\S/`. The '>' in '>&' matches as a redirect even though it's stderr redirection. Use plain claude commands without stderr redirection to avoid this when the claude-developer agent is active."
+  - date: "2026-05-03"
+    note: "BUG FIX: Race condition in agent_logs writing. The Stop hook's filterTranscriptToAgentLogs() reads the transcript file from disk, but the final assistant message may not have been flushed to the transcript yet when the hook fires. The hook receives last_assistant_message in its input (in memory), but the on-disk transcript lags by one entry. Fix: added optional lastAssistantMessage parameter to filterTranscriptToAgentLogs(). After filtering the transcript, if the last filtered entry is not role='assistant', the function appends an assistant entry using the hook input's last_assistant_message (cleaned via extractCleanResponse). Both handleStop and handleSubagentStop now pass the cleaned response. No duplicates when transcript already has the final assistant message."
+  - date: "2026-05-03"
+    note: "The race condition in agent_logs affected both main agent and delegated child agent logs. For the main agent, the transcript ended with a tool_result (user role) and the final assistant summary was missing. For delegated children, the transcript only had the user prompt and the assistant response was missing. The fix ensures the last_assistant_message from the Stop/SubagentStop hook input always makes it into agent_logs, regardless of transcript flush timing."
+
+testing_system:
+  expertise-file: testing-system.yaml
+  summary: "Test framework for Claude Code extensions. Unit tests pipe JSON hook inputs via stdin and inspect files in temp directories. Integration tests call the claude CLI and verify session logs. Runner at .claude/tests/runner.ts discovers and executes all test suites."
+  key_components:
+    - name: test runner
+      path: ".claude/tests/runner.ts"
+      usage: "bun .claude/tests/runner.ts [--unit|--integration|--all] [--filter <name>] [--list] [--no-cleanup] [--timeout <ms>]"
+      note: "Imports all test suites, runs them sequentially, reports pass/fail with timing. Exits 0 on success, 1 on failure, 2 on runner error."
+    - name: helpers
+      path: ".claude/tests/helpers.ts"
+      exports: "runHook, runScript, runClaude, runClaudeIntegration, createTempProject, cleanupTempProject, getSessionDirs, readConversationLog, readMetadata, cleanupSessions, assert*, assertEqual, assertIncludes, etc."
+    - name: unit tests
+      path: ".claude/tests/*.test.ts (category: 'unit')"
+      note: "Test hooks/scripts by piping JSON to stdin and inspecting output files. Use temp project dirs to avoid polluting real sessions. Fast (~600ms for all)."
+    - name: integration tests
+      path: ".claude/tests/*.test.ts (category: 'integration')"
+      note: "Call real claude CLI, verify session creation and access control. Slower (~50s for all). Each test snapshots sessions before/after and cleans up new dirs."
+  bun_spawn_gotchas:
+    - "Bun.spawn stdin: 'pipe' option does NOT return a WritableStream — child.stdin has no getWriter(). Use stdin: Bun.file(tempPath) to pipe from a file instead."
+    - "Bun.file() expects a file path string, NOT a Blob. Write input to a temp file first, then pass Bun.file(tempPath) as stdin option."
+    - "Bun.spawn env: spread Bun.env first, then override specific vars. Empty string overrides are valid (e.g., CRYPLATIVE_SESSION_ID: '' clears the var)."
+  test_coverage:
+    enforce-agent-access: "17 tests: agent allow/deny, tool classification (Read/Write/Bash/Grep/WebFetch), path traversal, glob matching"
+    session-logger: "13 tests: SessionStart metadata, UserPromptSubmit print/interactive mode, Stop response, delegated mode skip, edge cases, agent_logs race condition (3 tests: missing response, no duplicate, tool_result ending)"
+    yaml-validator: "6 tests: valid/invalid YAML, mixed files, empty dir, nested dirs, nonexistent dir"
+    session-logging: "2 tests: basic -p session creation, --agent session with correct metadata"
+    delegation: "2 tests: delegate script creates delegation+response entries, agent_logs for child (with assistant response verification)"
+    access-control: "3 tests: write deny outside domain, read allow inside domain, read-only session access"

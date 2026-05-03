@@ -1,4 +1,10 @@
 {
+  "scripts": {
+    "test": "cd .. && bun .claude/tests/runner.ts --all",
+    "test:unit": "cd .. && bun .claude/tests/runner.ts --unit",
+    "test:integration": "cd .. && bun .claude/tests/runner.ts --integration",
+    "test:list": "cd .. && bun .claude/tests/runner.ts --list"
+  },
   "dependencies": {
     "js-yaml": "^4.1.1"
   },
