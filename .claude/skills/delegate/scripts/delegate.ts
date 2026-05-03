@@ -2,7 +2,9 @@
  * delegate.ts
  *
  * Delegation script that spawns a child claude process targeting a specific agent.
- * Logs delegation and response entries to the session's _conversation.jsonl.
+ * Uses --output-format stream-json to capture the full conversation event stream,
+ * writes it to agent_logs/{agent-name}-{run-id}.jsonl, and logs delegation and
+ * response entries to the session's _conversation.jsonl.
  *
  * Usage: bun .claude/skills/delegate/scripts/delegate.ts <agent-name> <prompt>
  *
@@ -14,7 +16,7 @@
  *                           "initial_prompt" instead of "user_prompt".
  */
 
-import { mkdir, appendFile } from "node:fs/promises";
+import { mkdir, appendFile, open } from "node:fs/promises";
 import { join } from "node:path";
 
 function main() {
@@ -42,17 +44,84 @@ function main() {
   // Determine the calling agent name (from env or default to "global")
   const fromAgent = process.env.CLAUDE_AGENT_NAME ?? "global";
 
+  // Generate a 6-char run ID for this agent invocation.
+  // This is passed to the child process so its hooks use the same run_id.
+  const runId = generateRunId();
+
   runDelegation(
     sessionsDir,
     sessionId,
     delegationId,
     fromAgent,
     agentName,
-    prompt
+    prompt,
+    runId
   ).catch((err) => {
     console.error(`Delegation failed: ${(err as Error).message}`);
     process.exit(1);
   });
+}
+
+/**
+ * Generate a 6-character random alphanumeric string for agent run identification.
+ */
+function generateRunId(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  for (let i = 0; i < 6; i++) {
+    result += chars[bytes[i] % chars.length];
+  }
+  return result;
+}
+
+/**
+ * Extract the final text result from stream-json output.
+ * Scans for the "result" event type and returns its "result" field.
+ * Falls back to concatenating all assistant text content blocks.
+ */
+function extractTextFromStreamJson(lines: string[]): string {
+  // Try to find the result event (final summary)
+  for (const line of lines) {
+    try {
+      const event = JSON.parse(line);
+      if (event.type === "result" && typeof event.result === "string") {
+        return event.result;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  // Fallback: collect all text from assistant messages
+  const textParts: string[] = [];
+  for (const line of lines) {
+    try {
+      const event = JSON.parse(line);
+      if (event.type === "assistant" && event.message?.content) {
+        const content = event.message.content;
+        if (typeof content === "string") {
+          textParts.push(content);
+        } else if (Array.isArray(content)) {
+          for (const block of content) {
+            if (
+              block &&
+              typeof block === "object" &&
+              block.type === "text" &&
+              typeof block.text === "string"
+            ) {
+              textParts.push(block.text);
+            }
+          }
+        }
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return textParts.join("\n").trim();
 }
 
 async function runDelegation(
@@ -61,14 +130,19 @@ async function runDelegation(
   delegationId: string,
   fromAgent: string,
   agentName: string,
-  prompt: string
+  prompt: string,
+  runId: string
 ) {
   const sessionPath = join(sessionsDir, sessionId);
   const conversationFile = join(sessionPath, "_conversation.jsonl");
+  const agentLogsDir = join(sessionPath, "agent_logs");
 
-  // Ensure session directory exists
+  // Ensure session and agent_logs directories exist
   if (!(await Bun.file(sessionPath).exists())) {
     await mkdir(sessionPath, { recursive: true });
+  }
+  if (!(await Bun.file(agentLogsDir).exists())) {
+    await mkdir(agentLogsDir, { recursive: true });
   }
 
   // Write delegation entry
@@ -79,6 +153,7 @@ async function runDelegation(
     delegation_type: "skill",
     prompt,
     delegation_id: delegationId,
+    agent_run_id: runId,
   };
 
   await appendFile(
@@ -86,27 +161,79 @@ async function runDelegation(
     JSON.stringify(delegationEntry) + "\n"
   );
 
-  // Spawn child claude process using Bun.spawn
+  // Open the agent log file for writing stream-json output as it arrives
+  const agentLogFile = join(agentLogsDir, `${agentName}-${runId}.jsonl`);
+  const logFileHandle = await open(agentLogFile, "w");
+
+  // Spawn child claude process with --output-format stream-json
+  // Note: --verbose is required when using --output-format stream-json with --print
   const child = Bun.spawn(
-    ["claude", "--agent", agentName, "-p", prompt],
+    ["claude", "--agent", agentName, "-p", prompt, "--verbose", "--output-format", "stream-json"],
     {
       env: {
         ...Bun.env,
         CRYPLATIVE_SESSION_ID: sessionId,
         CRYPLATIVE_PRINT_MODE: "1",
+        CRYPLATIVE_AGENT_RUN_ID: runId,
       },
       stdout: "pipe",
       stderr: "pipe",
     }
   );
 
-  const stdout = await new Response(child.stdout).text();
+  // Read stdout stream line by line: filter and save only user/assistant messages
+  // to agent_logs, collecting all lines for text extraction
+  const streamJsonLines: string[] = [];
+  const reader = child.stdout.getReader();
+  const decoder = new TextDecoder();
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split("\n");
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+
+        streamJsonLines.push(line);
+
+        // Only log user/assistant messages, keeping just the "message" field
+        try {
+          const event = JSON.parse(line);
+          if (
+            (event.type === "user" || event.type === "assistant") &&
+            event.message
+          ) {
+            await logFileHandle.write(
+              JSON.stringify(event.message) + "\n"
+            );
+          }
+        } catch {
+          // Skip malformed lines
+        }
+      }
+    }
+  } finally {
+    await logFileHandle.close();
+  }
+
   const stderr = await new Response(child.stderr).text();
   const exitCode = await child.exited;
 
-  // Output the child's response to stdout (so the calling agent sees it)
-  if (stdout) {
-    process.stdout.write(stdout);
+  // If child failed, log stderr for diagnostics
+  if (exitCode !== 0 && stderr) {
+    process.stderr.write(`Child process stderr (exit ${exitCode}):\n${stderr}\n`);
+  }
+
+  // Extract the final text response from stream-json output
+  const textResponse = extractTextFromStreamJson(streamJsonLines);
+
+  // Output the child's text response to stdout (so the calling agent sees it)
+  if (textResponse) {
+    process.stdout.write(textResponse);
   }
 
   // Write response entry
@@ -115,8 +242,9 @@ async function runDelegation(
     timestamp: new Date().toISOString(),
     from_agent: agentName,
     delegation_id: delegationId,
-    response_preview: stdout.substring(0, 500),
+    response_preview: textResponse.substring(0, 500),
     exit_code: exitCode,
+    agent_run_id: runId,
   };
 
   await appendFile(

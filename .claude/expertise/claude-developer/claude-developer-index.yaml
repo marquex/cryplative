@@ -42,40 +42,58 @@ delegation_system:
       structure: "SKILL.md + scripts/delegate.ts + scripts/reference.md"
     - name: session directory
       path: ".claude/sessions/<CRYPLATIVE_SESSION_ID>/"
-      files: ["_conversation.jsonl (user_prompt/initial_prompt/response/delegation entries)"]
-      note: "Session folder should ONLY contain _conversation.jsonl. No marker files, no _subagent-log.jsonl, no other artifacts."
+      files:
+        - "_conversation.jsonl (user_prompt/initial_prompt/response/delegation entries)"
+        - "_metadata.json (run_id, agent_name, transcript_path — used for cross-hook state)"
+        - "agent_logs/ directory — contains raw conversation transcripts per agent run"
+      note: "_metadata.json is necessary because CLAUDE_ENV_FILE exports don't propagate to hook processes. It stores the session's run_id so all hooks can read it consistently."
     - name: session state directory
       path: ".claude/sessions/.state/<claude_session_id>.json"
       purpose: "DEPRECATED — no longer needed. Session ID is now derived deterministically from input.session_id in all hooks, so no shared state is required."
       note: "Can be removed in future cleanup."
     - name: session ID propagation
       mechanism: "CRYPLATIVE_SESSION_ID env var is passed from parent to child claude process via Bun.spawn env spread"
+    - name: agent run ID
+      mechanism: "6-char random alphanumeric string (generateRunId) that uniquely identifies each agent run. Main agent gets one per session (generated in SessionStart). Sub-agents get a fresh one per invocation (generated in SubagentStop/delegate.ts). Stored in _metadata.json and passed to child processes via CRYPLATIVE_AGENT_RUN_ID env var."
+      storage:
+        - "_metadata.json — cross-hook persistence for main agent"
+        - "_conversation.jsonl — agent_run_id field in entries"
+        - "agent_logs/{agent-name}-{run_id}.jsonl — raw transcript filename"
+    - name: agent_logs directory
+      path: ".claude/sessions/<CRYPLATIVE_SESSION_ID>/agent_logs/"
+      contents: "One JSONL file per agent run: {agent-name}-{run_id}.jsonl"
+      format: "Only user and assistant messages. Each line is just the message object (e.g. {role, content}). System messages, tool_use, tool_result, result events are all filtered out."
+      sources:
+        - "delegate.ts: stream-json output from --output-format stream-json, filtered to type=user|assistant, keeping only the message field"
+        - "Stop hook: reads main session transcript, filters to role=user|assistant"
+        - "SubagentStop hook: reads subagent transcript, filters to role=user|assistant"
+      note: "delegate.ts filters stream-json events (type+message format) extracting only message. Hooks filter Claude transcripts (role+content format) keeping matching lines."
     - name: CLAUDE_ENV_FILE
       note: "Exports written here by SessionStart hook propagate to Bash tool commands but NOT to other hook processes"
   conversation_log_format:
     file: "_conversation.jsonl"
     entry_types:
       - type: user_prompt
-        fields: "type, timestamp, from_agent, prompt"
+        fields: "type, timestamp, from_agent, prompt, agent_run_id"
         source: "session-logger hook (UserPromptSubmit)"
-        note: "Used in interactive mode. ALL user prompts are logged (no guard). Every prompt submission creates a user_prompt entry."
+        note: "Used in interactive mode. ALL user prompts are logged (no guard). agent_run_id is the main agent's run ID from _metadata.json."
       - type: initial_prompt
-        fields: "type, timestamp, from_agent, prompt"
+        fields: "type, timestamp, from_agent, prompt, agent_run_id"
         source: "session-logger hook (UserPromptSubmit)"
         note: "Used in print mode (-p flag). Only logged once per session (hasInitialPromptEntry checks file content for existing entry). Detected via CRYPLATIVE_PRINT_MODE env var set by delegate.ts."
       - type: response
-        fields: "type, timestamp, from_agent, response_preview (first 500 chars), delegation_id (when from delegation), exit_code (when from delegate.ts)"
+        fields: "type, timestamp, from_agent, response_preview (first 500 chars), delegation_id (when from delegation), exit_code (when from delegate.ts), agent_run_id"
         sources:
-          - "session-logger hook (Stop) — agent's final response"
-          - "session-logger hook (SubagentStop) — internal subagent response"
-          - "delegate.ts script — child agent response after /delegate skill call"
-        note: "Unified entry type for ALL responses. Linked to a delegation entry via delegation_id when the response comes from a delegated agent."
+          - "session-logger hook (Stop) — agent's final response (main agent's run_id)"
+          - "session-logger hook (SubagentStop) — internal subagent response (fresh run_id per invocation)"
+          - "delegate.ts script — child agent response after /delegate skill call (fresh run_id per invocation)"
+        note: "Unified entry type for ALL responses. Linked to a delegation entry via delegation_id when the response comes from a delegated agent. agent_run_id identifies the specific run of the responding agent."
       - type: delegation
-        fields: "type, timestamp, from_agent, delegation_type (skill|internal), prompt, delegation_id"
+        fields: "type, timestamp, from_agent, delegation_type (skill|internal), prompt, delegation_id, agent_run_id"
         sources:
           - "delegate.ts script (delegation_type='skill') — explicit /delegate skill calls"
           - "session-logger hook (SubagentStop) (delegation_type='internal') — Claude's internal subagent mechanism"
-        note: "delegation_type differentiates explicit skill calls from Claude's internal subagent spawning. For internal subagents, from_agent is resolved by scanning recent conversation log entries (findParentAgent), and prompt is extracted from hook input's prompt or tool_input fields (extractSubagentPrompt). Falls back to 'unknown' and placeholder string respectively."
+        note: "delegation_type differentiates explicit skill calls from Claude's internal subagent spawning. agent_run_id is the sub-agent's run_id."
     removed_fields_note: "to_agent, session_id, and claude_session_id were removed from all entry types — redundant or unused."
     note: "Append-only JSONL, safe for concurrent use. delegation_id links response to its delegation."
     mode_detection:
@@ -171,3 +189,17 @@ observations:
     note: "Cleaned up _conversation.jsonl entry schema: (1) Removed to_agent from all entries (redundant with delegation_id), (2) Renamed subagent_stop type to response (unified response type for all sources), (3) Added delegation_type='skill'|'internal' to delegation entries to differentiate trigger source, (4) Removed session_id and claude_session_id from all entries (never used by consumers). Also cleaned up delegate.ts by removing unused claudeSessionId parameter."
   - date: "2026-05-02"
     note: "Updated findParentAgent() to skip entries with delegation_type='internal' instead of checking for subagent_stop type or missing to_agent field. This is cleaner since delegation_type is the canonical discriminator now."
+  - date: "2026-05-03"
+    note: "Added agent run ID system (6-char random string) and agent_logs directory to the session folder. Each agent run gets a unique ID stored in _conversation.jsonl entries. Raw transcripts are saved to agent_logs/{agent-name}-{run_id}.jsonl. Main agent's run_id is generated in SessionStart and persisted in _metadata.json. Sub-agents get fresh run_ids per invocation."
+  - date: "2026-05-03"
+    note: "delegate.ts now uses --verbose --output-format stream-json and streams output line-by-line to agent_logs. The --verbose flag is REQUIRED for stream-json output with --print. Filters to only type=user|assistant events, keeping only the 'message' field. Uses ReadableStream reader (child.stdout.getReader() + TextDecoder). Extracts text response from stream-json 'result' event type, with fallback to concatenated assistant text blocks."
+  - date: "2026-05-03"
+    note: "Introduced _metadata.json in session folders to persist data across hook invocations. Needed because CLAUDE_ENV_FILE exports don't propagate to hook processes. Stores run_id, agent_name, and transcript_path. Read by UserPromptSubmit, Stop, and SubagentStop hooks."
+  - date: "2026-05-03"
+    note: "Stop and SubagentStop hooks filter Claude Code transcripts before writing to agent_logs — only keeping user and assistant messages (by role field). System, tool_use, tool_result, result entries are all stripped."
+  - date: "2026-05-03"
+    note: "CRYPLATIVE_AGENT_RUN_ID env var is used by delegate.ts to pass the run_id to child claude processes. The child's SessionStart hook checks for this env var and reuses it (instead of generating a new one) so all hooks in the child session use the same run_id. This is safe because the env var is set fresh per delegation invocation."
+  - date: "2026-05-03"
+    note: "CRITICAL: --output-format stream-json requires --verbose when used with --print. Without --verbose, the claude CLI exits with code 1 and the error message 'Error: When using --print, --output-format=stream-json requires --verbose'. The delegate.ts spawn command must include both --verbose and --output-format stream-json. Also added stderr diagnostic logging to delegate.ts — when child exit code is non-zero, stderr is printed to help debug future issues."
+  - date: "2026-05-03"
+    note: "enforce-agent-access hook blocks bash commands containing '2>&1' because the '>' in '2>&1' matches the WRITE_BASH_PATTERNS redirect regex. Use plain claude commands without stderr redirection to avoid this. Also, the extractBashTargets function treats '-name \"filename\"' as a file path, which can cause false denials for find commands."

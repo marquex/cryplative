@@ -3,20 +3,20 @@
  *
  * Hook script for SessionStart, UserPromptSubmit, Stop, and SubagentStop events.
  * - On SessionStart: derives a CRYPLATIVE_SESSION_ID deterministically from the
- *   Claude session ID, detects the agent name from agent_type (or uses "global"),
- *   writes both to CLAUDE_ENV_FILE, and creates the session directory.
- * - On UserPromptSubmit: logs user prompts to _conversation.jsonl.
+ *   Claude session ID, generates a CRYPLATIVE_AGENT_RUN_ID (6-char random string),
+ *   detects the agent name from agent_type (or uses "global"), writes env vars
+ *   to CLAUDE_ENV_FILE, creates the session directory + agent_logs subdirectory,
+ *   and writes session metadata to _metadata.json.
+ * - On UserPromptSubmit: logs user prompts to _conversation.jsonl with agent_run_id.
  *   - In print mode (-p flag, detected via CRYPLATIVE_PRINT_MODE env var):
  *     logs the first prompt as "initial_prompt" (only once per session).
  *   - In interactive mode (no CRYPLATIVE_PRINT_MODE):
  *     logs ALL prompts as "user_prompt" (every submission is stored).
- * - On Stop: logs the agent's final response as a "response" entry to
- *   _conversation.jsonl.
- * - On SubagentStop: logs a "delegation" entry (recording the internal subagent
- *   call) with delegation_type="internal", followed by a "response" entry with
- *   the subagent's response, both to _conversation.jsonl. The delegation entry
- *   is linked to the response entry via a shared delegation_id, and the parent
- *   agent is determined by scanning recent conversation log entries.
+ * - On Stop: logs the agent's final response as a "response" entry with agent_run_id
+ *   to _conversation.jsonl, and copies the session transcript to agent_logs.
+ * - On SubagentStop: logs a "delegation" entry with delegation_type="internal",
+ *   followed by a "response" entry with agent_run_id and the subagent's response,
+ *   and copies the subagent transcript to agent_logs.
  *
  * IMPORTANT: All hooks derive the session ID deterministically from
  * input.session_id. They NEVER check process.env.CRYPLATIVE_SESSION_ID —
@@ -25,18 +25,19 @@
  * claude process inherits the parent's CRYPLATIVE_SESSION_ID from the
  * Bash tool environment.
  *
- * CRYPLATIVE_PRINT_MODE detection: When delegate.ts spawns a child claude
- * process with -p, it sets CRYPLATIVE_PRINT_MODE=1 in the spawn env. This
- * env var is inherited by the child's hook processes (unlike CLAUDE_ENV_FILE
- * exports, which only propagate to Bash tool commands). The session-logger
- * checks this env var to determine whether to log as "initial_prompt" (print
- * mode) or "user_prompt" (interactive mode).
+ * Agent Run ID: A 6-character random alphanumeric string that uniquely identifies
+ * each agent run. For the main agent (interactive sessions), one run_id is generated
+ * per session and reused across all prompts/responses. For sub-agents, a fresh
+ * run_id is generated per invocation. The run_id is stored in:
+ * - _metadata.json (for main agent, persisted across hooks)
+ * - agent_run_id field in _conversation.jsonl entries
+ * - agent_logs/{agent-name}-{run_id}.jsonl filename
  *
  * Always exits 0 (non-blocking).
  */
 
-import { createHash, randomUUID } from "node:crypto";
-import { mkdir, appendFile, readFile } from "node:fs/promises";
+import { createHash, randomUUID, getRandomValues } from "node:crypto";
+import { mkdir, appendFile, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
@@ -44,6 +45,7 @@ interface HookInput {
   session_id: string;
   cwd: string;
   hook_event_name: string;
+  transcript_path?: string;
   agent_type?: string;
   prompt?: string;
   last_assistant_message?: string;
@@ -54,6 +56,27 @@ interface HookInput {
   //   stop_hook_active: boolean
   //   permission_mode: string
   [key: string]: unknown;
+}
+
+interface SessionMetadata {
+  run_id: string;
+  agent_name: string;
+  transcript_path?: string;
+}
+
+/**
+ * Generate a 6-character random alphanumeric string for agent run identification.
+ * Uses crypto.getRandomValues for secure randomness.
+ */
+function generateRunId(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  for (let i = 0; i < 6; i++) {
+    result += chars[bytes[i] % chars.length];
+  }
+  return result;
 }
 
 /**
@@ -108,6 +131,76 @@ function isPrintMode(): boolean {
   return process.env.CRYPLATIVE_PRINT_MODE === "1";
 }
 
+/** Read session metadata from _metadata.json. Returns null if not found. */
+async function readMetadata(sessionPath: string): Promise<SessionMetadata | null> {
+  const metadataPath = join(sessionPath, "_metadata.json");
+  try {
+    const raw = await readFile(metadataPath, "utf-8");
+    return JSON.parse(raw) as SessionMetadata;
+  } catch {
+    return null;
+  }
+}
+
+/** Write session metadata to _metadata.json. */
+async function writeMetadata(
+  sessionPath: string,
+  metadata: SessionMetadata
+): Promise<void> {
+  const metadataPath = join(sessionPath, "_metadata.json");
+  await writeFile(metadataPath, JSON.stringify(metadata, null, 2) + "\n");
+}
+
+/**
+ * Filter a transcript file and write only user/assistant messages to agent_logs.
+ * Each output line is just the "message" object from matching entries.
+ * Handles both formats:
+ * - stream-json: { type: "user"|"assistant", message: {...} } → extract message
+ * - Claude transcript: { role: "user"|"assistant", ... } → keep as-is
+ */
+async function filterTranscriptToAgentLogs(
+  sessionPath: string,
+  agentName: string,
+  runId: string,
+  transcriptPath: string
+): Promise<void> {
+  const agentLogsDir = join(sessionPath, "agent_logs");
+  if (!existsSync(agentLogsDir)) {
+    await mkdir(agentLogsDir, { recursive: true });
+  }
+
+  const destPath = join(agentLogsDir, `${agentName}-${runId}.jsonl`);
+
+  try {
+    if (!existsSync(transcriptPath)) return;
+
+    const content = await readFile(transcriptPath, "utf-8");
+    const lines = content.trim().split("\n");
+    const filtered: string[] = [];
+
+    for (const line of lines) {
+      try {
+        const entry = JSON.parse(line);
+        if (entry.message && (entry.type === "user" || entry.type === "assistant")) {
+          // stream-json format: extract only the message field
+          filtered.push(JSON.stringify(entry.message));
+        } else if (entry.role === "user" || entry.role === "assistant") {
+          // Claude transcript format: already a message, keep as-is
+          filtered.push(JSON.stringify(entry));
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    if (filtered.length > 0) {
+      await writeFile(destPath, filtered.join("\n") + "\n");
+    }
+  } catch {
+    // Transcript may not be readable — non-critical
+  }
+}
+
 async function main() {
   const raw = await Bun.stdin.text();
   let input: HookInput;
@@ -137,25 +230,43 @@ async function handleSessionStart(sessionsDir: string, input: HookInput) {
   const envFile = process.env.CLAUDE_ENV_FILE;
 
   // Always derive session ID deterministically from Claude session ID.
-  // This ensures consistency even if CRYPLATIVE_SESSION_ID leaks from a
-  // parent process env (e.g., when running `claude -p` from Bash tool).
   const sessionId = deriveSessionId(input.session_id);
 
   // Create session directory
   const sessionPath = join(sessionsDir, sessionId);
   await mkdir(sessionPath, { recursive: true });
 
+  // Create agent_logs subdirectory
+  const agentLogsDir = join(sessionPath, "agent_logs");
+  await mkdir(agentLogsDir, { recursive: true });
+
   // Determine agent name: use agent_type from hook input if --agent was used,
   // otherwise default to "global"
   const agentName = input.agent_type ?? "global";
 
+  // Generate or reuse agent run ID.
+  // If CRYPLATIVE_AGENT_RUN_ID is in the env, it was set by delegate.ts for
+  // child processes — use it. Otherwise generate a new one.
+  let runId = process.env.CRYPLATIVE_AGENT_RUN_ID;
+  if (!runId) {
+    runId = generateRunId();
+  }
+
+  // Write metadata file so other hooks can read the run_id and transcript_path.
+  // This is necessary because CLAUDE_ENV_FILE exports don't propagate to hook
+  // processes — only to Bash tool commands.
+  await writeMetadata(sessionPath, {
+    run_id: runId,
+    agent_name: agentName,
+    transcript_path: input.transcript_path,
+  });
+
   // Write environment variables to CLAUDE_ENV_FILE so they propagate to Bash commands.
-  // These are consumed by scripts like delegate.ts, NOT by other hook processes
-  // (hooks don't source CLAUDE_ENV_FILE).
   if (envFile) {
     await appendFile(envFile, `export CRYPLATIVE_SESSION_ID="${sessionId}"\n`);
     await appendFile(envFile, `export CLAUDE_AGENT_NAME="${agentName}"\n`);
     await appendFile(envFile, `export CLAUDE_SESSION_ID="${input.session_id}"\n`);
+    await appendFile(envFile, `export CRYPLATIVE_AGENT_RUN_ID="${runId}"\n`);
   }
 
   process.exit(0);
@@ -163,8 +274,6 @@ async function handleSessionStart(sessionsDir: string, input: HookInput) {
 
 async function handleUserPromptSubmit(sessionsDir: string, input: HookInput) {
   // ALWAYS derive from input.session_id — never check process.env.CRYPLATIVE_SESSION_ID.
-  // The env var may be leaked from a parent claude process (via Bash tool env),
-  // which would cause this hook to write to the wrong session directory.
   const claudeSessionId = input.session_id;
   const sessionId = deriveSessionId(claudeSessionId);
   const agentName = input.agent_type ?? "global";
@@ -183,10 +292,12 @@ async function handleUserPromptSubmit(sessionsDir: string, input: HookInput) {
 
   const conversationFile = join(sessionPath, "_conversation.jsonl");
 
+  // Read agent_run_id from metadata (written by SessionStart hook)
+  const metadata = await readMetadata(sessionPath);
+  const runId = metadata?.run_id;
+
   if (isPrintMode()) {
     // Print mode (-p flag): log the first prompt as "initial_prompt" only.
-    // Used by delegate.ts which spawns child processes with -p.
-    // Only one prompt per session in print mode, so guard with hasInitialPromptEntry.
     if (await hasInitialPromptEntry(conversationFile)) {
       process.exit(0);
     }
@@ -196,17 +307,18 @@ async function handleUserPromptSubmit(sessionsDir: string, input: HookInput) {
       timestamp: new Date().toISOString(),
       from_agent: agentName,
       prompt,
+      ...(runId && { agent_run_id: runId }),
     };
 
     await appendFile(conversationFile, JSON.stringify(entry) + "\n");
   } else {
     // Interactive mode: log ALL user prompts as "user_prompt".
-    // No guard — every prompt submission is stored in the conversation.
     const entry = {
       type: "user_prompt",
       timestamp: new Date().toISOString(),
       from_agent: agentName,
       prompt,
+      ...(runId && { agent_run_id: runId }),
     };
 
     await appendFile(conversationFile, JSON.stringify(entry) + "\n");
@@ -235,14 +347,34 @@ async function handleStop(sessionsDir: string, input: HookInput) {
 
   const conversationFile = join(sessionPath, "_conversation.jsonl");
 
+  // Read agent_run_id from metadata
+  const metadata = await readMetadata(sessionPath);
+  const runId = metadata?.run_id;
+
   const entry = {
     type: "response",
     timestamp: new Date().toISOString(),
     from_agent: agentName,
     response_preview: lastMessage.substring(0, 500),
+    ...(runId && { agent_run_id: runId }),
   };
 
   await appendFile(conversationFile, JSON.stringify(entry) + "\n");
+
+  // Copy the session transcript to agent_logs.
+  // Use transcript_path from hook input (Stop includes it), falling back to
+  // the transcript_path stored in metadata by SessionStart.
+  const transcriptPath =
+    input.transcript_path ?? metadata?.transcript_path;
+  if (transcriptPath && runId) {
+    await filterTranscriptToAgentLogs(
+      sessionPath,
+      agentName,
+      runId,
+      transcriptPath
+    );
+  }
+
   process.exit(0);
 }
 
@@ -299,9 +431,6 @@ async function extractSubagentPrompt(input: HookInput): Promise<string> {
   }
 
   // Read the subagent's own transcript to extract the initial user message.
-  // agent_transcript_path points to the subagent's conversation transcript
-  // (e.g., ~/.claude/projects/.../subagents/agent-<id>.jsonl), which starts
-  // with the user message containing the exact task/prompt given to the subagent.
   const agentTranscriptPath = input["agent_transcript_path"] as
     | string
     | undefined;
@@ -318,9 +447,7 @@ async function extractSubagentPrompt(input: HookInput): Promise<string> {
 
 /**
  * Try to extract the initial user message (the task/prompt) from a
- * Claude Code transcript file. Claude Code transcripts are JSONL files
- * where each line is a message. The first user message is the prompt
- * given to the subagent.
+ * Claude Code transcript file.
  *
  * Handles two common formats:
  * - Flat: { type: "user", content: "..." }
@@ -410,16 +537,12 @@ function extractCleanResponse(lastMessage: string): string {
 
 async function handleSubagentStop(sessionsDir: string, input: HookInput) {
   // ALWAYS derive from input.session_id — never check process.env.
-  // SubagentStop fires for Claude's internal subagent mechanism (not delegate.ts).
-  // The subagent shares the parent's Claude session_id, so it derives the same
-  // session ID and writes to the same session directory.
   const claudeSessionId = input.session_id;
   const sessionId = deriveSessionId(claudeSessionId);
   const subagentType = input.agent_type ?? "";
   const rawMessage = input.last_assistant_message ?? "";
 
   // Skip empty agent_type — these are Claude Code internal subagents
-  // (e.g., background processing), not real agent delegations.
   if (!subagentType || !rawMessage) {
     process.exit(0);
   }
@@ -434,6 +557,9 @@ async function handleSubagentStop(sessionsDir: string, input: HookInput) {
   const conversationFile = join(sessionPath, "_conversation.jsonl");
   const delegationId = `del-${randomUUID()}`;
 
+  // Generate a fresh run_id for this sub-agent invocation
+  const runId = generateRunId();
+
   // Determine the parent agent and the prompt given to the subagent
   const parentAgent = await findParentAgent(conversationFile);
   const prompt = await extractSubagentPrompt(input);
@@ -442,8 +568,6 @@ async function handleSubagentStop(sessionsDir: string, input: HookInput) {
   const cleanResponse = extractCleanResponse(rawMessage);
 
   // Log a delegation entry to record that an internal subagent call occurred.
-  // This parallels the delegation entries written by delegate.ts for explicit
-  // /delegate skill calls, so all inter-agent calls appear uniformly in the log.
   const delegationEntry = {
     type: "delegation",
     timestamp: new Date().toISOString(),
@@ -451,6 +575,7 @@ async function handleSubagentStop(sessionsDir: string, input: HookInput) {
     delegation_type: "internal",
     prompt,
     delegation_id: delegationId,
+    agent_run_id: runId,
   };
 
   await appendFile(
@@ -459,16 +584,30 @@ async function handleSubagentStop(sessionsDir: string, input: HookInput) {
   );
 
   // Log the response entry linked to the delegation via delegation_id.
-  // Modeled like the response from a /delegate skill call.
   const stopEntry = {
     type: "response",
     timestamp: new Date().toISOString(),
     from_agent: subagentType,
     response_preview: cleanResponse.substring(0, 500),
     delegation_id: delegationId,
+    agent_run_id: runId,
   };
 
   await appendFile(conversationFile, JSON.stringify(stopEntry) + "\n");
+
+  // Copy the subagent's transcript to agent_logs
+  const agentTranscriptPath = input[
+    "agent_transcript_path"
+  ] as string | undefined;
+  if (agentTranscriptPath) {
+    await filterTranscriptToAgentLogs(
+      sessionPath,
+      subagentType,
+      runId,
+      agentTranscriptPath
+    );
+  }
+
   process.exit(0);
 }
 
