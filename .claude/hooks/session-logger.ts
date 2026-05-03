@@ -349,10 +349,16 @@ async function handleSessionStart(sessionsDir: string, input: HookInput) {
     runId = generateRunId();
   }
 
-  // For delegated sessions: don't write _metadata.json (would overwrite parent's)
-  // and don't write to CLAUDE_ENV_FILE (would pollute parent's env).
-  // The child gets its run_id from CRYPLATIVE_AGENT_RUN_ID env var instead.
+  // For delegated sessions: don't write _metadata.json (would overwrite parent's).
+  // But DO write CLAUDE_AGENT_NAME to CLAUDE_ENV_FILE so that Bash tool commands
+  // (e.g., delegate.ts) in the child know which agent is running. Without this,
+  // the inherited CLAUDE_AGENT_NAME from the parent's env leaks through and
+  // delegation entries incorrectly attribute the child as the parent agent.
   if (isDelegatedSession()) {
+    const envFile = process.env.CLAUDE_ENV_FILE;
+    if (envFile) {
+      await appendFile(envFile, `export CLAUDE_AGENT_NAME="${agentName}"\n`);
+    }
     process.exit(0);
   }
 

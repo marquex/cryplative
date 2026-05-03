@@ -41,6 +41,7 @@ delegate_script:
     - "Links delegation and response entries via delegation_id (del-<uuid>)"
     - "Defaults from_agent to 'global' when CLAUDE_AGENT_NAME is not set"
     - "Sets delegation_type='skill' on delegation entries to distinguish from internal subagent calls"
+    - "Sets CLAUDE_AGENT_NAME=<target-agent> in child spawn env so nested delegations correctly attribute from_agent"
   error_handling:
     - "If child fails, response entry still written with error exit code"
     - "Script exits with same exit code as child process"
@@ -87,8 +88,9 @@ session_management:
       critical_note: "NEVER trusted by hook processes! Hooks ALWAYS derive from input.session_id to prevent session ID leakage from parent env."
     - name: CLAUDE_AGENT_NAME
       purpose: "Name of the calling agent, used in from_agent field"
-      source: "Set by session-logger SessionStart hook from agent_type, propagated via CLAUDE_ENV_FILE to Bash commands"
+      source: "Set by session-logger SessionStart hook from agent_type, propagated via CLAUDE_ENV_FILE to Bash commands AND by delegate.ts in child spawn env"
       default: '"global" when no --agent flag is used'
+      critical_note: "Must be set in TWO places for nested delegations to work correctly: (1) CLAUDE_ENV_FILE by SessionStart hook, (2) Bun.spawn env by delegate.ts. Without the delegate.ts env var, child agents inherit the parent's CLAUDE_AGENT_NAME from Bun.env spread, causing delegation entries to incorrectly attribute the child as the parent agent."
     - name: CLAUDE_SESSION_ID
       purpose: "Claude's internal session ID for correlation"
       source: "Available in hook input as input.session_id, set by SessionStart hook in CLAUDE_ENV_FILE"

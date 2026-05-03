@@ -199,6 +199,7 @@ async function runDelegation(
         CRYPLATIVE_DELEGATED_SESSION: "1",
         CRYPLATIVE_PRINT_MODE: "1",
         CRYPLATIVE_AGENT_RUN_ID: runId,
+        CLAUDE_AGENT_NAME: agentName,
       },
       stdout: "pipe",
       stderr: "pipe",
