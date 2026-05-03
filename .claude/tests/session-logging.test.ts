@@ -16,7 +16,6 @@ import {
   runClaudeIntegration,
   readConversationLog,
   readMetadata,
-  cleanupSessions,
 } from './helpers';
 import type { TestSuite } from './helpers';
 import { existsSync } from 'node:fs';
@@ -66,9 +65,6 @@ const suite: TestSuite = {
         assert(responses.length >= 1, 'Expected at least one response entry');
 
         // Verify the response contains our marker
-        const responseText = responses.map(
-          (e) => (e.response_preview as string) || ''
-        ).join('\n');
         assertIncludes(
           result.stdout,
           marker,

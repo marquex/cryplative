@@ -244,7 +244,7 @@ function extractBashTargets(cmd: string): string[] {
     .replace(/[<>]+/g, ' ');                                       // drop redirects
   const tokens = cleaned.split(/\s+/).filter(Boolean);
   return tokens.filter((t) =>
-    t.includes('/') || /^\.{1,2}$/.test(t) || /^[\w.\-]+\.\w+$/.test(t)
+    t.includes('/') || /^\.{1,2}$/.test(t) || /^[\w.-]+\.\w+$/.test(t)
   );
 }
 

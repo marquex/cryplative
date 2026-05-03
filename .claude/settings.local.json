@@ -11,7 +11,8 @@
       "Bash(rm .claude/sessions/.test-hook-input.json .claude/sessions/d6148074-d4ec-4b98-b933-16a0d2eb042a/_conversation.jsonl)",
       "Bash(rmdir .claude/sessions/d6148074-d4ec-4b98-b933-16a0d2eb042a)",
       "Bash(mkdir -p .claude/sessions/_test)",
-      "Bash(bash .claude/sessions/_test/test-print-mode.sh)"
+      "Bash(bash .claude/sessions/_test/test-print-mode.sh)",
+      "Bash(./node_modules/.bin/eslint . *)"
     ]
   }
 }

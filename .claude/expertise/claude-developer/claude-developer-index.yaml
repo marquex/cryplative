@@ -13,6 +13,18 @@ project_setup:
   dependencies:
     - "js-yaml (in .claude/package.json)"
     - "@types/bun (devDependency, required for Bun API type resolution)"
+  quality_checks:
+    typecheck: "bun run typecheck (runs tsc --noEmit via node_modules/.bin/tsc)"
+    lint: "bun run lint (runs eslint . via node_modules/.bin/eslint)"
+    config: "eslint.config.js uses @eslint/js + typescript-eslint with recommended configs"
+    note: "Always run typecheck and lint after making changes to .claude code. Fix all errors before finishing."
+    gotchas:
+      - "Do NOT use '2>&1' in bash commands when the claude-developer agent is active — the enforce-agent-access hook matches '>' as a write redirect pattern"
+      - "When adding 'type: module' to package.json, eslint.config.js must use ESM syntax (import/export), not require()"
+  dev_dependencies:
+    - "typescript — provides tsc for type checking"
+    - "eslint + @eslint/js + typescript-eslint — provides linting"
+    - "@types/node — required for 'types: [\"node\"]' in tsconfig to resolve Node type definitions"
   tsconfig:
     path: ".claude/tsconfig.json"
     note: "Must include both 'bun' and 'node' in 'types' array so the IDE resolves both Bun and Node type definitions"
@@ -210,6 +222,8 @@ observations:
     note: "BUG FIX: Race condition in agent_logs writing. The Stop hook's filterTranscriptToAgentLogs() reads the transcript file from disk, but the final assistant message may not have been flushed to the transcript yet when the hook fires. The hook receives last_assistant_message in its input (in memory), but the on-disk transcript lags by one entry. Fix: added optional lastAssistantMessage parameter to filterTranscriptToAgentLogs(). After filtering the transcript, if the last filtered entry is not role='assistant', the function appends an assistant entry using the hook input's last_assistant_message (cleaned via extractCleanResponse). Both handleStop and handleSubagentStop now pass the cleaned response. No duplicates when transcript already has the final assistant message."
   - date: "2026-05-03"
     note: "The race condition in agent_logs affected both main agent and delegated child agent logs. For the main agent, the transcript ended with a tool_result (user role) and the final assistant summary was missing. For delegated children, the transcript only had the user prompt and the assistant response was missing. The fix ensures the last_assistant_message from the Stop/SubagentStop hook input always makes it into agent_logs, regardless of transcript flush timing."
+  - date: "2026-05-03"
+    note: "Added typecheck and lint commands to .claude/package.json. typecheck runs 'tsc --noEmit' and lint runs 'eslint .'. Both use binaries from node_modules (not bunx). Fixed 17 lint errors: unused imports/variables across test files, unnecessary escape in regex, unused function. Added 'type: module' to package.json for ESM eslint config. Added @types/node as devDependency (required by tsconfig 'types: [\"node\"]'). Added eslint, @eslint/js, typescript-eslint, and typescript as devDependencies."
 
 testing_system:
   expertise-file: testing-system.yaml

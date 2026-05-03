@@ -16,17 +16,14 @@
 
 import {
   assert,
-  assertEqual,
   assertIncludes,
   runClaudeIntegration,
-  readConversationLog,
-  readMetadata,
   cleanupSessions,
 } from './helpers';
 import type { TestSuite } from './helpers';
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
-import { unlink, writeFile, mkdir } from 'node:fs/promises';
+import { unlink } from 'node:fs/promises';
 
 const PROJECT_DIR = process.cwd();
 const SESSIONS_DIR = join(PROJECT_DIR, '.claude', 'sessions');

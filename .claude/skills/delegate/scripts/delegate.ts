@@ -82,6 +82,7 @@ function generateRunId(): string {
  * <command-message> — they contain the full skill definition and are
  * very large, so we filter them out from agent_logs.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function isSkillSetupMessage(message: Record<string, unknown>): boolean {
   if (message.role !== "user") return false;
   const content = message.content;

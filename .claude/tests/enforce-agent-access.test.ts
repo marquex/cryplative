@@ -7,10 +7,8 @@
 
 import {
   runHook,
-  assert,
   assertEqual,
   assertIncludes,
-  assertNotIncludes,
 } from './helpers';
 import type { TestSuite } from './helpers';
 

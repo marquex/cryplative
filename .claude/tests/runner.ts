@@ -129,7 +129,7 @@ async function runSuite(suite: TestSuite): Promise<TestResult[]> {
 // ============ Main ============
 
 async function main() {
-  const { mode, filter, noCleanup, timeout, list } = parseArgs(
+  const { mode, filter, list } = parseArgs(
     process.argv.slice(2)
   );
 

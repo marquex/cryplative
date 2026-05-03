@@ -15,7 +15,6 @@ import {
   assertIncludes,
   runScript,
   readConversationLog,
-  cleanupSessions,
   getSessionDirs,
 } from './helpers';
 import type { TestSuite } from './helpers';
@@ -38,7 +37,7 @@ const suite: TestSuite = {
         const marker = `DELEGATE_PONG_${Date.now()}`;
         const prompt = `Reply with exactly the word: ${marker}`;
 
-        const beforeDirs = new Set(await getSessionDirs(SESSIONS_DIR));
+        await getSessionDirs(SESSIONS_DIR); // snapshot before state
 
         const { stdout, exitCode } = await runScript(
           '.claude/skills/delegate/scripts/delegate.ts',

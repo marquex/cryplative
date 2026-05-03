@@ -5,7 +5,7 @@
  * Tests YAML validation on valid files, invalid files, and edge cases.
  */
 
-import { runScript, assert, assertEqual, assertIncludes, createTempProject, cleanupTempProject } from './helpers';
+import { runScript, assertEqual, assertIncludes, createTempProject, cleanupTempProject } from './helpers';
 import type { TestSuite } from './helpers';
 import { writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';

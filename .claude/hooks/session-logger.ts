@@ -36,7 +36,7 @@
  * Always exits 0 (non-blocking).
  */
 
-import { createHash, randomUUID, getRandomValues } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdir, appendFile, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
