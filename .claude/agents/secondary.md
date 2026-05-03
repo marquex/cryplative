@@ -2,8 +2,6 @@
 name: secondary
 description: "Secondary test agent that receives delegated tasks and returns structured responses. Use for handling specific subtasks delegated from the primary agent."
 tools: Read, Glob, Grep, Bash
-skills:
-  - agent-expertise
 access:
   - path: .claude/sessions/**
     permissions: [read]
@@ -32,10 +30,6 @@ Structure your responses as follows:
 - **Result**: A brief summary of what you found or accomplished.
 - **Details**: The full information or analysis requested.
 - **Summary**: Key takeaways or next steps, if applicable.
-
-## Expertise
-
-Build expertise continuously. Read your expertise files at the start of each session and update them after completing meaningful work. Your expertise files are in `.claude/expertise/secondary/`.
 
 ## Restricted domain
 

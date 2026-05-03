@@ -97,6 +97,41 @@ function deriveSessionId(claudeSessionId: string): string {
   ].join("-");
 }
 
+/**
+ * Check if the current hook process is running in a delegated session.
+ * Delegated sessions are child claude processes spawned by delegate.ts.
+ * They should share the parent's session directory instead of creating their own.
+ */
+function isDelegatedSession(): boolean {
+  return process.env.CRYPLATIVE_DELEGATED_SESSION === "1";
+}
+
+/**
+ * Get the session ID for the current hook invocation.
+ * For delegated sessions (spawned by delegate.ts), uses CRYPLATIVE_SESSION_ID
+ * from the env so the child writes to the parent's session directory.
+ * For normal sessions, derives from input.session_id deterministically.
+ */
+function getSessionId(input: HookInput): string {
+  if (isDelegatedSession() && process.env.CRYPLATIVE_SESSION_ID) {
+    return process.env.CRYPLATIVE_SESSION_ID;
+  }
+  return deriveSessionId(input.session_id);
+}
+
+/**
+ * Get the agent run ID for the current hook invocation.
+ * For delegated sessions, reads CRYPLATIVE_AGENT_RUN_ID from the env
+ * (set by delegate.ts). For normal sessions, returns undefined so the
+ * caller reads from _metadata.json instead.
+ */
+function getRunId(): string | undefined {
+  if (isDelegatedSession()) {
+    return process.env.CRYPLATIVE_AGENT_RUN_ID;
+  }
+  return undefined;
+}
+
 /** Read the last N lines of a file. Returns empty string if file doesn't exist. */
 async function readLastLines(filePath: string, maxLines: number): Promise<string> {
   try {
@@ -120,6 +155,34 @@ async function hasInitialPromptEntry(conversationFile: string): Promise<boolean>
       return false;
     }
   });
+}
+
+/**
+ * Check if a message is a Claude Code skill setup injection.
+ * These are user messages whose first content block's text starts with
+ * <command-message> — they contain the full skill definition and are
+ * very large, so we filter them out from agent_logs.
+ */
+function isSkillSetupMessage(message: Record<string, unknown>): boolean {
+  if (message.role !== "user") return false;
+  const content = message.content;
+  if (typeof content === "string") {
+    return (content as string).trimStart().startsWith("<command-message>");
+  }
+  if (Array.isArray(content) && content.length > 0) {
+    const first = content[0];
+    if (
+      first &&
+      typeof first === "object" &&
+      (first as Record<string, unknown>).type === "text" &&
+      typeof (first as Record<string, unknown>).text === "string"
+    ) {
+      return ((first as Record<string, unknown>).text as string)
+        .trimStart()
+        .startsWith("<command-message>");
+    }
+  }
+  return false;
 }
 
 /**
@@ -181,12 +244,16 @@ async function filterTranscriptToAgentLogs(
     for (const line of lines) {
       try {
         const entry = JSON.parse(line);
+        let message: Record<string, unknown> | null = null;
         if (entry.message && (entry.type === "user" || entry.type === "assistant")) {
           // stream-json format: extract only the message field
-          filtered.push(JSON.stringify(entry.message));
+          message = entry.message as Record<string, unknown>;
         } else if (entry.role === "user" || entry.role === "assistant") {
-          // Claude transcript format: already a message, keep as-is
-          filtered.push(JSON.stringify(entry));
+          // Claude transcript format: already a message
+          message = entry;
+        }
+        if (message && !isSkillSetupMessage(message)) {
+          filtered.push(JSON.stringify(message));
         }
       } catch {
         continue;
@@ -227,12 +294,10 @@ async function main() {
 }
 
 async function handleSessionStart(sessionsDir: string, input: HookInput) {
-  const envFile = process.env.CLAUDE_ENV_FILE;
+  // Use parent's session directory for delegated sessions, derive for normal ones
+  const sessionId = getSessionId(input);
 
-  // Always derive session ID deterministically from Claude session ID.
-  const sessionId = deriveSessionId(input.session_id);
-
-  // Create session directory
+  // Create session directory (no-op if already exists, needed for delegated sessions)
   const sessionPath = join(sessionsDir, sessionId);
   await mkdir(sessionPath, { recursive: true });
 
@@ -245,11 +310,18 @@ async function handleSessionStart(sessionsDir: string, input: HookInput) {
   const agentName = input.agent_type ?? "global";
 
   // Generate or reuse agent run ID.
-  // If CRYPLATIVE_AGENT_RUN_ID is in the env, it was set by delegate.ts for
-  // child processes — use it. Otherwise generate a new one.
+  // Delegated sessions get it from env (set by delegate.ts).
+  // Normal sessions generate a new one.
   let runId = process.env.CRYPLATIVE_AGENT_RUN_ID;
   if (!runId) {
     runId = generateRunId();
+  }
+
+  // For delegated sessions: don't write _metadata.json (would overwrite parent's)
+  // and don't write to CLAUDE_ENV_FILE (would pollute parent's env).
+  // The child gets its run_id from CRYPLATIVE_AGENT_RUN_ID env var instead.
+  if (isDelegatedSession()) {
+    process.exit(0);
   }
 
   // Write metadata file so other hooks can read the run_id and transcript_path.
@@ -262,6 +334,7 @@ async function handleSessionStart(sessionsDir: string, input: HookInput) {
   });
 
   // Write environment variables to CLAUDE_ENV_FILE so they propagate to Bash commands.
+  const envFile = process.env.CLAUDE_ENV_FILE;
   if (envFile) {
     await appendFile(envFile, `export CRYPLATIVE_SESSION_ID="${sessionId}"\n`);
     await appendFile(envFile, `export CLAUDE_AGENT_NAME="${agentName}"\n`);
@@ -273,9 +346,13 @@ async function handleSessionStart(sessionsDir: string, input: HookInput) {
 }
 
 async function handleUserPromptSubmit(sessionsDir: string, input: HookInput) {
-  // ALWAYS derive from input.session_id — never check process.env.CRYPLATIVE_SESSION_ID.
-  const claudeSessionId = input.session_id;
-  const sessionId = deriveSessionId(claudeSessionId);
+  // In delegated mode, skip conversation logging — delegate.ts already writes
+  // the delegation entry to _conversation.jsonl with the prompt.
+  if (isDelegatedSession()) {
+    process.exit(0);
+  }
+
+  const sessionId = getSessionId(input);
   const agentName = input.agent_type ?? "global";
 
   const prompt = input.prompt;
@@ -292,9 +369,8 @@ async function handleUserPromptSubmit(sessionsDir: string, input: HookInput) {
 
   const conversationFile = join(sessionPath, "_conversation.jsonl");
 
-  // Read agent_run_id from metadata (written by SessionStart hook)
-  const metadata = await readMetadata(sessionPath);
-  const runId = metadata?.run_id;
+  // Get run_id from metadata (written by SessionStart hook)
+  const runId = (await readMetadata(sessionPath))?.run_id;
 
   if (isPrintMode()) {
     // Print mode (-p flag): log the first prompt as "initial_prompt" only.
@@ -328,9 +404,7 @@ async function handleUserPromptSubmit(sessionsDir: string, input: HookInput) {
 }
 
 async function handleStop(sessionsDir: string, input: HookInput) {
-  // ALWAYS derive from input.session_id — never check process.env.
-  const claudeSessionId = input.session_id;
-  const sessionId = deriveSessionId(claudeSessionId);
+  const sessionId = getSessionId(input);
   const agentName = input.agent_type ?? "global";
 
   const lastMessage = input.last_assistant_message ?? "";
@@ -345,21 +419,26 @@ async function handleStop(sessionsDir: string, input: HookInput) {
     process.exit(0);
   }
 
-  const conversationFile = join(sessionPath, "_conversation.jsonl");
-
-  // Read agent_run_id from metadata
+  // Get run_id: from env for delegated sessions, from metadata for normal ones
   const metadata = await readMetadata(sessionPath);
-  const runId = metadata?.run_id;
+  const runId = getRunId() ?? metadata?.run_id;
 
-  const entry = {
-    type: "response",
-    timestamp: new Date().toISOString(),
-    from_agent: agentName,
-    response_preview: lastMessage.substring(0, 500),
-    ...(runId && { agent_run_id: runId }),
-  };
+  // In delegated mode, skip conversation logging — delegate.ts already writes
+  // the response entry to _conversation.jsonl. But still copy transcript to
+  // agent_logs for debugging and audit trail.
+  if (!isDelegatedSession()) {
+    const conversationFile = join(sessionPath, "_conversation.jsonl");
 
-  await appendFile(conversationFile, JSON.stringify(entry) + "\n");
+    const entry = {
+      type: "response",
+      timestamp: new Date().toISOString(),
+      from_agent: agentName,
+      response_preview: lastMessage.substring(0, 500),
+      ...(runId && { agent_run_id: runId }),
+    };
+
+    await appendFile(conversationFile, JSON.stringify(entry) + "\n");
+  }
 
   // Copy the session transcript to agent_logs.
   // Use transcript_path from hook input (Stop includes it), falling back to
@@ -536,9 +615,7 @@ function extractCleanResponse(lastMessage: string): string {
 }
 
 async function handleSubagentStop(sessionsDir: string, input: HookInput) {
-  // ALWAYS derive from input.session_id — never check process.env.
-  const claudeSessionId = input.session_id;
-  const sessionId = deriveSessionId(claudeSessionId);
+  const sessionId = getSessionId(input);
   const subagentType = input.agent_type ?? "";
   const rawMessage = input.last_assistant_message ?? "";
 

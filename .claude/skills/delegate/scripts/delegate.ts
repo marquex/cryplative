@@ -16,7 +16,7 @@
  *                           "initial_prompt" instead of "user_prompt".
  */
 
-import { mkdir, appendFile, open } from "node:fs/promises";
+import { mkdir, appendFile } from "node:fs/promises";
 import { join } from "node:path";
 
 function main() {
@@ -74,6 +74,32 @@ function generateRunId(): string {
     result += chars[bytes[i] % chars.length];
   }
   return result;
+}
+
+/**
+ * Check if a message is a Claude Code skill setup injection.
+ * These are user messages whose first content block's text starts with
+ * <command-message> — they contain the full skill definition and are
+ * very large, so we filter them out from agent_logs.
+ */
+function isSkillSetupMessage(message: Record<string, unknown>): boolean {
+  if (message.role !== "user") return false;
+  const content = message.content;
+  if (typeof content === "string") {
+    return content.trimStart().startsWith("<command-message>");
+  }
+  if (Array.isArray(content) && content.length > 0) {
+    const first = content[0];
+    if (
+      first &&
+      typeof first === "object" &&
+      first.type === "text" &&
+      typeof first.text === "string"
+    ) {
+      return first.text.trimStart().startsWith("<command-message>");
+    }
+  }
+  return false;
 }
 
 /**
@@ -161,10 +187,6 @@ async function runDelegation(
     JSON.stringify(delegationEntry) + "\n"
   );
 
-  // Open the agent log file for writing stream-json output as it arrives
-  const agentLogFile = join(agentLogsDir, `${agentName}-${runId}.jsonl`);
-  const logFileHandle = await open(agentLogFile, "w");
-
   // Spawn child claude process with --output-format stream-json
   // Note: --verbose is required when using --output-format stream-json with --print
   const child = Bun.spawn(
@@ -173,6 +195,7 @@ async function runDelegation(
       env: {
         ...Bun.env,
         CRYPLATIVE_SESSION_ID: sessionId,
+        CRYPLATIVE_DELEGATED_SESSION: "1",
         CRYPLATIVE_PRINT_MODE: "1",
         CRYPLATIVE_AGENT_RUN_ID: runId,
       },
@@ -181,8 +204,10 @@ async function runDelegation(
     }
   );
 
-  // Read stdout stream line by line: filter and save only user/assistant messages
-  // to agent_logs, collecting all lines for text extraction
+  // Read stdout stream line by line, collecting all lines for text extraction.
+  // Note: agent_logs are NOT written here — the child's Stop hook handles
+  // that via filterTranscriptToAgentLogs. Writing here would cause a race
+  // condition with the Stop hook (both writing to the same file).
   const streamJsonLines: string[] = [];
   const reader = child.stdout.getReader();
   const decoder = new TextDecoder();
@@ -197,27 +222,11 @@ async function runDelegation(
 
       for (const line of lines) {
         if (!line.trim()) continue;
-
         streamJsonLines.push(line);
-
-        // Only log user/assistant messages, keeping just the "message" field
-        try {
-          const event = JSON.parse(line);
-          if (
-            (event.type === "user" || event.type === "assistant") &&
-            event.message
-          ) {
-            await logFileHandle.write(
-              JSON.stringify(event.message) + "\n"
-            );
-          }
-        } catch {
-          // Skip malformed lines
-        }
       }
     }
   } finally {
-    await logFileHandle.close();
+    // No file handle to close — agent_logs handled by Stop hook
   }
 
   const stderr = await new Response(child.stderr).text();

@@ -4,7 +4,6 @@ description: "Primary test agent that delegates tasks to the secondary agent and
 tools: Read, Write, Glob, Grep, Bash
 skills:
   - delegate
-  - agent-expertise
 access:
   - path: .claude/sessions/**
     permissions: [read, write]
@@ -34,10 +33,6 @@ For any task that the secondary agent can handle, delegate it and combine the re
 ```bash
 bun .claude/skills/delegate/scripts/delegate.ts secondary "Your specific task here"
 ```
-
-## Expertise
-
-Build expertise continuously. Read your expertise files at the start of each session and update them after completing meaningful work. Your expertise files are in `.claude/expertise/primary/`.
 
 ## Restricted domain
 
