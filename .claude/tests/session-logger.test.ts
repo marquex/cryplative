@@ -224,7 +224,7 @@ const suite: TestSuite = {
     // --- Stop ---
 
     {
-      description: 'logs response entry on Stop event',
+      description: 'logs summary entry on Stop event',
       fn: async () => {
         const tmpDir = await createTempProject();
         try {
@@ -243,16 +243,16 @@ const suite: TestSuite = {
 
           const dirs = await getSessionDirs(join(tmpDir, '.claude', 'sessions'));
           const entries = await readConversationLog(dirs[0]);
-          const responses = entries.filter((e) => e.type === 'response');
+          const summaries = entries.filter((e) => e.type === 'summary');
 
-          assertEqual(responses.length, 1, 'Expected one response entry');
+          assertEqual(summaries.length, 1, 'Expected one summary entry');
           assertIncludes(
-            responses[0].response_preview as string,
+            summaries[0].response_preview as string,
             'Agent final response here'
           );
           assert(
-            responses[0].agent_run_id !== undefined,
-            'Expected agent_run_id on response entry'
+            summaries[0].agent_run_id !== undefined,
+            'Expected agent_run_id on summary entry'
           );
         } finally {
           await cleanupTempProject(tmpDir);
@@ -281,11 +281,11 @@ const suite: TestSuite = {
 
           const dirs = await getSessionDirs(join(tmpDir, '.claude', 'sessions'));
           const entries = await readConversationLog(dirs[0]);
-          const response = entries.find((e) => e.type === 'response');
+          const summary = entries.find((e) => e.type === 'summary');
 
           assert(
-            (response!.response_preview as string).length <= 500,
-            `Expected response_preview <= 500 chars, got ${(response!.response_preview as string).length}`
+            (summary!.response_preview as string).length <= 500,
+            `Expected response_preview <= 500 chars, got ${(summary!.response_preview as string).length}`
           );
         } finally {
           await cleanupTempProject(tmpDir);

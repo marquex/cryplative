@@ -12,11 +12,11 @@
  *     logs the first prompt as "initial_prompt" (only once per session).
  *   - In interactive mode (no CRYPLATIVE_PRINT_MODE):
  *     logs ALL prompts as "user_prompt" (every submission is stored).
- * - On Stop: logs the agent's final response as a "response" entry with agent_run_id
+ * - On Stop: logs the agent's final response as a "summary" entry with agent_run_id
  *   to _conversation.jsonl, and copies the session transcript to agent_logs.
- * - On SubagentStop: logs a "delegation" entry with delegation_type="internal",
- *   followed by a "response" entry with agent_run_id and the subagent's response,
- *   and copies the subagent transcript to agent_logs.
+ * - On SubagentStop: logs a "delegation" entry with delegation_type="internal"
+ *   and delegated_to=<agent_name>, followed by a "response" entry with agent_run_id
+ *   and the subagent's response, and copies the subagent transcript to agent_logs.
  *
  * IMPORTANT: All hooks derive the session ID deterministically from
  * input.session_id. They NEVER check process.env.CRYPLATIVE_SESSION_ID —
@@ -419,7 +419,7 @@ async function handleUserPromptSubmit(sessionsDir: string, input: HookInput) {
     const entry = {
       type: "initial_prompt",
       timestamp: new Date().toISOString(),
-      from_agent: agentName,
+      agent: agentName,
       prompt,
       ...(runId && { agent_run_id: runId }),
     };
@@ -430,7 +430,7 @@ async function handleUserPromptSubmit(sessionsDir: string, input: HookInput) {
     const entry = {
       type: "user_prompt",
       timestamp: new Date().toISOString(),
-      from_agent: agentName,
+      agent: agentName,
       prompt,
       ...(runId && { agent_run_id: runId }),
     };
@@ -468,9 +468,9 @@ async function handleStop(sessionsDir: string, input: HookInput) {
     const conversationFile = join(sessionPath, "_conversation.jsonl");
 
     const entry = {
-      type: "response",
+      type: "summary",
       timestamp: new Date().toISOString(),
-      from_agent: agentName,
+      agent: agentName,
       response_preview: lastMessage.substring(0, 500),
       ...(runId && { agent_run_id: runId }),
     };
@@ -501,8 +501,8 @@ async function handleStop(sessionsDir: string, input: HookInput) {
 
 /**
  * Determine the parent agent that spawned a subagent by scanning recent
- * conversation log entries. Returns the from_agent of the most recent
- * non-subagent entry (user_prompt, initial_prompt, response, or delegation
+ * conversation log entries. Returns the agent of the most recent
+ * non-subagent entry (user_prompt, initial_prompt, response, summary, or delegation
  * from delegate.ts).
  */
 async function findParentAgent(conversationFile: string): Promise<string> {
@@ -518,8 +518,8 @@ async function findParentAgent(conversationFile: string): Promise<string> {
       if (entry.delegation_type === "internal") {
         continue;
       }
-      if (entry.from_agent) {
-        return entry.from_agent as string;
+      if (entry.agent) {
+        return entry.agent as string;
       }
     } catch {
       continue;
@@ -690,7 +690,8 @@ async function handleSubagentStop(sessionsDir: string, input: HookInput) {
   const delegationEntry = {
     type: "delegation",
     timestamp: new Date().toISOString(),
-    from_agent: parentAgent,
+    agent: parentAgent,
+    delegated_to: subagentType,
     delegation_type: "internal",
     prompt,
     delegation_id: delegationId,
@@ -706,7 +707,7 @@ async function handleSubagentStop(sessionsDir: string, input: HookInput) {
   const stopEntry = {
     type: "response",
     timestamp: new Date().toISOString(),
-    from_agent: subagentType,
+    agent: subagentType,
     response_preview: cleanResponse.substring(0, 500),
     delegation_id: delegationId,
     agent_run_id: runId,

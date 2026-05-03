@@ -99,9 +99,9 @@ const suite: TestSuite = {
           'Expected a response entry linked to the delegation via delegation_id'
         );
         assertEqual(
-          linkedResponse!.from_agent,
+          linkedResponse!.agent,
           'secondary',
-          'Expected response from_agent to be "secondary"'
+          'Expected response agent to be "secondary"'
         );
 
         // Cleanup

@@ -176,7 +176,8 @@ async function runDelegation(
   const delegationEntry = {
     type: "delegation",
     timestamp: new Date().toISOString(),
-    from_agent: fromAgent,
+    agent: fromAgent,
+    delegated_to: agentName,
     delegation_type: "skill",
     prompt,
     delegation_id: delegationId,
@@ -251,7 +252,7 @@ async function runDelegation(
   const responseEntry = {
     type: "response",
     timestamp: new Date().toISOString(),
-    from_agent: agentName,
+    agent: agentName,
     delegation_id: delegationId,
     response_preview: textResponse.substring(0, 500),
     exit_code: exitCode,

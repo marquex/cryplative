@@ -86,27 +86,30 @@ delegation_system:
     file: "_conversation.jsonl"
     entry_types:
       - type: user_prompt
-        fields: "type, timestamp, from_agent, prompt, agent_run_id"
+        fields: "type, timestamp, agent, prompt, agent_run_id"
         source: "session-logger hook (UserPromptSubmit)"
         note: "Used in interactive mode. ALL user prompts are logged (no guard). agent_run_id is the main agent's run ID from _metadata.json."
       - type: initial_prompt
-        fields: "type, timestamp, from_agent, prompt, agent_run_id"
+        fields: "type, timestamp, agent, prompt, agent_run_id"
         source: "session-logger hook (UserPromptSubmit)"
         note: "Used in print mode (-p flag). Only logged once per session (hasInitialPromptEntry checks file content for existing entry). Detected via CRYPLATIVE_PRINT_MODE env var set by delegate.ts."
+      - type: summary
+        fields: "type, timestamp, agent, response_preview (first 500 chars), agent_run_id"
+        source: "session-logger hook (Stop) — main agent's final response"
+        note: "Only written by the Stop hook in non-delegated mode. Represents the agent's final answer for the session. In print mode this is always the last entry. In interactive mode, each Stop produces a summary (we cannot know ahead of time which is the final one)."
       - type: response
-        fields: "type, timestamp, from_agent, response_preview (first 500 chars), delegation_id (when from delegation), exit_code (when from delegate.ts), agent_run_id"
+        fields: "type, timestamp, agent, response_preview (first 500 chars), delegation_id (when from delegation), exit_code (when from delegate.ts), agent_run_id"
         sources:
-          - "session-logger hook (Stop) — agent's final response (main agent's run_id)"
           - "session-logger hook (SubagentStop) — internal subagent response (fresh run_id per invocation)"
           - "delegate.ts script — child agent response after /delegate skill call (fresh run_id per invocation)"
-        note: "Unified entry type for ALL responses. Linked to a delegation entry via delegation_id when the response comes from a delegated agent. agent_run_id identifies the specific run of the responding agent."
+        note: "Used for delegated agent responses. Linked to a delegation entry via delegation_id. agent_run_id identifies the specific run of the responding agent."
       - type: delegation
-        fields: "type, timestamp, from_agent, delegation_type (skill|internal), prompt, delegation_id, agent_run_id"
+        fields: "type, timestamp, agent, delegated_to, delegation_type (skill|internal), prompt, delegation_id, agent_run_id"
         sources:
           - "delegate.ts script (delegation_type='skill') — explicit /delegate skill calls"
           - "session-logger hook (SubagentStop) (delegation_type='internal') — Claude's internal subagent mechanism"
-        note: "delegation_type differentiates explicit skill calls from Claude's internal subagent spawning. agent_run_id is the sub-agent's run_id."
-    removed_fields_note: "to_agent, session_id, and claude_session_id were removed from all entry types — redundant or unused."
+        note: "delegation_type differentiates explicit skill calls from Claude's internal subagent spawning. 'agent' is the delegating (parent) agent, 'delegated_to' is the target agent name."
+    removed_fields_note: "to_agent, session_id, and claude_session_id were removed from all entry types — redundant or unused. 'from_agent' was renamed to 'agent'."
     note: "Append-only JSONL, safe for concurrent use. delegation_id links response to its delegation."
     mode_detection:
       mechanism: "CRYPLATIVE_PRINT_MODE env var set by delegate.ts in Bun.spawn env"
@@ -226,6 +229,8 @@ observations:
     note: "Added typecheck and lint commands to .claude/package.json. typecheck runs 'tsc --noEmit' and lint runs 'eslint .'. Both use binaries from node_modules (not bunx). Fixed 17 lint errors: unused imports/variables across test files, unnecessary escape in regex, unused function. Added 'type: module' to package.json for ESM eslint config. Added @types/node as devDependency (required by tsconfig 'types: [\"node\"]'). Added eslint, @eslint/js, typescript-eslint, and typescript as devDependencies."
   - date: "2026-05-03"
     note: "BUG FIX: CLAUDE_AGENT_NAME env var leaked from parent to child in nested delegations. When global delegated to primary, and primary delegated to secondary, both delegation entries had from_agent='global'. Root cause: delegate.ts spread Bun.env (inheriting parent's CLAUDE_AGENT_NAME=global) but didn't override it with the target agent name. Fix: (1) delegate.ts now sets CLAUDE_AGENT_NAME=<target-agent> in child spawn env, (2) session-logger SessionStart now writes CLAUDE_AGENT_NAME to CLAUDE_ENV_FILE even for delegated sessions. Belt-and-suspenders: the env var from Bun.spawn propagates to the child process, and the CLAUDE_ENV_FILE export propagates to the child's Bash tool commands."
+  - date: "2026-05-03"
+    note: "Improved _conversation.jsonl entry schema: (1) Renamed 'from_agent' field to 'agent' across all entry types in both session-logger.ts and delegate.ts, (2) Added 'delegated_to' field to delegation entries containing the target agent name, (3) Changed the main agent's Stop event to produce type 'summary' instead of 'response' — 'response' is now reserved for delegated agent responses only. Updated findParentAgent() to read 'agent' field instead of 'from_agent'. Updated all tests to match."
 
 testing_system:
   expertise-file: testing-system.yaml

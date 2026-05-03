@@ -61,8 +61,8 @@ const suite: TestSuite = {
         );
         assert(userPrompts.length >= 1, 'Expected at least one prompt entry');
 
-        const responses = entries.filter((e) => e.type === 'response');
-        assert(responses.length >= 1, 'Expected at least one response entry');
+        const responses = entries.filter((e) => e.type === 'response' || e.type === 'summary');
+        assert(responses.length >= 1, 'Expected at least one response/summary entry');
 
         // Verify the response contains our marker
         assertIncludes(
