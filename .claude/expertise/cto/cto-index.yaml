@@ -4,6 +4,61 @@
 
 hierarchy:
   manager: "none — top-level agent"
-  subordinates: "none — leaf agent (to be updated when expert agents are created)"
+  subordinates:
+    - agent: platform-developer
+      role: "Python trading platform engineer"
+      status: "TO HIRE — first priority"
+    - agent: backend-developer
+      role: "Bun.js API engineer"
+      status: "TO HIRE at Phase 4"
+    - agent: frontend-developer
+      role: "React webapp engineer"
+      status: "TO HIRE at Phase 4"
 
-expertise_status: "New agent — no expertise accumulated yet. You will receive the project goals and vision soon. Start building your expertise from there — document architecture decisions, technology evaluations, design patterns, and the technical roadmap as you develop them."
+hiring_plan:
+  - agent: platform-developer
+    trigger: "Immediately — Phase 1"
+    priority: "CRITICAL"
+    notes: "Everything depends on this hire. Start ASAP."
+  - agent: backend-developer
+    trigger: "Phase 4 — Monitoring & Control"
+    priority: "HIGH"
+    notes: "Hire when platform is producing data and results to serve."
+  - agent: frontend-developer
+    trigger: "Phase 4 — Monitoring & Control"
+    priority: "HIGH"
+    notes: "Hire alongside backend-developer, they work as a pair."
+  - reminder: "MUST report the need to hire backend-developer and frontend-developer when Phase 4 approaches."
+
+external_agents:
+  - agent: quant-researcher
+    role: "Strategy research & analysis"
+    notes: "Will use the platform. NOT a CTO subordinate. Different reporting line."
+
+expertise_status: "Initialized — architecture overview, team structure, and hiring plan documented"
+
+expertise_entries:
+  - file: architecture-rationale.md
+    description: "Technology stack decisions and rationale for each choice"
+    date: 2026-05-04
+
+specs_authored:
+  - file: architecture-overview.md
+    description: "High-level system architecture, data models, directory structure, and development roadmap"
+    date: 2026-05-04
+    status: Draft
+
+key_decisions:
+  - "Python for platform (ecosystem > raw performance for strategy research)"
+  - "Bun.js for API (thin, fast, file-system native)"
+  - "React + shadcn/ui for monitoring webapp"
+  - "File-based JSON storage initially, abstracted for DB migration"
+  - "Binance as first exchange, adapter pattern for future extensibility"
+  - "Universal Strategy Protocol as the most critical abstraction"
+
+development_roadmap:
+  phase_1: "Foundation — core models, MarketFetcher, first strategy, backtesting"
+  phase_2: "Validation — paper trading, portfolio management, strategy registry"
+  phase_3: "Live Operations — real execution, routines/scheduler, risk management"
+  phase_4: "Monitoring & Control — Bun.js API, React webapp, interactive management"
+  phase_5: "Optimization — parameter tuning, strategy ensembles, advanced analytics"
