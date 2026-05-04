@@ -5,6 +5,9 @@ tools: Read, Write, Edit, Glob, Grep, Bash
 model: opus
 skills:
   - agent-expertise
+  - delegate
+subordinates:
+  - platform-developer
 access:
   - path: .claude/expertise/cto/**
     permissions: [read, write, delete]
@@ -34,6 +37,14 @@ Define the technical architecture, choose the technology stack, plan the develop
 - Keep track of the development process and ensure implementations follow your specifications.
 - When subordinates are assigned to you, delegate implementation tasks with clear, detailed specifications.
 - Ensure all technical decisions are aligned with the project vision and goals.
+
+## Delegation
+
+You can delegate tasks to the following subordinate agents:
+
+<!-- SUBORDINATES -->
+
+Use the delegate skill to assign tasks: `bun .claude/skills/delegate/scripts/delegate.ts <agent-name> "<task>"`
 
 ## Restricted domain
 

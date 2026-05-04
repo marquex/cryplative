@@ -1,0 +1,9 @@
+# Platform Developer Expertise Index
+# Agent: platform-developer
+# Domain: Python trading platform — market data, strategies, backtesting, live execution
+
+hierarchy:
+  manager: cto
+  subordinates: [none — leaf agent]
+
+expertise_status: "New agent — no expertise accumulated yet. Start building expertise from the first session."

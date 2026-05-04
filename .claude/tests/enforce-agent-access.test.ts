@@ -363,6 +363,143 @@ const suite: TestSuite = {
         assertEqual(decision, 'allow');
       },
     },
+
+    // --- Auto-allow reading own agent file ---
+
+    {
+      description: 'allows cto to read its own agent file (auto-allow for marker injection)',
+      fn: async () => {
+        const { stdout } = await runHook('.claude/scripts/enforce-agent-access.ts', {
+          agent_type: 'cto',
+          tool_name: 'Read',
+          tool_input: { file_path: '.claude/agents/cto.md' },
+          cwd: PROJECT_DIR,
+        });
+        const { decision, reason } = parseDecision(stdout);
+        assertEqual(decision, 'allow');
+        // Should be allowed via the auto-allow mechanism (not a specific rule match)
+        assertIncludes(reason, "'read' on all targets");
+      },
+    },
+
+    {
+      description: 'denies cto to write its own agent file (auto-allow is read-only)',
+      fn: async () => {
+        const { stdout } = await runHook('.claude/scripts/enforce-agent-access.ts', {
+          agent_type: 'cto',
+          tool_name: 'Write',
+          tool_input: { file_path: '.claude/agents/cto.md' },
+          cwd: PROJECT_DIR,
+        });
+        const { decision } = parseDecision(stdout);
+        assertEqual(decision, 'deny');
+      },
+    },
+
+    {
+      description: 'denies cto to read other agent files (no explicit rule)',
+      fn: async () => {
+        const { stdout } = await runHook('.claude/scripts/enforce-agent-access.ts', {
+          agent_type: 'cto',
+          tool_name: 'Read',
+          tool_input: { file_path: '.claude/agents/primary.md' },
+          cwd: PROJECT_DIR,
+        });
+        const { decision, reason } = parseDecision(stdout);
+        assertEqual(decision, 'deny');
+        assertIncludes(reason, 'no access rule');
+      },
+    },
+
+    {
+      description: 'allows secondary to read its own agent file (auto-allow)',
+      fn: async () => {
+        const { stdout } = await runHook('.claude/scripts/enforce-agent-access.ts', {
+          agent_type: 'secondary',
+          tool_name: 'Read',
+          tool_input: { file_path: '.claude/agents/secondary.md' },
+          cwd: PROJECT_DIR,
+        });
+        const { decision } = parseDecision(stdout);
+        assertEqual(decision, 'allow');
+      },
+    },
+
+    // --- Directory access: patterns like dir/** or dir/* should also grant
+    //     access to the directory itself (e.g. ls, stat, mkdir -p) ---
+
+    {
+      description: 'allows claude-developer to access .claude/ directory itself (via .claude/** rule)',
+      fn: async () => {
+        const { stdout } = await runHook('.claude/scripts/enforce-agent-access.ts', {
+          agent_type: 'claude-developer',
+          tool_name: 'Bash',
+          tool_input: { command: 'ls .claude' },
+          cwd: PROJECT_DIR,
+        });
+        const { decision } = parseDecision(stdout);
+        assertEqual(decision, 'allow');
+      },
+    },
+
+    {
+      description: 'allows primary to access .claude/sessions/ directory itself (via .claude/sessions/** rule)',
+      fn: async () => {
+        const { stdout } = await runHook('.claude/scripts/enforce-agent-access.ts', {
+          agent_type: 'primary',
+          tool_name: 'Bash',
+          tool_input: { command: 'ls .claude/sessions' },
+          cwd: PROJECT_DIR,
+        });
+        const { decision } = parseDecision(stdout);
+        assertEqual(decision, 'allow');
+      },
+    },
+
+    {
+      description: 'allows platform-developer to read platform/ directory itself (via platform/** rule)',
+      fn: async () => {
+        const { stdout } = await runHook('.claude/scripts/enforce-agent-access.ts', {
+          agent_type: 'platform-developer',
+          tool_name: 'Bash',
+          tool_input: { command: 'ls platform' },
+          cwd: PROJECT_DIR,
+        });
+        const { decision } = parseDecision(stdout);
+        assertEqual(decision, 'allow');
+      },
+    },
+
+    {
+      description: 'directory access inherits permissions from the content rule (write allowed)',
+      fn: async () => {
+        // primary has read+write on .claude/sessions/** — mkdir inside should work
+        const { stdout } = await runHook('.claude/scripts/enforce-agent-access.ts', {
+          agent_type: 'primary',
+          tool_name: 'Bash',
+          tool_input: { command: 'mkdir -p .claude/sessions/test-dir' },
+          cwd: PROJECT_DIR,
+        });
+        const { decision } = parseDecision(stdout);
+        assertEqual(decision, 'allow');
+      },
+    },
+
+    {
+      description: 'directory access is denied when content rule lacks required verb',
+      fn: async () => {
+        // secondary has read-only on .claude/sessions/** — mkdir should be denied
+        const { stdout } = await runHook('.claude/scripts/enforce-agent-access.ts', {
+          agent_type: 'secondary',
+          tool_name: 'Bash',
+          tool_input: { command: 'mkdir -p .claude/sessions/test-dir' },
+          cwd: PROJECT_DIR,
+        });
+        const { decision, reason } = parseDecision(stdout);
+        assertEqual(decision, 'deny');
+        assertIncludes(reason, "lacks 'write' permission");
+      },
+    },
   ],
 };
 

@@ -122,11 +122,13 @@ access_control:
   pattern: "PreToolUse hook reads agent frontmatter 'access' block, matches tool paths against glob rules. Also enforces delegation hierarchy by checking 'subordinates' field."
   verbs: ["read", "write", "delete"]
   behavior: "fail-closed -- deny if no access block, deny if no matching rule"
+  auto_allow_own_file: "Agents can always READ their own .claude/agents/<name>.md file, even without an explicit access rule. This is needed for the marker injection system (PostToolUse hook) to expand <!-- ACCESS_RULES --> and <!-- SUBORDINATES --> so the agent knows its own permissions. Without this, agents whose rules don't cover .claude/agents/ can never see their own access rules — a bootstrap problem. Only 'read' is auto-allowed; write/delete still require explicit rules."
   tool_classification:
     read_tools: ["Read", "Grep", "Glob"]
     write_tools: ["Write", "Edit", "MultiEdit", "NotebookEdit"]
     bash: "Classified by regex patterns for delete/write/readonly; unknown tools are skipped (allowed)"
   path_resolution: "Resolves to absolute, then to relative from cwd. Rejects paths outside project (starting with ..)"
+  directory_access: "Glob patterns ending with /** or /* (e.g., 'platform/**') automatically grant access to the directory itself ('platform'). Implemented via getDirectoryPrefix() helper that extracts the parent directory from the pattern. The directory inherits the same permissions as the content rule — if the content rule allows read+write, the directory gets read+write too. If the content rule only allows read, the directory is read-only. This ensures agents can ls, stat, and mkdir in directories they have content access to."
   agent_frontmatter_hook: "Agents declare hooks in frontmatter to trigger enforce-agent-access on Read|Write|Edit|MultiEdit|Bash"
   delegation_enforcement:
     mechanism: "detectDelegation() matches Bash commands containing 'delegate.ts <agent-name>' before the generic bash classification. Reads 'subordinates' from frontmatter (block or inline YAML list)."
@@ -272,6 +274,10 @@ observations:
     note: "BUG FIX: delegate.ts used 'process.env.CLAUDE_AGENT_NAME ?? \"global\"' which doesn't treat empty strings as missing. The test runner's CLEAN_ENV sets CLAUDE_AGENT_NAME=''. Changed to '|| \"global\"' so empty string falls through to the default. This is the same gotcha as CRYPLATIVE_SESSION_ID — always use || for env vars that may be set to empty string."
   - date: "2026-05-04"
     note: "Added deterministic ACCESS_DENIED phrase to all agent system prompts. When an agent cannot access a file outside its domain, it MUST respond with the exact phrase 'ACCESS_DENIED: path outside of authorized domain'. This makes integration tests reliable — previously the LLM paraphrased the denial differently each time (e.g., 'I can't', 'I'm not able to', 'I appreciate the test but...'), causing flaky test assertions. Updated all agent files (claude-developer, cto, primary, secondary) and the hire-expert SKILL.md template."
+  - date: "2026-05-04"
+    note: "BUG FIX: Bootstrap problem with marker injection. The inject-agent-markers.ts hook is PostToolUse — it only fires after a successful tool call. For an agent to see its expanded ACCESS_RULES/SUBORDINATES markers, it must successfully Read an agent file. But if the agent's access rules don't cover .claude/agents/<name>.md, the Read is denied by PreToolUse before PostToolUse ever fires. Result: the agent sees empty ACCESS_RULES in its system prompt (the raw HTML comment is invisible) and concludes it has no permissions. Fix: enforce-agent-access.ts now auto-allows agents to READ their own agent file, regardless of access rules. Write/delete still require explicit rules."
+  - date: "2026-05-04"
+    note: "BUG FIX: Access rules like 'platform/**' or 'platform/*' did not grant access to the directory itself ('platform'). Agents couldn't ls, stat, or mkdir directories they had content access to. Fix: added getDirectoryPrefix() helper to enforce-agent-access.ts that extracts the parent directory from glob patterns ending with /** or /*. The matchesAnyRule() function now also checks if the requested path exactly equals the directory prefix of any rule. The directory inherits the same permissions as the content rule."
 
 testing_system:
   expertise-file: testing-system.yaml
@@ -295,7 +301,7 @@ testing_system:
     - "Bun.file() expects a file path string, NOT a Blob. Write input to a temp file first, then pass Bun.file(tempPath) as stdin option."
     - "Bun.spawn env: spread Bun.env first, then override specific vars. Empty string overrides are valid (e.g., CRYPLATIVE_SESSION_ID: '' clears the var)."
   test_coverage:
-    enforce-agent-access: "21 tests: agent allow/deny, tool classification (Read/Write/Bash/Grep/WebFetch), path traversal, glob matching, delegation enforcement (allow authorized, deny unauthorized, deny no-subordinates, allow non-delegate)"
+    enforce-agent-access: "30 tests: agent allow/deny, tool classification (Read/Write/Bash/Grep/WebFetch), path traversal, glob matching, delegation enforcement (allow authorized, deny unauthorized, deny no-subordinates, allow non-delegate), auto-allow own file (read allowed, write denied, other agents denied, secondary too), directory access (allow dir via /** rule, allow nested dir via /** rule, allow platform-developer dir, write inherits, deny when verb missing)"
     session-logger: "13 tests: SessionStart metadata, UserPromptSubmit print/interactive mode, Stop response, delegated mode skip, edge cases, agent_logs race condition (3 tests: missing response, no duplicate, tool_result ending)"
     yaml-validator: "6 tests: valid/invalid YAML, mixed files, empty dir, nested dirs, nonexistent dir"
     session-logging: "2 tests: basic -p session creation, --agent session with correct metadata"

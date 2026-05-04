@@ -54,7 +54,10 @@
   "permissions": {
     "allow": [
       "Bash(bun .claude/hooks/*)",
-      "Bash(bun .claude/skills/delegate/scripts/*)"
+      "Bash(bun .claude/skills/delegate/scripts/*)",
+      "Write(.claude/**)",
+      "Edit(.claude/**)",
+      "MultiEdit(.claude/**)"
     ]
   }
 }

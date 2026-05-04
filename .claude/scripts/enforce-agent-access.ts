@@ -228,10 +228,27 @@ function globToRegex(glob: string): RegExp {
   return new RegExp(re + '$');
 }
 
+/**
+ * Extract the directory prefix from a glob pattern that targets directory
+ * contents. E.g. "platform/**" → "platform", "src/lib/*" → "src/lib".
+ * Returns null for patterns that don't target a directory's contents.
+ */
+function getDirectoryPrefix(rulePath: string): string | null {
+  const m = rulePath.match(/^(.+)\/\*\*?$/);
+  return m ? m[1] : null;
+}
+
 function matchesAnyRule(relPath: string, rules: AccessRule[], verb: Verb): RuleMatchResult {
   // rules with empty permissions = explicit deny for that path
   for (const rule of rules) {
-    if (globToRegex(rule.path).test(relPath)) {
+    const directMatch = globToRegex(rule.path).test(relPath);
+    // A rule like "platform/**" or "platform/*" should also grant access to
+    // the directory itself ("platform"), since you need to reach the directory
+    // to access its contents (e.g. ls, stat, mkdir -p).
+    const dirPrefix = getDirectoryPrefix(rule.path);
+    const dirMatch = dirPrefix !== null && relPath === dirPrefix;
+
+    if (directMatch || dirMatch) {
       if (rule.permissions.length === 0) {
         return { matched: true, granted: false, rule };
       }
@@ -391,6 +408,18 @@ async function main(): Promise<never> {
 
     if (rel.startsWith('..') || path.isAbsolute(rel)) {
       return deny(`agent '${agentType}' may not access path outside project: ${raw}`);
+    }
+
+    // Auto-allow agents to read their own agent file.
+    // This is needed for the marker injection system (PostToolUse hook) to
+    // expand <!-- ACCESS_RULES --> and <!-- SUBORDINATES --> so the agent
+    // knows its own permissions. Without this, agents with no explicit rule
+    // covering .claude/agents/<name>.md can never see their own access rules.
+    const agentFileReal = fs.existsSync(agentFile)
+      ? fs.realpathSync(agentFile)
+      : agentFile;
+    if (verb === 'read' && abs === agentFileReal) {
+      continue;
     }
 
     const result = matchesAnyRule(rel, policy.access, verb);
