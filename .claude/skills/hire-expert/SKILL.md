@@ -123,9 +123,9 @@ Key rules for the agent file:
 - Only include `Write` and `Edit` in the `tools` list if the agent needs to write to files outside its expertise folder. Most expert agents only need read access to their domain files.
 - Only include the `delegate` skill if the agent has subordinates.
 - Always include the `PreToolUse` hook for `enforce-agent-access.ts`.
-- Always include the `<!-- ACCESS_RULES -->` placeholder — the PostToolUse hook `inject-agent-markers.ts` replaces it with the actual access rules list from the frontmatter when the file is written.
-- Always include the `<!-- SUBORDINATES -->` placeholder (only if the agent has subordinates) — the PostToolUse hook `inject-agent-markers.ts` replaces it with the formatted list of subordinates with their descriptions. To get the descriptions, the hook reads each subordinate's agent file `description` field.
-- To get the description of a subordinate agent for the Delegation section, read its agent file at `.claude/agents/{subordinate-name}.md` and use its `description` field.
+- Always include the `<!-- ACCESS_RULES -->` marker in the Restricted domain section. The PostToolUse hook `inject-agent-markers.ts` expands it at runtime when the file is read — the marker stays in the file on disk and is never replaced with hardcoded content. The frontmatter `access` block is the single source of truth.
+- Always include the `<!-- SUBORDINATES -->` marker in the Delegation section (only if the agent has subordinates). Handled the same way as ACCESS_RULES — expanded at runtime, never hardcoded.
+- NEVER hardcode the access rules or subordinates list in the system prompt. Always use the markers. The frontmatter is the single source of truth.
 
 ### Step 5: Update the manager agent (if a manager was specified)
 
@@ -136,8 +136,8 @@ If the new agent has a manager, you must update the manager's agent file to incl
    - Add the new agent to the `subordinates` list (create the list if it doesn't exist).
    - Add the `delegate` skill to the `skills` list (if not already present).
 3. In the system prompt:
-   - If there is already a `## Delegation` section, add the new subordinate to the list. Include a brief description from the new agent's `description` field.
-   - If there is no `## Delegation` section, add one before the `## Restricted domain` section with the full list of subordinates (read each subordinate's agent file to get descriptions).
+   - If there is already a `## Delegation` section with a `<!-- SUBORDINATES -->` marker, no change needed — the hook will expand the marker from the updated frontmatter at runtime.
+   - If there is no `## Delegation` section, add one before the `## Restricted domain` section with the `<!-- SUBORDINATES -->` marker.
 4. Write the updated manager file.
 
 ### Step 6: Update the subordinates' manager reference (if subordinates were specified)

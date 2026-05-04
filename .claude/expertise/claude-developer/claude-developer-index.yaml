@@ -141,14 +141,14 @@ access_control:
 marker_injection:
   hook: ".claude/hooks/inject-agent-markers.ts"
   event: "PostToolUse (global hook in .claude/settings.json)"
-  pattern: "After any Write/Edit/MultiEdit to a .claude/agents/*.md file, replaces HTML comment markers with formatted content derived from frontmatter"
+  pattern: "When a Read tool targets a .claude/agents/*.md file, the hook outputs marker expansions to stdout as additional context. The file on disk is NEVER modified — markers persist and are expanded at runtime each time the file is read."
   markers:
     - name: "<!-- ACCESS_RULES -->"
       replacement: "Bullet list of access rules with permissions, e.g. `- \`.claude/sessions/**\` — read, write`"
     - name: "<!-- SUBORDINATES -->"
       replacement: "Bullet list of subordinate agents with descriptions, e.g. `- \`secondary\` — Description from agent file`. Reads each subordinate's .claude/agents/<name>.md to get the description field."
-  idempotent: "If no markers are found, the hook does nothing. If markers are already replaced, they won't match."
-  note: "This hook enables the hire-expert skill to use markers in its template. When the skill creates/updates an agent file with markers, the hook automatically replaces them. No manual maintenance of the Delegation or Restricted domain lists needed."
+  key_principle: "The frontmatter is the single source of truth. Markers in the system prompt are placeholders that get expanded at runtime. Never hardcode access rules or subordinates in the system prompt — always use markers."
+  note: "This hook enables the hire-expert skill to use markers in its template. Agent files always contain the raw markers on disk, and the hook provides the expansion whenever the file is read. No duplication, no maintenance burden."
 
 validation_agents:
   expertise-file: validation-agents.yaml
@@ -262,6 +262,10 @@ observations:
     note: "Created inject-agent-markers.ts PostToolUse hook (registered in .claude/settings.json). Replaces <!-- ACCESS_RULES --> and <!-- SUBORDINATES --> HTML comment markers in agent files with formatted content from frontmatter after any Write/Edit/MultiEdit. ACCESS_RULES becomes a bullet list of paths with permissions. SUBORDINATES becomes a bullet list of agent names with their descriptions (read from each subordinate's agent file). This makes agent templates self-maintaining — the hire-expert skill writes markers and the hook fills them in automatically."
   - date: "2026-05-03"
     note: "Updated hire-expert SKILL.md template to use <!-- SUBORDINATES --> marker instead of hardcoded subordinate list. Updated expert-agents.md template similarly. Updated primary.md agent to use both markers and to declare subordinates in frontmatter. Updated delegate SKILL.md to document the enforcement mechanism."
+  - date: "2026-05-04"
+    note: "Created CTO agent (opus model) — top-level leaf agent for technical architecture, specs, and roadmap. Access: expertise folder, .claude/specs/**, and root-level files (* glob). No subordinates yet."
+  - date: "2026-05-04"
+    note: "CRITICAL REDESIGN: Changed inject-agent-markers.ts from disk-writing to runtime expansion. Previously the hook replaced markers in the file on disk after Write/Edit/MultiEdit, which meant markers were consumed and couldn't be updated. Now the hook ONLY fires on Read of agent files — it outputs the marker expansion to stdout as additional context, without modifying the file. The frontmatter is the single source of truth. Agent files always contain raw <!-- ACCESS_RULES --> and <!-- SUBORDINATES --> markers on disk. Updated all agent files (cto.md, primary.md) to use simple markers instead of hardcoded lists. Updated hire-expert skill template accordingly."
 
 testing_system:
   expertise-file: testing-system.yaml

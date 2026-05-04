@@ -1,0 +1,9 @@
+# CTO Expertise Index
+# Agent: cto
+# Domain: Technical architecture, specifications, technology choices, and development roadmap
+
+hierarchy:
+  manager: "none — top-level agent"
+  subordinates: "none — leaf agent (to be updated when expert agents are created)"
+
+expertise_status: "New agent — no expertise accumulated yet. You will receive the project goals and vision soon. Start building your expertise from there — document architecture decisions, technology evaluations, design patterns, and the technical roadmap as you develop them."
