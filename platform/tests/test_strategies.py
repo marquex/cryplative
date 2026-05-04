@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 
-from cryplative.core.models import Candle, Signal, SignalDirection, StrategyConfig
+from cryplative.core.models import Candle, SignalDirection, StrategyConfig
 from cryplative.strategies.registry import StrategyRegistry
 from cryplative.strategies.sma_crossover import SMACrossoverStrategy, compute_sma
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -52,19 +49,22 @@ def _make_candles_with_crossover(
         n: Total number of candles.
     """
     candles: list[Candle] = []
+    half = n // 2
     for i in range(n):
         if trend == "up":
             # First half: prices go down slowly, then up fast
-            if i < n // 2:
-                close = 100.0 - i * 0.5
-            else:
-                close = 100.0 - (n // 2) * 0.5 + (i - n // 2) * 2.0
+            close = (
+                100.0 - i * 0.5
+                if i < half
+                else 100.0 - half * 0.5 + (i - half) * 2.0
+            )
         else:
             # First half: prices go up slowly, then down fast
-            if i < n // 2:
-                close = 100.0 + i * 0.5
-            else:
-                close = 100.0 + (n // 2) * 0.5 - (i - n // 2) * 2.0
+            close = (
+                100.0 + i * 0.5
+                if i < half
+                else 100.0 + half * 0.5 - (i - half) * 2.0
+            )
         candles.append(_make_candle(index=i, close=close))
     return candles
 

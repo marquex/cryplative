@@ -15,7 +15,6 @@ from cryplative.market_fetcher.cache import (
     update_cache,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -216,7 +215,7 @@ class TestMarketFetcher:
 
     def test_get_candles_uses_cache(self, tmp_path: Path) -> None:
         """Test that cached data is returned without API calls."""
-        from unittest.mock import MagicMock, patch
+        from unittest.mock import MagicMock
 
         from cryplative.config import CryplativeConfig
         from cryplative.market_fetcher.fetcher import MarketFetcher

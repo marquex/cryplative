@@ -8,15 +8,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from cryplative.backtesting.engine import BacktestConfig, BacktestEngine
 from cryplative.config import CryplativeConfig
 from cryplative.core.interfaces import DataProvider
 from cryplative.core.models import Candle, RunContext
 from cryplative.strategies.registry import StrategyRegistry
 from cryplative.strategies.sma_crossover import SMACrossoverStrategy
-
 
 # ---------------------------------------------------------------------------
 # Mock DataProvider that generates realistic candle patterns

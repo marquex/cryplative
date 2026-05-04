@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import math
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -13,7 +12,6 @@ from cryplative.config import CryplativeConfig
 from cryplative.core.exceptions import BacktestError
 from cryplative.core.interfaces import DataProvider
 from cryplative.core.models import (
-    Candle,
     RunContext,
     SignalDirection,
     StrategyConfig,
@@ -171,7 +169,7 @@ class BacktestEngine:
         )
 
         # 8. Build result
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         result = StrategyResult(
             strategy_id=backtest_config.strategy_id,
             run_type=RunContext.BACKTEST,
@@ -246,18 +244,22 @@ class BacktestEngine:
         win_rate = len(wins) / total_trades * 100
 
         # Profit factor
-        gross_profit = sum(t.pnl for t in wins) if wins else 0.0
-        gross_loss = abs(sum(t.pnl for t in losses)) if losses else 0.0
-        profit_factor = gross_profit / gross_loss if gross_loss > 0 else float("inf")
+        gross_profit = sum(t.pnl for t in wins if t.pnl is not None) if wins else 0.0
+        gross_loss = (
+            abs(sum(t.pnl for t in losses if t.pnl is not None)) if losses else 0.0
+        )
+        profit_factor = (
+            gross_profit / gross_loss if gross_loss > 0 else float("inf")
+        )
 
         # Sharpe ratio from trade returns
         sharpe_ratio = 0.0
         if total_trades >= 2:
-            trade_returns = []
-            for t in closed_trades:
-                if t.entry_price > 0 and t.exit_price is not None:
-                    ret = (t.exit_price / t.entry_price) - 1
-                    trade_returns.append(ret)
+            trade_returns = [
+                (t.exit_price / t.entry_price) - 1
+                for t in closed_trades
+                if t.entry_price > 0 and t.exit_price is not None
+            ]
 
             if len(trade_returns) >= 2:
                 mean_ret = sum(trade_returns) / len(trade_returns)
@@ -266,9 +268,15 @@ class BacktestEngine:
                 )
                 std_ret = math.sqrt(variance) if variance > 0 else 0.0
                 if std_ret > 0:
-                    # Annualize: assume ~8760 hours/year for 1h candles
-                    # Use sqrt of number of trades as a simple annualization
-                    sharpe_ratio = (mean_ret / std_ret) * math.sqrt(len(trade_returns))
+                    sharpe_ratio = (mean_ret / std_ret) * math.sqrt(
+                        len(trade_returns)
+                    )
+
+        pf_value = (
+            round(profit_factor, 2)
+            if profit_factor != float("inf")
+            else profit_factor
+        )
 
         return StrategyMetrics(
             total_return=round(total_return, 2),
@@ -276,7 +284,7 @@ class BacktestEngine:
             max_drawdown=round(max_drawdown, 2),
             win_rate=round(win_rate, 2),
             total_trades=total_trades,
-            profit_factor=round(profit_factor, 2) if profit_factor != float("inf") else profit_factor,
+            profit_factor=pf_value,
         )
 
     def _save_result(self, result: StrategyResult, config: BacktestConfig) -> None:

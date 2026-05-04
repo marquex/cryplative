@@ -43,3 +43,7 @@ select = ["E", "F", "I", "N", "UP", "B", "A", "SIM"]
 [tool.mypy]
 strict = true
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "ccxt.*"
+ignore_missing_imports = true

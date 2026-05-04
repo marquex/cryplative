@@ -6,7 +6,7 @@ Provides commands for backtesting, data fetching, and strategy management.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 
 import typer
@@ -47,7 +47,7 @@ def strategies() -> None:
         try:
             cls = StrategyRegistry.get(sid)
             instance = cls.__new__(cls)
-            name = instance.strategy_name  # type: ignore[attr-defined]
+            name = instance.strategy_name
             table.add_row(sid, name, "1.0.0")
         except Exception:
             table.add_row(sid, "[red]Error loading[/red]", "-")
@@ -93,8 +93,8 @@ def fetch(
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green")
 
-    first_date = datetime.fromtimestamp(candles[0].open_time / 1000, tz=timezone.utc)
-    last_date = datetime.fromtimestamp(candles[-1].open_time / 1000, tz=timezone.utc)
+    first_date = datetime.fromtimestamp(candles[0].open_time / 1000, tz=UTC)
+    last_date = datetime.fromtimestamp(candles[-1].open_time / 1000, tz=UTC)
 
     table.add_row("Symbol", symbol)
     table.add_row("Interval", interval)
@@ -125,19 +125,18 @@ def backtest(
     setup_logging(config)
 
     # Import strategies to trigger registration
-    from cryplative.strategies import StrategyRegistry  # noqa: F811
 
     from cryplative.backtesting.engine import BacktestConfig, BacktestEngine
     from cryplative.market_fetcher.fetcher import MarketFetcher
 
     # Parse parameters
-    strategy_params: dict = {}
+    strategy_params: dict[str, object] = {}
     if params:
         try:
             strategy_params = json.loads(params)
         except json.JSONDecodeError as e:
             console.print(f"[red]Invalid JSON in --params: {e}[/red]")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
     console.print(f"[bold]Running backtest: {strategy} on {symbol} {interval}...[/bold]")
 
@@ -159,7 +158,7 @@ def backtest(
         result = engine.run(backtest_config)
     except Exception as e:
         console.print(f"[red]Backtest failed: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     # Display results table
     metrics = result.metrics

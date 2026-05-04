@@ -40,12 +40,11 @@ class Strategy(ABC):
         The candles list is guaranteed to be sorted by open_time ascending.
         """
 
-    def teardown(self) -> None:
+    def teardown(self) -> None:  # noqa: B027
         """Called after a run completes. Clean up resources.
 
         Default is no-op; override if needed.
         """
-        pass
 
 
 class DataProvider(ABC):

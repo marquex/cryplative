@@ -19,7 +19,7 @@ class StrategyRegistry:
         # Access strategy_id as a class attribute; if it's a property,
         # instantiate a temporary object to get the value.
         instance = strategy_class.__new__(strategy_class)
-        sid = instance.strategy_id  # type: ignore[attr-defined]
+        sid = instance.strategy_id
         cls._strategies[sid] = strategy_class
         return strategy_class
 

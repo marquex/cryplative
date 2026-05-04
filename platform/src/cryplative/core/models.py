@@ -6,7 +6,7 @@ of truth for data shapes in the system.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, field_validator, model_validator
@@ -40,14 +40,14 @@ class Candle(BaseModel):
         return self
 
 
-class SignalDirection(str, Enum):
+class SignalDirection(StrEnum):
     """Direction of a trading signal."""
 
     BUY = "BUY"
     SELL = "SELL"
 
 
-class OrderType(str, Enum):
+class OrderType(StrEnum):
     """Type of order to place."""
 
     MARKET = "MARKET"
@@ -90,7 +90,7 @@ class Signal(BaseModel):
         return self
 
 
-class TradeStatus(str, Enum):
+class TradeStatus(StrEnum):
     """Status of a trade."""
 
     OPEN = "OPEN"
@@ -98,7 +98,7 @@ class TradeStatus(str, Enum):
     CANCELLED = "CANCELLED"
 
 
-class RunContext(str, Enum):
+class RunContext(StrEnum):
     """Context in which a strategy is running."""
 
     BACKTEST = "BACKTEST"

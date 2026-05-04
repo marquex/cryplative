@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import structlog
 
 from cryplative.core.interfaces import Strategy
-from cryplative.core.models import Candle, Signal, SignalDirection, StrategyConfig
+from cryplative.core.models import (
+    Candle,
+    OrderType,
+    Signal,
+    SignalDirection,
+    StrategyConfig,
+)
 from cryplative.strategies.registry import StrategyRegistry
 
 logger = structlog.get_logger()
@@ -38,7 +42,13 @@ class SMACrossoverStrategy(Strategy):
     """
 
     def __init__(self) -> None:
-        self._config: StrategyConfig | None = None
+        self._config: StrategyConfig = StrategyConfig(
+            strategy_id="sma_crossover",
+            strategy_name="SMA Crossover",
+            version="1.0.0",
+            symbol="",
+            interval="",
+        )
         self._fast_period: int = 10
         self._slow_period: int = 20
 
@@ -77,17 +87,19 @@ class SMACrossoverStrategy(Strategy):
         slow_sma = compute_sma(closes, self._slow_period)
 
         # Look at the last two completed candles to detect a crossover
-        # The last candle is the most recent one
-        prev_idx = -2
-        curr_idx = -1
-
-        prev_fast = fast_sma[prev_idx]
-        prev_slow = slow_sma[prev_idx]
-        curr_fast = fast_sma[curr_idx]
-        curr_slow = slow_sma[curr_idx]
+        prev_fast = fast_sma[-2]
+        prev_slow = slow_sma[-2]
+        curr_fast = fast_sma[-1]
+        curr_slow = slow_sma[-1]
 
         if any(v is None for v in [prev_fast, prev_slow, curr_fast, curr_slow]):
             return None
+
+        # At this point mypy should know they're not None
+        assert prev_fast is not None
+        assert prev_slow is not None
+        assert curr_fast is not None
+        assert curr_slow is not None
 
         # Crossover detection
         latest_candle = candles[-1]
@@ -99,7 +111,7 @@ class SMACrossoverStrategy(Strategy):
                 symbol=latest_candle.symbol,
                 timestamp=latest_candle.open_time,
                 direction=SignalDirection.BUY,
-                order_type="MARKET",  # type: ignore[arg-type]
+                order_type=OrderType.MARKET,
                 price=None,
                 quantity=1.0,
                 stop_loss=None,
@@ -120,7 +132,7 @@ class SMACrossoverStrategy(Strategy):
                 symbol=latest_candle.symbol,
                 timestamp=latest_candle.open_time,
                 direction=SignalDirection.SELL,
-                order_type="MARKET",  # type: ignore[arg-type]
+                order_type=OrderType.MARKET,
                 price=None,
                 quantity=1.0,
                 stop_loss=None,

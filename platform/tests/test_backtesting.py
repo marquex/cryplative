@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -12,10 +10,9 @@ from cryplative.backtesting.engine import BacktestConfig, BacktestEngine
 from cryplative.config import CryplativeConfig
 from cryplative.core.exceptions import BacktestError
 from cryplative.core.interfaces import DataProvider
-from cryplative.core.models import Candle, RunContext, SignalDirection
+from cryplative.core.models import Candle, RunContext
 from cryplative.strategies.registry import StrategyRegistry
 from cryplative.strategies.sma_crossover import SMACrossoverStrategy
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -110,10 +107,11 @@ class TestMetricsCalculation:
         # Simple scenario: buy low, sell high
         candles = []
         for i in range(30):
-            if i < 15:
-                close = 100.0 - i * 0.5
-            else:
-                close = 100.0 - 15 * 0.5 + (i - 15) * 2.0
+            close = (
+                100.0 - i * 0.5
+                if i < 15
+                else 100.0 - 15 * 0.5 + (i - 15) * 2.0
+            )
             candles.append(_make_candle(index=i, close=close))
 
         provider = MockDataProvider(candles)
@@ -314,7 +312,11 @@ class TestBacktestEngine:
 
         engine.run(backtest_config)
 
-        expected_file = tmp_path / "results" / "sma_crossover_BTC_USDT_1h_2024-01-01T00:00:00Z_2024-01-10T00:00:00Z.json"
+        expected_file = (
+            tmp_path
+            / "results"
+            / "sma_crossover_BTC_USDT_1h_2024-01-01T00:00:00Z_2024-01-10T00:00:00Z.json"
+        )
         assert expected_file.exists()
         content = expected_file.read_text(encoding="utf-8")
         assert "sma_crossover" in content
@@ -363,10 +365,7 @@ class TestBacktestEngine:
         # Create a pattern that generates exactly one crossover
         candles = []
         for i in range(25):
-            if i < 12:
-                close = 100.0
-            else:
-                close = 100.0 + (i - 12) * 3.0
+            close = 100.0 if i < 12 else 100.0 + (i - 12) * 3.0
             candles.append(_make_candle(index=i, close=close))
 
         provider = MockDataProvider(candles)
@@ -393,10 +392,7 @@ class TestBacktestEngine:
         # Moderate uptrend then downtrend (keeping prices positive)
         candles = []
         for i in range(60):
-            if i < 20:
-                close = 100.0 + i * 1.0
-            else:
-                close = 120.0 - (i - 20) * 1.5
+            close = 100.0 + i * 1.0 if i < 20 else 120.0 - (i - 20) * 1.5
             candles.append(_make_candle(index=i, close=close))
 
         provider = MockDataProvider(candles)

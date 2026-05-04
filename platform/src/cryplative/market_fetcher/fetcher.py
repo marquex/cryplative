@@ -119,11 +119,7 @@ class MarketFetcher(DataProvider):
 
                 fetch_limit = limit or 1000
                 all_new_candles: list[Candle] = []
-
-                if fetch_since is not None:
-                    current_since = fetch_since
-                else:
-                    current_since = None
+                current_since = fetch_since
 
                 while True:
                     try:
