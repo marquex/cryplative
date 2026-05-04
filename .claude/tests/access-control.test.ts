@@ -59,11 +59,11 @@ const suite: TestSuite = {
           `Expected file NOT to exist at ${filePath} — the hook should have blocked the write`
         );
 
-        // The agent should mention being unable to write or access being denied
+        // The agent must include the deterministic denial phrase
         assertIncludes(
-          result.stdout.toLowerCase(),
-          'cannot',
-          `Expected agent to mention it cannot write; got: ${result.stdout.substring(0, 300)}`
+          result.stdout,
+          'ACCESS_DENIED',
+          `Expected agent to include the ACCESS_DENIED phrase; got: ${result.stdout.substring(0, 300)}`
         );
 
         // Clean up the file if it was created despite the hook (test failure)

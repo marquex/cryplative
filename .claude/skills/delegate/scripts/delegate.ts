@@ -43,7 +43,7 @@ function main() {
   const delegationId = `del-${crypto.randomUUID()}`;
 
   // Determine the calling agent name (from env or default to "global")
-  const fromAgent = process.env.CLAUDE_AGENT_NAME ?? "global";
+  const fromAgent = process.env.CLAUDE_AGENT_NAME || "global";
 
   // Enforce subordinates hierarchy before delegating.
   // Read the calling agent's frontmatter and verify the target is listed

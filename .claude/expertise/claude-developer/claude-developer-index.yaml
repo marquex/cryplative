@@ -137,6 +137,8 @@ access_control:
     note: "Belt-and-suspenders: both the PreToolUse hook AND delegate.ts script check subordinates. The hook intercepts the Bash command before execution; the script checks before spawning the child process."
   known_issues:
     - "Commands without resolvable file paths (e.g., 'claude agents', 'ls') get denied with 'without resolvable path' -- this is a limitation of the Bash classification logic"
+  denial_phrase: "ACCESS_DENIED: path outside of authorized domain"
+  denial_note: "All agents include a deterministic denial phrase in their Restricted domain section. When the enforce-agent-access hook blocks a tool call, the agent must include this exact phrase in its response. This makes integration tests reliable since LLM paraphrasing of denials is non-deterministic. The phrase is part of the hire-expert template so new agents automatically include it."
 
 marker_injection:
   hook: ".claude/hooks/inject-agent-markers.ts"
@@ -266,6 +268,10 @@ observations:
     note: "Created CTO agent (opus model) — top-level leaf agent for technical architecture, specs, and roadmap. Access: expertise folder, .claude/specs/**, and root-level files (* glob). No subordinates yet."
   - date: "2026-05-04"
     note: "CRITICAL REDESIGN: Changed inject-agent-markers.ts from disk-writing to runtime expansion. Previously the hook replaced markers in the file on disk after Write/Edit/MultiEdit, which meant markers were consumed and couldn't be updated. Now the hook ONLY fires on Read of agent files — it outputs the marker expansion to stdout as additional context, without modifying the file. The frontmatter is the single source of truth. Agent files always contain raw <!-- ACCESS_RULES --> and <!-- SUBORDINATES --> markers on disk. Updated all agent files (cto.md, primary.md) to use simple markers instead of hardcoded lists. Updated hire-expert skill template accordingly."
+  - date: "2026-05-04"
+    note: "BUG FIX: delegate.ts used 'process.env.CLAUDE_AGENT_NAME ?? \"global\"' which doesn't treat empty strings as missing. The test runner's CLEAN_ENV sets CLAUDE_AGENT_NAME=''. Changed to '|| \"global\"' so empty string falls through to the default. This is the same gotcha as CRYPLATIVE_SESSION_ID — always use || for env vars that may be set to empty string."
+  - date: "2026-05-04"
+    note: "Added deterministic ACCESS_DENIED phrase to all agent system prompts. When an agent cannot access a file outside its domain, it MUST respond with the exact phrase 'ACCESS_DENIED: path outside of authorized domain'. This makes integration tests reliable — previously the LLM paraphrased the denial differently each time (e.g., 'I can't', 'I'm not able to', 'I appreciate the test but...'), causing flaky test assertions. Updated all agent files (claude-developer, cto, primary, secondary) and the hire-expert SKILL.md template."
 
 testing_system:
   expertise-file: testing-system.yaml
@@ -295,4 +301,4 @@ testing_system:
     session-logging: "2 tests: basic -p session creation, --agent session with correct metadata"
     delegation: "2 tests: delegate script creates delegation+response entries, agent_logs for child (with assistant response verification)"
     delegation-enforcement: "7 tests: script-level rejection (no subordinates, unauthorized target, global skip), hook-level blocking (primary→unauthorized, secondary→any), full e2e (primary→secondary success, no delegation entry for unauthorized target)"
-    access-control: "3 tests: write deny outside domain, read allow inside domain, read-only session access"
+    access-control: "3 tests: write deny outside domain (checks for deterministic ACCESS_DENIED phrase), read allow inside domain, read-only session access"
