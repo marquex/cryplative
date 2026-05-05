@@ -9,19 +9,12 @@ Simulates a researcher:
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from unittest.mock import patch
 
 from cryplative.backtesting.engine import BacktestConfig, BacktestEngine
 from cryplative.config import CryplativeConfig
 from cryplative.core.interfaces import DataProvider
-from cryplative.core.models import (
-    Candle,
-    Signal,
-    SignalDirection,
-    TradeStatus,
-)
+from cryplative.core.models import Candle, TradeStatus
 from cryplative.strategies.registry import StrategyRegistry
 
 
@@ -176,7 +169,7 @@ class TestResearcherWorkflow:
         assert result_2.strategy_id == "sma_crossover"
 
         # Step 6: Compare results using the compare logic
-        from cryplative.cli import load_strategy_results, build_comparison_data
+        from cryplative.cli import build_comparison_data, load_strategy_results
 
         loaded = load_strategy_results([str(f) for f in json_files])
         assert len(loaded) >= 1
