@@ -114,6 +114,9 @@ def build_comparison_data(
         row: list[str] = []
         for _, m in results:
             val = m.get(metric, 0)
+            # Handle infinity values from JSON serialization
+            if val == float("inf") or val == float("-inf") or val is None:
+                val = 0
             if metric == "total_return":
                 row.append(f"{val:+.2f}%")
             elif metric == "win_rate":
