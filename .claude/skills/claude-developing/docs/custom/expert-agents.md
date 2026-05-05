@@ -12,9 +12,9 @@ There are 2 main features that make expert agents different from regular agents:
 
 They are created in the `.claude/agents/` as any other agent. If their file name is `expert-agent.md` we can say that {AGENT_NAME} is `expert-agent`. E.g if the file name is `code-expert.md` we can say that {AGENT_NAME} is `code-expert`.
 
-Every expert agent has a folder to let them store their mental model and their long-term memory. This folder is located in `.claude/expertise/{AGENT_NAME}/` and we should grant the agent read, write and delete access to this folder, so they own those files. We should avoid editing those files directly, we should let the agent manage them the best they can.
+Every expert agent has a folder to let them store their mental model and their long-term memory. This folder is located in `.agentic/expertise/{AGENT_NAME}/` and we should grant the agent read, write and delete access to this folder, so they own those files. We should avoid editing those files directly, we should let the agent manage them the best they can.
 
-The expertise folder should always have an index file for the mental model `.claude/expertise/{AGENT_NAME}/{AGENT_NAME}-index.yaml`. The agent must always read this file at the beginning of every session to load its mental model, and work based on their expertise. 
+The expertise folder should always have an index file for the mental model `.agentic/expertise/{AGENT_NAME}/{AGENT_NAME}-index.yaml`. The agent must always read this file at the beginning of every session to load its mental model, and work based on their expertise. 
 
 At the end of the session, the agent should update their expertise with any new thing they have learned.
 
@@ -43,7 +43,7 @@ skills:
   - agent-expertise
 subordinates: []  # list of agent names this agent can delegate to (omit if none)
 access:
-  - path: .claude/expertise/expert-agent/**
+  - path: .agentic/expertise/expert-agent/**
     permissions: [read, write, delete]
   - path: src/**
     permissions: [read]

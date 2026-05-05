@@ -17,7 +17,7 @@ agent_definitions:
       access_rules:
         - path: ".claude/sessions/**"
           permissions: ["read", "write"]
-        - path: ".claude/expertise/primary/**"
+        - path: ".agentic/expertise/primary/**"
           permissions: ["read", "write", "delete"]
       hooks:
         - matcher: "Read|Write|Edit|MultiEdit|Bash"
@@ -35,7 +35,7 @@ agent_definitions:
       access_rules:
         - path: ".claude/sessions/**"
           permissions: ["read"]
-        - path: ".claude/expertise/secondary/**"
+        - path: ".agentic/expertise/secondary/**"
           permissions: ["read", "write", "delete"]
       hooks:
         - matcher: "Read|Write|Edit|MultiEdit|Bash"

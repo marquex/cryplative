@@ -107,7 +107,7 @@ async function checkExpertiseUpdated(
     const startTime = parseInt(startTimeStr.trim(), 10) - 1000; // 1s buffer
     if (isNaN(startTime)) return false;
 
-    const expertiseDir = join(cwd, ".claude", "expertise", agentName);
+    const expertiseDir = join(cwd, ".agentic", "expertise", agentName);
     if (!existsSync(expertiseDir)) return false;
 
     const entries = await readdir(expertiseDir);
@@ -208,7 +208,7 @@ async function handleSessionStart(
   // Inject expertise content
   const expertiseIndex = join(
     cwd,
-    ".claude",
+    ".agentic",
     "expertise",
     agentName,
     `${agentName}-index.yaml`
@@ -256,7 +256,7 @@ async function handleStop(
   sessionsDir: string
 ) {
   // If there's no expertise directory, nothing to check or remind about
-  const expertiseDir = join(cwd, ".claude", "expertise", agentName);
+  const expertiseDir = join(cwd, ".agentic", "expertise", agentName);
   if (!existsSync(expertiseDir)) {
     process.exit(0);
   }

@@ -58,7 +58,7 @@ Cryplative is a modular trading platform for researching, testing, and executing
 
 ## 3. Module Specifications
 
-Each module will have its own detailed specification in `.claude/specs/`. The modules are:
+Each module will have its own detailed specification in `.agentic/specs/`. The modules are:
 
 1. **[SPEC-001] MarketFetcher** — Data ingestion and caching
 2. **[SPEC-002] Strategy Interface** — Universal strategy protocol

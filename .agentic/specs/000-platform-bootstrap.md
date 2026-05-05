@@ -4,7 +4,7 @@
 **Date**: 2026-05-04
 **Status**: Ready for Implementation
 **Assignee**: platform-developer
-**Depends on**: Architecture Overview (`.claude/specs/architecture-overview.md`)
+**Depends on**: Architecture Overview (`.agentic/specs/architecture-overview.md`)
 
 ---
 

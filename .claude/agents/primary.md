@@ -9,7 +9,7 @@ subordinates:
 access:
   - path: .claude/sessions/**
     permissions: [read, write]
-  - path: .claude/expertise/primary/**
+  - path: .agentic/expertise/primary/**
     permissions: [read, write, delete]
 hooks:
   PreToolUse:

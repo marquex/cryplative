@@ -5,7 +5,7 @@
 project_setup:
   conventions:
     - "Expert agents defined in .claude/agents/ as markdown with YAML frontmatter"
-    - "Expertise stored in .claude/expertise/{agent-name}/ as YAML files"
+    - "Expertise stored in .agentic/expertise/{agent-name}/ as YAML files"
     - "Skills in .claude/skills/{skill-name}/ with SKILL.md and optional scripts/"
     - "Hooks in .claude/scripts/ (e.g., enforce-agent-access.ts)"
     - "Hook scripts live in .claude/hooks/ (e.g., session-logger.ts)"
@@ -161,7 +161,7 @@ expertise_injection:
   events: ["SessionStart", "UserPromptSubmit", "Stop"]
   pattern: "Automates the 'read expertise at start' and 'update expertise at end' workflow that was previously handled by the agent-expertise skill. Three-layer approach: (1) SessionStart injects expertise content, (2) UserPromptSubmit provides a soft pre-emptive nudge, (3) Stop acts as a hard gate using the advanced Stop hook API (decision: block) to force a new agent turn when no expertise update is detected."
   behavior:
-    session_start: "Records session start timestamp to .claude/sessions/{id}/._expertise_start (for mtime comparison). Then reads .claude/expertise/{agent-name}/{agent-name}-index.yaml and wraps it in <expertise-context> XML tags with update instructions. Skips silently if no expertise file exists or agent_type is missing (global session)."
+    session_start: "Records session start timestamp to .claude/sessions/{id}/._expertise_start (for mtime comparison). Then reads .agentic/expertise/{agent-name}/{agent-name}-index.yaml and wraps it in <expertise-context> XML tags with update instructions. Skips silently if no expertise file exists or agent_type is missing (global session)."
     user_prompt_submit: "Outputs a single-line <expertise-reminder> reminding the agent to read its expertise file for context. Also resets the block counter to 0 so each new prompt cycle gets a fresh expertise check at the end. Fires before every agent response. Skips for global sessions."
     stop: "Hard gate using the advanced Stop hook API (JSON output with decision/reason/systemMessage). (a) checks block counter — if >= MAX_BLOCK_ATTEMPTS (1), allows exit, (b) checks if expertise directory exists — if not, allows exit, (c) compares mtime of all non-hidden expertise files against ._expertise_start timestamp (1s buffer) — if any file was modified, allows exit (agent already handled it), (d) otherwise increments counter and outputs JSON {decision: 'block', reason: <prompt>, systemMessage: <msg>}. The 'block' decision prevents session exit and feeds the reason as a new prompt to the agent, forcing it to update expertise before it can finish. The counter resets on each UserPromptSubmit, so every new user prompt gets its own Stop check."
   critical_gotcha: "Plain text output from Stop hooks does NOT block exit or force a new turn. You MUST output the JSON format {decision: 'block', reason: ..., systemMessage: ...} to actually prevent the session from ending. This was discovered by comparing with the Ralph Wiggum plugin (https://github.com/anthropics/claude-code/tree/main/plugins/ralph-wiggum). The plain text approach appeared to work (the reminder showed in logs) but the agent never processed it — the session just ended."
@@ -186,12 +186,12 @@ validation_agents:
   primary:
     path: ".claude/agents/primary.md"
     skills: ["delegate", "agent-expertise"]
-    access: "read/write to .claude/sessions/**, full access to .claude/expertise/primary/**"
+    access: "read/write to .claude/sessions/**, full access to .agentic/expertise/primary/**"
     role: "Delegates tasks to secondary, combines results"
   secondary:
     path: ".claude/agents/secondary.md"
     skills: ["agent-expertise"]
-    access: "read-only to .claude/sessions/**, full access to .claude/expertise/secondary/**"
+    access: "read-only to .claude/sessions/**, full access to .agentic/expertise/secondary/**"
     role: "Receives delegated tasks, returns structured responses"
 
 current_agents:
@@ -293,7 +293,7 @@ observations:
   - date: "2026-05-03"
     note: "Updated hire-expert SKILL.md template to use <!-- SUBORDINATES --> marker instead of hardcoded subordinate list. Updated expert-agents.md template similarly. Updated primary.md agent to use both markers and to declare subordinates in frontmatter. Updated delegate SKILL.md to document the enforcement mechanism."
   - date: "2026-05-04"
-    note: "Created CTO agent (opus model) — top-level leaf agent for technical architecture, specs, and roadmap. Access: expertise folder, .claude/specs/**, and root-level files (* glob). No subordinates yet."
+    note: "Created CTO agent (opus model) — top-level leaf agent for technical architecture, specs, and roadmap. Access: expertise folder, .agentic/specs/**, and root-level files (* glob). No subordinates yet."
   - date: "2026-05-04"
     note: "CRITICAL REDESIGN: Changed inject-agent-markers.ts from disk-writing to runtime expansion. Previously the hook replaced markers in the file on disk after Write/Edit/MultiEdit, which meant markers were consumed and couldn't be updated. Now the hook ONLY fires on Read of agent files — it outputs the marker expansion to stdout as additional context, without modifying the file. The frontmatter is the single source of truth. Agent files always contain raw <!-- ACCESS_RULES --> and <!-- SUBORDINATES --> markers on disk. Updated all agent files (cto.md, primary.md) to use simple markers instead of hardcoded lists. Updated hire-expert skill template accordingly."
   - date: "2026-05-04"
@@ -352,4 +352,7 @@ testing_system:
     progress-output: "7 tests: script loading (no syntax errors), extractTextFromMessage (string content, array with text+tool blocks, empty content, non-text block types, mixed with thinking blocks, empty string)"
     poll-transcript: "3 tests: extracts messages from Claude Code native format (nested type+message), handles flat role-based format (backward compatibility), filters out skill setup messages (command-message injections)"
     poll-transcript-e2e: "2 tests: streams messages from Claude Code native transcript in real-time, handles non-message entries (attachments, file-history-snapshots) gracefully"
+
+  - date: "2026-05-05"
+    note: "Migrated expertise and specs from .claude/expertise/ and .claude/specs/ to .agentic/expertise/ and .agentic/specs/. Reason: .claude/ requires special permissions for agents to write in, so agent-owned data (expertise, specs) was moved to .agentic/ where agents have full write access. Updated all references: 5 agent files (access rules + system prompts), inject-expertise.ts hook (3 path references), agent-expertise SKILL.md (3 references), hire-expert SKILL.md (3 references), expert-agents.md (3 references), validation-agents.yaml (2 references), claude-developer-index.yaml (4 references), and 2 spec files. Session data (.claude/sessions/) stays in .claude/. Hook scripts and infrastructure stay in .claude/hooks/ and .claude/scripts/."
 

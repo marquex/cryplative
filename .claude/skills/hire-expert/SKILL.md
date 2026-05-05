@@ -24,7 +24,7 @@ Before creating the agent, you need to gather the following:
 
 1. **Name** — a kebab-case identifier (e.g., `code-reviewer`, `data-analyst`). Used as the agent file name and expertise folder name.
 2. **Role description** — a clear description of the agent's purpose, what domain it specializes in, and when to use it. This becomes the `description` field in the frontmatter and the core of the system prompt.
-3. **Folder access** — the folders the agent needs to access (read-only or read-write). These become `access` rules. The agent's own expertise folder (`.claude/expertise/{name}/**`) is always included with read/write/delete.
+3. **Folder access** — the folders the agent needs to access (read-only or read-write). These become `access` rules. The agent's own expertise folder (`.agentic/expertise/{name}/**`) is always included with read/write/delete.
 4. **Manager** — which existing agent is this agent's manager. If specified, the manager agent will be updated to include this new agent as a subordinate. If not specified, this agent is a top-level agent.
 5. **Subordinates** — which existing agents this agent can delegate to. If specified, the `delegate` skill is included and the agent's system prompt lists its subordinates. If not specified, this is a leaf agent that cannot delegate.
 6. **Model** (optional) — the model for the agent. Defaults to `sonnet` if not specified.
@@ -79,7 +79,7 @@ skills:
 {if has subordinates:  - delegate}
 subordinates: {list of subordinate agent names, or omit if none}
 access:
-  - path: .claude/expertise/{name}/**
+  - path: .agentic/expertise/{name}/**
     permissions: [read, write, delete]
   - path: {folder}/**
     permissions: [read]
@@ -146,7 +146,7 @@ If the new agent has subordinates, you should check each subordinate agent's fil
 
 ### Step 7: Create the expertise folder
 
-Create the expertise folder and index file at `.claude/expertise/{name}/{name}-index.yaml` with this initial content:
+Create the expertise folder and index file at `.agentic/expertise/{name}/{name}-index.yaml` with this initial content:
 
 ```yaml
 # {Name} Expertise Index

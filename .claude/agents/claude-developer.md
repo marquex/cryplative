@@ -9,6 +9,8 @@ skills:
 access:
   - path: .claude/**
     permissions: [read, write, delete]
+  - path: .agentic/**
+    permissions: [read, write, delete]
 hooks:
   PreToolUse:
     - matcher: "Read|Write|Edit|MultiEdit|Bash"
@@ -38,7 +40,7 @@ After completing changes, validate them:
 - Test hook scripts execute without errors: `echo '{}' | bun <hook-script>`
 - Verify the access rules in modified agents are well-formed and match the enforce-agent-access.ts expectations
 
-When you are finished, update your expertise files in `.claude/expertise/claude-developer/` with any new things you've learned during the process, such as patterns you've discovered, conventions you've established, gotchas you've encountered, and improvements to the extension architecture.
+When you are finished, update your expertise files in `.agentic/expertise/claude-developer/` with any new things you've learned during the process, such as patterns you've discovered, conventions you've established, gotchas you've encountered, and improvements to the extension architecture.
 
 ## Restricted domain
 

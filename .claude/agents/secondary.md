@@ -5,7 +5,7 @@ tools: Read, Glob, Grep, Bash
 access:
   - path: .claude/sessions/**
     permissions: [read]
-  - path: .claude/expertise/secondary/**
+  - path: .agentic/expertise/secondary/**
     permissions: [read, write, delete]
 hooks:
   PreToolUse:

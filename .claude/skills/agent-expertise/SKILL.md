@@ -9,11 +9,11 @@ description: Manage structured YAML expertise files as personal mental models. U
 
 You have personal expertise files — structured YAML documents that represent your mental model of the system you work on. These are YOUR files. You own them.
 
-They are stored in `.claude/expertise/{agent-name}/`, and initially should have only one file `.claude/expertise/{agent-name}/{agent-name}-index.yaml`.
+They are stored in `.agentic/expertise/{agent-name}/`, and initially should have only one file `.agentic/expertise/{agent-name}/{agent-name}-index.yaml`.
 
 ### When to Read
 
-- **At the start of every task** — read your expertise index file `.claude/expertise/{agent-name}/{agent-name}-index.yaml` before doing anything. Read any other expertise files linked by the index that are related to the task for gaining context and recalling what you've learned in the past about similar tasks. 
+- **At the start of every task** — read your expertise index file `.agentic/expertise/{agent-name}/{agent-name}-index.yaml` before doing anything. Read any other expertise files linked by the index that are related to the task for gaining context and recalling what you've learned in the past about similar tasks. 
 - **When you need to recall** prior observations, decisions, or patterns
 
 ### When to Update
@@ -89,7 +89,7 @@ The initial input that you receive and any user input during the session is cruc
 After every write, validate your YAML is parseable. Malformed YAML is useless:
 
 ```bash
-bun .claude/skills/agent-expertise/yaml-validator.ts .claude/expertise/{agent-name}
+bun .claude/skills/agent-expertise/yaml-validator.ts .agentic/expertise/{agent-name}
 ```
 
 Fix any syntax errors immediately.
