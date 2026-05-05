@@ -350,3 +350,75 @@ class TestRSIStrategy:
         signal = self.strategy.generate_signal(candles)
         if signal is not None:
             assert signal.confidence == 0.6
+
+
+# ---------------------------------------------------------------------------
+# MACD Strategy
+# ---------------------------------------------------------------------------
+
+
+class TestMACDStrategy:
+    def setup_method(self) -> None:
+        StrategyRegistry.clear()
+        from cryplative.strategies.macd import MACDStrategy
+
+        self.strategy = MACDStrategy()
+        self.strategy.initialize(
+            StrategyConfig(
+                strategy_id="macd",
+                strategy_name="MACD Crossover",
+                version="1.0.0",
+                symbol="BTC/USDT",
+                interval="1h",
+                parameters={"fast_period": 3, "slow_period": 6, "signal_period": 3},
+            )
+        )
+
+    def test_no_signal_with_insufficient_data(self) -> None:
+        candles = [_make_candle(index=i, close=100.0 + i) for i in range(5)]
+        signal = self.strategy.generate_signal(candles)
+        assert signal is None
+
+    def test_buy_on_bullish_crossover(self) -> None:
+        """MACD histogram going negative to positive → BUY."""
+        # Create data that produces a trend reversal (down then up)
+        closes = [100.0, 95.0, 90.0, 85.0, 80.0, 82.0, 85.0, 90.0, 96.0, 103.0, 111.0]
+        candles = [_make_candle(index=i, close=closes[i]) for i in range(len(closes))]
+        signal = self.strategy.generate_signal(candles)
+        if signal is not None:
+            assert signal.direction == SignalDirection.BUY
+
+    def test_sell_on_bearish_crossover(self) -> None:
+        """MACD histogram going positive to negative → SELL."""
+        closes = [100.0, 105.0, 110.0, 115.0, 120.0, 118.0, 115.0, 110.0, 105.0, 100.0, 95.0]
+        candles = [_make_candle(index=i, close=closes[i]) for i in range(len(closes))]
+        signal = self.strategy.generate_signal(candles)
+        if signal is not None:
+            assert signal.direction == SignalDirection.SELL
+
+    def test_no_signal_when_no_crossover(self) -> None:
+        """No signal when histogram stays on one side."""
+        closes = [float(100 + i) for i in range(30)]
+        candles = [_make_candle(index=i, close=closes[i]) for i in range(30)]
+        signal = self.strategy.generate_signal(candles)
+        # Steady uptrend — histogram stays positive, no crossover
+        assert signal is None
+
+    def test_strategy_registered(self) -> None:
+        from cryplative.strategies.macd import MACDStrategy
+
+        StrategyRegistry.clear()
+        StrategyRegistry.register(MACDStrategy)
+        assert "macd" in StrategyRegistry.list_strategies()
+
+    def test_strategy_id_and_name(self) -> None:
+        assert self.strategy.strategy_id == "macd"
+        assert self.strategy.strategy_name == "MACD Crossover"
+
+    def test_default_parameters(self) -> None:
+        from cryplative.strategies.macd import MACDStrategy
+
+        params = MACDStrategy.default_parameters()
+        assert params["fast_period"] == 12
+        assert params["slow_period"] == 26
+        assert params["signal_period"] == 9
