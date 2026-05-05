@@ -5,8 +5,9 @@ from __future__ import annotations
 import pytest
 
 from cryplative.core.models import Candle, SignalDirection, StrategyConfig
+from cryplative.strategies.indicators import compute_sma
 from cryplative.strategies.registry import StrategyRegistry
-from cryplative.strategies.sma_crossover import SMACrossoverStrategy, compute_sma
+from cryplative.strategies.sma_crossover import SMACrossoverStrategy
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -12,25 +12,10 @@ from cryplative.core.models import (
     SignalDirection,
     StrategyConfig,
 )
+from cryplative.strategies.indicators import compute_sma
 from cryplative.strategies.registry import StrategyRegistry
 
 logger = structlog.get_logger()
-
-
-def compute_sma(closes: list[float], period: int) -> list[float | None]:
-    """Compute Simple Moving Average.
-
-    Returns a list where each element is the SMA at that index, or None
-    if there aren't enough data points to compute the average.
-    """
-    result: list[float | None] = []
-    for i in range(len(closes)):
-        if i < period - 1:
-            result.append(None)
-        else:
-            window = closes[i - period + 1 : i + 1]
-            result.append(sum(window) / period)
-    return result
 
 
 @StrategyRegistry.register
