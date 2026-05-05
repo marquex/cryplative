@@ -9,7 +9,7 @@ import json
 import re
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from rich.console import Console
@@ -25,13 +25,130 @@ app = typer.Typer(
 console = Console()
 
 
+# ---------------------------------------------------------------------------
+# Shared validation
+# ---------------------------------------------------------------------------
+
+VALID_INTERVALS = {"1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"}
+
+
+def _validate_symbol(symbol: str) -> str:
+    """Validate symbol format (e.g., BTC/USDT)."""
+    if not re.match(r"^[A-Z]+/[A-Z]+$", symbol):
+        console.print(
+            f"[red]Invalid symbol format: '{symbol}'. Expected format: BASE/QUOTE "
+            "(e.g., BTC/USDT).[/red]"
+        )
+        raise typer.Exit(1)
+    return symbol
+
+
+def _validate_interval(interval: str) -> str:
+    """Validate candle interval."""
+    if interval not in VALID_INTERVALS:
+        console.print(
+            f"[red]Invalid interval: '{interval}'. "
+            f"Valid options: {', '.join(sorted(VALID_INTERVALS))}[/red]"
+        )
+        raise typer.Exit(1)
+    return interval
+
+
+def _validate_date(date_str: str, name: str = "date") -> str:
+    """Validate ISO 8601 date format."""
+    try:
+        datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        console.print(
+            f"[red]Invalid {name} format: '{date_str}'. "
+            "Expected ISO 8601 (e.g., 2025-01-01 or 2025-01-01T00:00:00Z).[/red]"
+        )
+        raise typer.Exit(1) from None
+    return date_str
+
+
+# ---------------------------------------------------------------------------
+# Comparison logic (testable pure functions)
+# ---------------------------------------------------------------------------
+
+
+def load_strategy_results(
+    files: list[str],
+) -> list[tuple[str, dict[str, Any]]]:
+    """Load strategy results from JSON files.
+
+    Returns a list of (filename, metrics_dict) tuples.
+    Skips files that can't be loaded and returns them as errors.
+    """
+    results: list[tuple[str, dict[str, Any]]] = []
+    for filepath in files:
+        try:
+            path = Path(filepath)
+            data = json.loads(path.read_text(encoding="utf-8"))
+            metrics = data.get("metrics", {})
+            strategy_id = data.get("strategy_id", "unknown")
+            results.append((strategy_id, metrics))
+        except (json.JSONDecodeError, OSError, KeyError) as e:
+            console.print(f"[yellow]Warning: Skipping {filepath}: {e}[/yellow]")
+    return results
+
+
+def build_comparison_data(
+    results: list[tuple[str, dict[str, Any]]],
+) -> tuple[list[str], list[str], list[list[str]]]:
+    """Build comparison table data from loaded results.
+
+    Returns (metrics, strategy_names, rows).
+    """
+    if not results:
+        return [], [], []
+
+    metrics = [
+        "total_return", "sharpe_ratio", "max_drawdown",
+        "win_rate", "total_trades", "profit_factor",
+    ]
+    strategy_names = [name for name, _ in results]
+    rows: list[list[str]] = []
+
+    for metric in metrics:
+        row: list[str] = []
+        for _, m in results:
+            val = m.get(metric, 0)
+            if metric == "total_return":
+                row.append(f"{val:+.2f}%")
+            elif metric == "win_rate":
+                row.append(f"{val:.1f}%")
+            elif metric == "max_drawdown":
+                row.append(f"{val:.2f}%")
+            elif metric == "profit_factor":
+                if val == float("inf"):
+                    row.append("inf")
+                else:
+                    row.append(f"{val:.2f}")
+            elif metric in ("sharpe_ratio",):
+                row.append(f"{val:.2f}")
+            else:
+                row.append(str(val))
+        rows.append(row)
+
+    return metrics, strategy_names, rows
+
+
+# ---------------------------------------------------------------------------
+# Commands
+# ---------------------------------------------------------------------------
+
+
 @app.command()
-def strategies() -> None:
+def strategies(
+    verbose: bool = typer.Option(
+        False, "--verbose", help="Show default parameters for each strategy",
+    ),
+) -> None:
     """List all registered strategies."""
     config = CryplativeConfig()
     setup_logging(config)
 
-    # Import strategies to trigger registration
     from cryplative.strategies import StrategyRegistry  # noqa: F811
 
     strategy_ids = StrategyRegistry.list_strategies()
@@ -43,16 +160,30 @@ def strategies() -> None:
     table = Table(title="Registered Strategies")
     table.add_column("Strategy ID", style="cyan", no_wrap=True)
     table.add_column("Name", style="green")
-    table.add_column("Version", style="dim")
+
+    if verbose:
+        table.add_column("Default Parameters", style="dim")
 
     for sid in sorted(strategy_ids):
         try:
             cls = StrategyRegistry.get(sid)
             instance = cls.__new__(cls)
             name = instance.strategy_name
-            table.add_row(sid, name, "1.0.0")
+
+            if verbose:
+                default_params = cls.default_parameters()
+                if default_params:
+                    params_str = ", ".join(f"{k}={v}" for k, v in default_params.items())
+                    table.add_row(sid, name, params_str)
+                else:
+                    table.add_row(sid, name, "-")
+            else:
+                table.add_row(sid, name)
         except Exception:
-            table.add_row(sid, "[red]Error loading[/red]", "-")
+            if verbose:
+                table.add_row(sid, "[red]Error loading[/red]", "-")
+            else:
+                table.add_row(sid, "[red]Error loading[/red]")
 
     console.print(table)
 
@@ -67,6 +198,11 @@ def fetch(
     """Fetch and cache market data from the exchange."""
     config = CryplativeConfig()
     setup_logging(config)
+
+    _validate_symbol(symbol)
+    _validate_interval(interval)
+    _validate_date(start, "--start")
+    _validate_date(end, "--end")
 
     from cryplative.market_fetcher.fetcher import MarketFetcher
 
@@ -120,25 +256,58 @@ def backtest(
     capital: Annotated[
         float, typer.Option("--capital", help="Initial capital")
     ] = 10000.0,
-    params: str = typer.Option(None, "--params", help="Strategy parameters as JSON string"),
+    params: str = typer.Option(
+        "{}", "--params",
+        help="Strategy parameters as JSON string or path to JSON file",
+    ),
+    max_positions: int = typer.Option(
+        1, "--max-positions", help="Maximum concurrent open positions",
+    ),
 ) -> None:
     """Run a backtest with a strategy against historical data."""
     config = CryplativeConfig()
     setup_logging(config)
 
-    # Import strategies to trigger registration
+    # Validate inputs
+    _validate_symbol(symbol)
+    _validate_interval(interval)
+    _validate_date(start, "--start")
+    _validate_date(end, "--end")
+
+    if capital <= 0:
+        console.print("[red]Capital must be a positive number.[/red]")
+        raise typer.Exit(1)
+
+    from cryplative.strategies import StrategyRegistry  # noqa: F811
+
+    if strategy not in StrategyRegistry.list_strategies():
+        available = StrategyRegistry.list_strategies()
+        console.print(
+            f"[red]Strategy '{strategy}' not found.[/red] "
+            f"Available strategies: {', '.join(sorted(available))}"
+        )
+        raise typer.Exit(1)
 
     from cryplative.backtesting.engine import BacktestConfig, BacktestEngine
     from cryplative.market_fetcher.fetcher import MarketFetcher
 
-    # Parse parameters
+    # Parse parameters: JSON string or file path
     strategy_params: dict[str, object] = {}
     if params:
-        try:
-            strategy_params = json.loads(params)
-        except json.JSONDecodeError as e:
-            console.print(f"[red]Invalid JSON in --params: {e}[/red]")
-            raise typer.Exit(1) from None
+        params_source = params.strip()
+        if params_source.endswith(".json"):
+            try:
+                params_path = Path(params_source)
+                strategy_params = json.loads(params_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError) as e:
+                console.print(f"[red]Error reading params file: {e}[/red]")
+                raise typer.Exit(1) from None
+        else:
+            try:
+                strategy_params = json.loads(params_source)
+            except json.JSONDecodeError as e:
+                console.print(f"[red]Invalid JSON in --params: {e}[/red]")
+                raise typer.Exit(1) from None
 
     console.print(f"[bold]Running backtest: {strategy} on {symbol} {interval}...[/bold]")
 
@@ -154,6 +323,7 @@ def backtest(
         end_date=end,
         initial_capital=capital,
         parameters=strategy_params,
+        max_positions=max_positions,
     )
 
     try:
@@ -174,6 +344,7 @@ def backtest(
     table.add_row("Interval", interval)
     table.add_row("Period", f"{start} → {end}")
     table.add_row("Initial Capital", f"${capital:,.2f}")
+    table.add_row("Max Positions", str(max_positions))
 
     return_color = "green" if metrics.total_return >= 0 else "red"
     table.add_row(
@@ -232,6 +403,72 @@ def backtest(
     # Save location
     results_dir = config.resolve_strategy_results_dir()
     console.print(f"\n[dim]Full results saved to {results_dir}/[/dim]")
+
+
+@app.command("compare")
+def compare_cmd(
+    files: list[str] = typer.Argument(help="Paths to strategy result JSON files"),  # noqa: B008
+) -> None:
+    """Compare backtest results from multiple result files."""
+    config = CryplativeConfig()
+    setup_logging(config)
+
+    if not files:
+        console.print("[red]No files specified.[/red]")
+        raise typer.Exit(1)
+    """Compare backtest results from multiple result files."""
+    config = CryplativeConfig()
+    setup_logging(config)
+
+    results = load_strategy_results(files)
+
+    if not results:
+        console.print("[red]No valid result files found.[/red]")
+        raise typer.Exit(1)
+
+    metric_names, strategy_names, rows = build_comparison_data(results)
+
+    table = Table(title="Strategy Comparison")
+
+    # Header row
+    table.add_column("Metric", style="cyan")
+    for name in strategy_names:
+        table.add_column(name, justify="right")
+
+    # Closer-to-zero-is-better (max_drawdown is negative, less negative = better)
+    closer_to_zero = {"max_drawdown"}
+
+    for metric, row in zip(metric_names, rows, strict=True):
+        if metric == "total_trades":
+            # Neutral — no color coding
+            table.add_row(metric.replace("_", " ").title(), *row)
+            continue
+
+        # Determine best and worst for color coding
+        values = []
+        for _, m in results:
+            values.append(m.get(metric, 0))
+
+        if metric in closer_to_zero:
+            # Max drawdown: closer to 0 is better
+            best_idx = values.index(max(values))
+            worst_idx = values.index(min(values))
+        else:
+            best_idx = values.index(max(values))
+            worst_idx = values.index(min(values))
+
+        styled_row: list[str] = []
+        for j, cell in enumerate(row):
+            if j == best_idx:
+                styled_row.append(f"[green]{cell}[/green]")
+            elif j == worst_idx:
+                styled_row.append(f"[red]{cell}[/red]")
+            else:
+                styled_row.append(cell)
+
+        table.add_row(metric.replace("_", " ").title(), *styled_row)
+
+    console.print(table)
 
 
 def _snake_to_pascal(name: str) -> str:
@@ -301,7 +538,7 @@ def new_strategy(name: str) -> None:
         "@StrategyRegistry.register",
     )
     template_content = template_content.replace(
-        "# This is a template file only. Auto-discovery skips files starting with \"_\".",
+        '# This is a template file only. Auto-discovery skips files starting with "_".',
         "",
     )
 

@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
-from cryplative.cli import app
+from cryplative.cli import app, build_comparison_data, load_strategy_results
 from cryplative.config import CryplativeConfig
 
 runner = CliRunner()
@@ -32,7 +33,6 @@ class TestCLIFetch:
 
     def test_fetch_prints_summary(self, tmp_path: Path) -> None:
         """Fetch command should print summary table."""
-        runner = CliRunner()
         config = CryplativeConfig(market_cache_dir=str(tmp_path / "cache"))
 
         from cryplative.core.models import Candle
@@ -63,29 +63,19 @@ class TestCLIFetch:
             with patch(
                 "cryplative.cli.CryplativeConfig", return_value=config
             ), patch("cryplative.cli.setup_logging"):
-                result = runner.invoke(
-                    __import__(
-                        "cryplative.cli", fromlist=["app"]
-                    ).app,
-                    [
-                        "fetch",
-                        "--symbol",
-                        "BTC/USDT",
-                        "--interval",
-                        "1h",
-                        "--start",
-                        "2025-01-01",
-                        "--end",
-                        "2025-01-31",
-                    ],
-                )
+                result = runner.invoke(app, [
+                    "fetch",
+                    "--symbol", "BTC/USDT",
+                    "--interval", "1h",
+                    "--start", "2025-01-01",
+                    "--end", "2025-01-31",
+                ])
 
         assert result.exit_code == 0
         assert "BTC/USDT" in result.output
 
     def test_fetch_no_data_exits(self, tmp_path: Path) -> None:
         """Fetch with no data should print warning and exit."""
-        runner = CliRunner()
         config = CryplativeConfig(market_cache_dir=str(tmp_path / "cache"))
 
         with patch(
@@ -98,22 +88,13 @@ class TestCLIFetch:
             with patch(
                 "cryplative.cli.CryplativeConfig", return_value=config
             ), patch("cryplative.cli.setup_logging"):
-                result = runner.invoke(
-                    __import__(
-                        "cryplative.cli", fromlist=["app"]
-                    ).app,
-                    [
-                        "fetch",
-                        "--symbol",
-                        "BTC/USDT",
-                        "--interval",
-                        "1h",
-                        "--start",
-                        "2025-01-01",
-                        "--end",
-                        "2025-01-31",
-                    ],
-                )
+                result = runner.invoke(app, [
+                    "fetch",
+                    "--symbol", "BTC/USDT",
+                    "--interval", "1h",
+                    "--start", "2025-01-01",
+                    "--end", "2025-01-31",
+                ])
 
         assert result.exit_code != 0
 
@@ -123,40 +104,27 @@ class TestCLIBacktest:
 
     def test_backtest_invalid_params_json(self, tmp_path: Path) -> None:
         """Invalid JSON in --params should exit with error."""
-        runner = CliRunner()
         config = CryplativeConfig(strategy_results_dir=str(tmp_path / "results"))
 
         with (
             patch("cryplative.cli.CryplativeConfig", return_value=config),
             patch("cryplative.cli.setup_logging"),
         ):
-            result = runner.invoke(
-                __import__(
-                    "cryplative.cli", fromlist=["app"]
-                ).app,
-                [
-                    "backtest",
-                    "--strategy",
-                    "sma_crossover",
-                    "--symbol",
-                    "BTC/USDT",
-                    "--interval",
-                    "1h",
-                    "--start",
-                    "2025-01-01",
-                    "--end",
-                    "2025-01-31",
-                    "--params",
-                    "not-valid-json",
-                ],
-            )
+            result = runner.invoke(app, [
+                "backtest",
+                "--strategy", "sma_crossover",
+                "--symbol", "BTC/USDT",
+                "--interval", "1h",
+                "--start", "2025-01-01",
+                "--end", "2025-01-31",
+                "--params", "not-valid-json",
+            ])
 
         assert result.exit_code != 0
         assert "Invalid JSON" in result.output
 
     def test_backtest_successful_run(self, tmp_path: Path) -> None:
         """Backtest with mocked data should succeed."""
-        runner = CliRunner()
         config = CryplativeConfig(strategy_results_dir=str(tmp_path / "results"))
 
         from cryplative.core.models import Candle
@@ -187,29 +155,110 @@ class TestCLIBacktest:
             with patch(
                 "cryplative.cli.CryplativeConfig", return_value=config
             ), patch("cryplative.cli.setup_logging"):
-                result = runner.invoke(
-                    __import__(
-                        "cryplative.cli", fromlist=["app"]
-                    ).app,
-                    [
-                        "backtest",
-                        "--strategy",
-                        "sma_crossover",
-                        "--symbol",
-                        "BTC/USDT",
-                        "--interval",
-                        "1h",
-                        "--start",
-                        "2024-01-01",
-                        "--end",
-                        "2024-01-03",
-                        "--capital",
-                        "100000",
-                    ],
-                )
+                result = runner.invoke(app, [
+                    "backtest",
+                    "--strategy", "sma_crossover",
+                    "--symbol", "BTC/USDT",
+                    "--interval", "1h",
+                    "--start", "2024-01-01",
+                    "--end", "2024-01-03",
+                    "--capital", "100000",
+                ])
 
         assert result.exit_code == 0
         assert "Backtest Results" in result.output
+
+    def test_backtest_params_from_file(self, tmp_path: Path) -> None:
+        """Backtest --params should read from JSON file."""
+        config = CryplativeConfig(strategy_results_dir=str(tmp_path / "results"))
+        params_file = tmp_path / "params.json"
+        params_file.write_text('{"fast_period": 5, "slow_period": 10}', encoding="utf-8")
+
+        from cryplative.core.models import Candle
+
+        test_candles = [
+            Candle(
+                symbol="BTC/USDT",
+                interval="1h",
+                open_time=1704067200000 + i * 3600000,
+                open=100.0 + i * 0.5,
+                high=105.0 + i * 0.5,
+                low=95.0 + i * 0.5,
+                close=102.0 + i * 0.5,
+                volume=100.0,
+                close_time=1704067200000 + i * 3600000 + 3599999,
+                closed=True,
+            )
+            for i in range(50)
+        ]
+
+        with patch(
+            "cryplative.market_fetcher.fetcher.MarketFetcher"
+        ) as mock_fetcher:
+            mock_instance = MagicMock()
+            mock_fetcher.return_value = mock_instance
+            mock_instance.get_candles.return_value = test_candles
+
+            with patch(
+                "cryplative.cli.CryplativeConfig", return_value=config
+            ), patch("cryplative.cli.setup_logging"):
+                result = runner.invoke(app, [
+                    "backtest",
+                    "--strategy", "sma_crossover",
+                    "--symbol", "BTC/USDT",
+                    "--interval", "1h",
+                    "--start", "2024-01-01",
+                    "--end", "2024-01-03",
+                    "--params", str(params_file),
+                ])
+
+        assert result.exit_code == 0
+
+    def test_backtest_max_positions(self, tmp_path: Path) -> None:
+        """Backtest --max-positions should pass through to config."""
+        config = CryplativeConfig(strategy_results_dir=str(tmp_path / "results"))
+
+        from cryplative.core.models import Candle
+
+        test_candles = [
+            Candle(
+                symbol="BTC/USDT",
+                interval="1h",
+                open_time=1704067200000 + i * 3600000,
+                open=100.0 + i * 0.5,
+                high=105.0 + i * 0.5,
+                low=95.0 + i * 0.5,
+                close=102.0 + i * 0.5,
+                volume=100.0,
+                close_time=1704067200000 + i * 3600000 + 3599999,
+                closed=True,
+            )
+            for i in range(50)
+        ]
+
+        with patch(
+            "cryplative.market_fetcher.fetcher.MarketFetcher"
+        ) as mock_fetcher:
+            mock_instance = MagicMock()
+            mock_fetcher.return_value = mock_instance
+            mock_instance.get_candles.return_value = test_candles
+
+            with patch(
+                "cryplative.cli.CryplativeConfig", return_value=config
+            ), patch("cryplative.cli.setup_logging"):
+                result = runner.invoke(app, [
+                    "backtest",
+                    "--strategy", "sma_crossover",
+                    "--symbol", "BTC/USDT",
+                    "--interval", "1h",
+                    "--start", "2024-01-01",
+                    "--end", "2024-01-03",
+                    "--max-positions", "3",
+                ])
+
+        assert result.exit_code == 0
+        assert "Max Positions" in result.output
+        assert "3" in result.output
 
 
 class TestCLIMain:
@@ -217,23 +266,18 @@ class TestCLIMain:
 
     def test_app_has_commands(self) -> None:
         """The app should have backtest, fetch, and strategies commands."""
-        from cryplative.cli import app
-
-        # Typer stores commands differently - check the group
         assert app is not None
         assert app.info.name == "cryplative"
 
     def test_app_help(self) -> None:
         """App help should list all commands."""
-        from cryplative.cli import app
-
-        runner = CliRunner()
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
         assert "backtest" in result.output
         assert "fetch" in result.output
         assert "strategies" in result.output
         assert "new-strategy" in result.output
+        assert "compare" in result.output
 
 
 class TestNewStrategyCLI:
@@ -323,3 +367,212 @@ class TemplateStrategy(Strategy):
         assert _snake_to_pascal("rsi") == "Rsi"
         assert _snake_to_title("my_strategy") == "My Strategy"
         assert _snake_to_title("bollinger_bands") == "Bollinger Bands"
+
+
+class TestInputValidation:
+    """Tests for CLI input validation."""
+
+    def test_invalid_symbol_format(self, tmp_path: Path) -> None:
+        """Invalid symbol format should error."""
+        config = CryplativeConfig(strategy_results_dir=str(tmp_path / "results"))
+
+        with patch("cryplative.cli.CryplativeConfig", return_value=config), \
+             patch("cryplative.cli.setup_logging"):
+            result = runner.invoke(app, [
+                "backtest",
+                "--strategy", "sma_crossover",
+                "--symbol", "INVALID",
+                "--interval", "1h",
+                "--start", "2025-01-01",
+                "--end", "2025-01-31",
+            ])
+
+        assert result.exit_code == 1
+        assert "Invalid symbol format" in result.output
+
+    def test_invalid_interval(self, tmp_path: Path) -> None:
+        """Invalid interval should error with valid options."""
+        config = CryplativeConfig(strategy_results_dir=str(tmp_path / "results"))
+
+        with patch("cryplative.cli.CryplativeConfig", return_value=config), \
+             patch("cryplative.cli.setup_logging"):
+            result = runner.invoke(app, [
+                "backtest",
+                "--strategy", "sma_crossover",
+                "--symbol", "BTC/USDT",
+                "--interval", "99m",
+                "--start", "2025-01-01",
+                "--end", "2025-01-31",
+            ])
+
+        assert result.exit_code == 1
+        assert "Invalid interval" in result.output
+        assert "1m" in result.output  # Should list valid options
+
+    def test_invalid_date_format(self, tmp_path: Path) -> None:
+        """Invalid date format should error."""
+        config = CryplativeConfig(strategy_results_dir=str(tmp_path / "results"))
+
+        with patch("cryplative.cli.CryplativeConfig", return_value=config), \
+             patch("cryplative.cli.setup_logging"):
+            result = runner.invoke(app, [
+                "backtest",
+                "--strategy", "sma_crossover",
+                "--symbol", "BTC/USDT",
+                "--interval", "1h",
+                "--start", "not-a-date",
+                "--end", "2025-01-31",
+            ])
+
+        assert result.exit_code == 1
+        assert "Invalid" in result.output
+
+    def test_unknown_strategy_lists_available(self, tmp_path: Path) -> None:
+        """Unknown strategy should list available strategies."""
+        config = CryplativeConfig(strategy_results_dir=str(tmp_path / "results"))
+
+        with patch("cryplative.cli.CryplativeConfig", return_value=config), \
+             patch("cryplative.cli.setup_logging"):
+            result = runner.invoke(app, [
+                "backtest",
+                "--strategy", "nonexistent_strategy",
+                "--symbol", "BTC/USDT",
+                "--interval", "1h",
+                "--start", "2025-01-01",
+                "--end", "2025-01-31",
+            ])
+
+        assert result.exit_code == 1
+        assert "not found" in result.output
+        assert "Available strategies" in result.output
+
+    def test_zero_or_negative_capital(self, tmp_path: Path) -> None:
+        """Zero or negative capital should error."""
+        config = CryplativeConfig(strategy_results_dir=str(tmp_path / "results"))
+
+        with patch("cryplative.cli.CryplativeConfig", return_value=config), \
+             patch("cryplative.cli.setup_logging"):
+            result = runner.invoke(app, [
+                "backtest",
+                "--strategy", "sma_crossover",
+                "--symbol", "BTC/USDT",
+                "--interval", "1h",
+                "--start", "2025-01-01",
+                "--end", "2025-01-31",
+                "--capital", "0",
+            ])
+
+        assert result.exit_code == 1
+        assert "positive" in result.output
+
+
+class TestCompareLogic:
+    """Tests for the compare command logic."""
+
+    def test_load_strategy_results(self, tmp_path: Path) -> None:
+        """load_strategy_results loads valid JSON files."""
+        result_data = {
+            "strategy_id": "sma_crossover",
+            "metrics": {
+                "total_return": 15.3,
+                "sharpe_ratio": 1.24,
+                "max_drawdown": -8.5,
+                "win_rate": 55.0,
+                "total_trades": 20,
+                "profit_factor": 1.8,
+            },
+        }
+        f1 = tmp_path / "result1.json"
+        f1.write_text(json.dumps(result_data), encoding="utf-8")
+
+        results = load_strategy_results([str(f1)])
+        assert len(results) == 1
+        assert results[0][0] == "sma_crossover"
+
+    def test_load_skips_invalid_files(self, tmp_path: Path) -> None:
+        """load_strategy_results skips invalid files."""
+        bad_file = tmp_path / "bad.json"
+        bad_file.write_text("not json", encoding="utf-8")
+
+        results = load_strategy_results([str(bad_file)])
+        assert len(results) == 0
+
+    def test_build_comparison_data(self) -> None:
+        """build_comparison_data produces correct table structure."""
+        results = [
+            ("sma_crossover", {
+                "total_return": 15.3,
+                "sharpe_ratio": 1.24,
+                "max_drawdown": -8.5,
+                "win_rate": 55.0,
+                "total_trades": 20,
+                "profit_factor": 1.8,
+            }),
+            ("rsi", {
+                "total_return": 8.2,
+                "sharpe_ratio": 0.85,
+                "max_drawdown": -12.3,
+                "win_rate": 48.0,
+                "total_trades": 35,
+                "profit_factor": 1.2,
+            }),
+        ]
+
+        metrics, names, rows = build_comparison_data(results)
+        assert len(metrics) == 6
+        assert names == ["sma_crossover", "rsi"]
+        assert len(rows) == 6
+
+
+class TestCompareCommand:
+    """Tests for the compare CLI command."""
+
+    def test_compare_command(self, tmp_path: Path) -> None:
+        """Compare command displays a table."""
+        result_data_a = {
+            "strategy_id": "sma_crossover",
+            "metrics": {
+                "total_return": 15.3,
+                "sharpe_ratio": 1.24,
+                "max_drawdown": -8.5,
+                "win_rate": 55.0,
+                "total_trades": 20,
+                "profit_factor": 1.8,
+            },
+        }
+        result_data_b = {
+            "strategy_id": "rsi",
+            "metrics": {
+                "total_return": 8.2,
+                "sharpe_ratio": 0.85,
+                "max_drawdown": -12.3,
+                "win_rate": 48.0,
+                "total_trades": 35,
+                "profit_factor": 1.2,
+            },
+        }
+        f1 = tmp_path / "a.json"
+        f2 = tmp_path / "b.json"
+        f1.write_text(json.dumps(result_data_a), encoding="utf-8")
+        f2.write_text(json.dumps(result_data_b), encoding="utf-8")
+
+        config = CryplativeConfig()
+        with patch("cryplative.cli.CryplativeConfig", return_value=config), \
+             patch("cryplative.cli.setup_logging"):
+            result = runner.invoke(app, ["compare", str(f1), str(f2)])
+
+        assert result.exit_code == 0
+        assert "Strategy Comparison" in result.output
+        assert "sma_crossover" in result.output
+        assert "rsi" in result.output
+        assert "Total Return" in result.output
+
+    def test_compare_empty_files(self) -> None:
+        """Compare with no valid files should error."""
+        config = CryplativeConfig()
+        with patch("cryplative.cli.CryplativeConfig", return_value=config), \
+             patch("cryplative.cli.setup_logging"):
+            result = runner.invoke(app, ["compare", "/nonexistent/file.json"])
+
+        assert result.exit_code == 1
+        assert "No valid" in result.output
