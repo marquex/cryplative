@@ -40,6 +40,7 @@ import sessionLoggingSuite from './session-logging.test';
 import delegationSuite from './delegation.test';
 import delegationEnforcementSuite from './delegation-enforcement.test';
 import accessControlSuite from './access-control.test';
+import injectExpertiseSuite from './inject-expertise.test';
 
 const ALL_SUITES: TestSuite[] = [
   enforceAccessSuite,
@@ -49,6 +50,7 @@ const ALL_SUITES: TestSuite[] = [
   delegationSuite,
   delegationEnforcementSuite,
   accessControlSuite,
+  injectExpertiseSuite,
 ];
 
 // ============ CLI Args ============

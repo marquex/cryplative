@@ -5,6 +5,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bun .claude/hooks/inject-expertise.ts"
+          },
+          {
+            "type": "command",
             "command": "bun .claude/hooks/session-logger.ts"
           }
         ]
@@ -15,6 +19,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bun .claude/hooks/inject-expertise.ts"
+          },
+          {
+            "type": "command",
             "command": "bun .claude/hooks/session-logger.ts"
           }
         ]
@@ -23,6 +31,10 @@
     "Stop": [
       {
         "hooks": [
+          {
+            "type": "command",
+            "command": "bun .claude/hooks/inject-expertise.ts"
+          },
           {
             "type": "command",
             "command": "bun .claude/hooks/session-logger.ts"
