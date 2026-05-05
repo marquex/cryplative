@@ -9,7 +9,7 @@ from typing import Any
 import structlog
 
 from cryplative.config import CryplativeConfig
-from cryplative.core.exceptions import BacktestError
+from cryplative.core.exceptions import BacktestError, StrategyError
 from cryplative.core.interfaces import DataProvider
 from cryplative.core.models import (
     RunContext,
@@ -38,6 +38,7 @@ class BacktestConfig:
         initial_capital: float = 10000.0,
         parameters: dict[str, Any] | None = None,
         lookback_window: int = 200,
+        max_positions: int = 1,
     ) -> None:
         self.strategy_id = strategy_id
         self.symbol = symbol
@@ -47,6 +48,7 @@ class BacktestConfig:
         self.initial_capital = initial_capital
         self.parameters = parameters or {}
         self.lookback_window = lookback_window
+        self.max_positions = max_positions
 
     def start_timestamp_ms(self) -> int:
         """Convert start_date to Unix timestamp in milliseconds."""
@@ -106,7 +108,9 @@ class BacktestEngine:
             raise BacktestError(
                 f"No candle data found for {backtest_config.symbol} "
                 f"{backtest_config.interval} between {backtest_config.start_date} "
-                f"and {backtest_config.end_date}"
+                f"and {backtest_config.end_date}. "
+                "Check the symbol, try a different date range, or run "
+                "'cryplative fetch' first."
             )
 
         # 3. Validate we have enough data
@@ -129,39 +133,48 @@ class BacktestEngine:
         strategy.initialize(strategy_config)
 
         # 5. Simulate
-        portfolio = PortfolioTracker(
+        tracker = PortfolioTracker(
             initial_capital=backtest_config.initial_capital,
             context=RunContext.BACKTEST,
+            max_positions=backtest_config.max_positions,
         )
+
+        strategy_errors: int = 0
 
         for i, candle in enumerate(candles):
             # Build sliding window
             window_start = max(0, i - backtest_config.lookback_window + 1)
             window = candles[window_start : i + 1]
 
-            # Generate signal
-            signal = strategy.generate_signal(window)
+            # Generate signal (catch strategy errors, don't crash the run)
+            try:
+                signal = strategy.generate_signal(window)
+            except StrategyError:
+                strategy_errors += 1
+                logger.warning("strategy_error_during_backtest", candle_index=i)
+                tracker.snapshot_equity(candle.open_time, candle.close)
+                continue
+
             if signal is None:
-                portfolio.record_equity(candle.open_time, candle.close)
+                tracker.snapshot_equity(candle.open_time, candle.close)
                 continue
 
             # Process signal
-            if signal.direction == SignalDirection.BUY and not portfolio.has_open_position:
-                portfolio.open_position(signal, candle.close, candle.open_time)
-            elif signal.direction == SignalDirection.SELL and portfolio.has_open_position:
-                portfolio.close_position(candle.close, candle.open_time)
+            if signal.direction == SignalDirection.BUY and tracker.can_open():
+                tracker.open_position(signal, candle.close, candle.open_time)
+            elif signal.direction == SignalDirection.SELL and len(tracker.open_trades) > 0:
+                tracker.close_oldest(candle.close, candle.open_time)
 
-            portfolio.record_equity(candle.open_time, candle.close)
+            tracker.snapshot_equity(candle.open_time, candle.close)
 
-        # 6. Force-close remaining position
-        if portfolio.has_open_position and candles:
+        # 6. Force-close all remaining open positions
+        while tracker.open_trades and candles:
             last_candle = candles[-1]
-            portfolio.close_position(last_candle.close, last_candle.open_time)
-            portfolio.record_equity(last_candle.open_time, last_candle.close)
+            tracker.close_oldest(last_candle.close, last_candle.open_time)
 
         # 7. Calculate metrics
-        closed_trades = portfolio.closed_trades
-        equity_curve = portfolio.get_equity_curve()
+        closed_trades = tracker.closed_trades
+        equity_curve = tracker.get_equity_curve()
         metrics = self._calculate_metrics(
             closed_trades=closed_trades,
             equity_curve=equity_curve,
@@ -170,13 +183,17 @@ class BacktestEngine:
 
         # 8. Build result
         now = datetime.now(UTC).isoformat()
+        metadata: dict[str, Any] = {}
+        if strategy_errors > 0:
+            metadata["strategy_errors"] = strategy_errors
+
         result = StrategyResult(
             strategy_id=backtest_config.strategy_id,
             run_type=RunContext.BACKTEST,
             start_date=backtest_config.start_date,
             end_date=backtest_config.end_date,
             parameters=backtest_config.parameters,
-            trades=portfolio.trades,
+            trades=tracker.all_trades,
             metrics=metrics,
             created_at=now,
         )

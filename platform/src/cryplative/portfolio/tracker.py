@@ -6,6 +6,7 @@ import uuid
 
 import structlog
 
+from cryplative.core.exceptions import BacktestError
 from cryplative.core.models import (
     RunContext,
     Signal,
@@ -19,25 +20,29 @@ logger = structlog.get_logger()
 class PortfolioTracker:
     """Tracks equity curve and positions during a backtest or live run.
 
-    Minimal implementation for Phase 1.
+    Supports multiple concurrent positions with configurable max_positions.
     """
 
-    def __init__(self, initial_capital: float, context: RunContext = RunContext.BACKTEST) -> None:
+    def __init__(
+        self,
+        initial_capital: float,
+        context: RunContext = RunContext.BACKTEST,
+        max_positions: int = 1,
+    ) -> None:
         self.initial_capital = initial_capital
         self.capital = initial_capital
-        self.position: float | None = None  # quantity held
-        self.entry_price: float | None = None
-        self.trades: list[Trade] = []
         self._context = context
-        self._equity_curve: list[tuple[int, float]] = []
+        self.max_positions = max_positions
+        self.open_trades: list[Trade] = []
+        self.closed_trades: list[Trade] = []
+        self.equity_snapshots: list[tuple[int, float]] = []
 
-    @property
-    def has_open_position(self) -> bool:
-        """Whether there is currently an open position."""
-        return self.position is not None and self.position > 0
+    def can_open(self) -> bool:
+        """Whether we can open a new position."""
+        return len(self.open_trades) < self.max_positions
 
     def open_position(self, signal: Signal, price: float, timestamp: int) -> Trade:
-        """Open a position. Deduct capital.
+        """Open a new position. Deduct capital.
 
         Args:
             signal: The signal that triggered this position.
@@ -46,13 +51,18 @@ class PortfolioTracker:
 
         Returns:
             The opened Trade.
+
+        Raises:
+            BacktestError: If max_positions already reached.
         """
-        if self.has_open_position:
-            logger.warning("open_position_already_exists", trade_id=self.trades[-1].trade_id)
+        if not self.can_open():
+            raise BacktestError(
+                f"Cannot open position: max_positions ({self.max_positions}) reached"
+            )
 
         cost = price * signal.quantity
         if cost > self.capital:
-            logger.error(
+            logger.warning(
                 "insufficient_capital",
                 capital=self.capital,
                 cost=cost,
@@ -60,8 +70,6 @@ class PortfolioTracker:
             )
 
         self.capital -= cost
-        self.position = signal.quantity
-        self.entry_price = price
 
         trade = Trade(
             trade_id=str(uuid.uuid4()),
@@ -76,7 +84,7 @@ class PortfolioTracker:
             closed_at=None,
             context=self._context,
         )
-        self.trades.append(trade)
+        self.open_trades.append(trade)
 
         logger.debug(
             "position_opened",
@@ -84,33 +92,27 @@ class PortfolioTracker:
             price=price,
             quantity=signal.quantity,
             capital_remaining=self.capital,
+            open_positions=len(self.open_trades),
         )
 
         return trade
 
-    def close_position(self, price: float, timestamp: int) -> Trade | None:
-        """Close the current position at the given price.
+    def close_position(self, trade: Trade, price: float, timestamp: int) -> Trade:
+        """Close a specific trade. Add capital back.
 
         Args:
+            trade: The open trade to close.
             price: The exit price.
             timestamp: The exit timestamp (ms).
 
         Returns:
-            The closed Trade, or None if no position was open.
+            The closed Trade.
         """
-        if not self.has_open_position:
-            logger.warning("close_position_no_position")
-            return None
-
-        assert self.position is not None
-        assert self.entry_price is not None
-
-        proceeds = price * self.position
+        proceeds = price * trade.quantity
         self.capital += proceeds
 
-        trade = self.trades[-1]
-        pnl = (price - self.entry_price) * self.position
-        pnl_pct = (price / self.entry_price - 1) * 100 if self.entry_price > 0 else 0.0
+        pnl = (price - trade.entry_price) * trade.quantity
+        pnl_pct = (price / trade.entry_price - 1) * 100 if trade.entry_price > 0 else 0.0
 
         trade.exit_price = price
         trade.pnl = pnl
@@ -118,8 +120,8 @@ class PortfolioTracker:
         trade.status = TradeStatus.CLOSED
         trade.closed_at = timestamp
 
-        self.position = None
-        self.entry_price = None
+        self.open_trades.remove(trade)
+        self.closed_trades.append(trade)
 
         logger.debug(
             "position_closed",
@@ -128,32 +130,43 @@ class PortfolioTracker:
             pnl=pnl,
             pnl_percentage=pnl_pct,
             capital=self.capital,
+            open_positions=len(self.open_trades),
         )
 
         return trade
 
+    def close_oldest(self, price: float, timestamp: int) -> Trade:
+        """Close the oldest open trade (FIFO).
+
+        Args:
+            price: The exit price.
+            timestamp: The exit timestamp (ms).
+
+        Returns:
+            The closed Trade.
+
+        Raises:
+            BacktestError: If no open positions.
+        """
+        if not self.open_trades:
+            raise BacktestError("No open positions to close")
+        return self.close_position(self.open_trades[0], price, timestamp)
+
     def get_equity(self, current_price: float) -> float:
-        """Current equity = cash + position value at current price."""
-        position_value = (self.position or 0) * current_price
+        """Current equity = cash + sum of all open position values at current price."""
+        position_value = sum(t.quantity * current_price for t in self.open_trades)
         return self.capital + position_value
 
-    def record_equity(self, timestamp: int, price: float) -> None:
+    def snapshot_equity(self, timestamp: int, current_price: float) -> None:
         """Record an equity snapshot at the given timestamp and price."""
-        equity = self.get_equity(price)
-        self._equity_curve.append((timestamp, equity))
+        equity = self.get_equity(current_price)
+        self.equity_snapshots.append((timestamp, equity))
 
     def get_equity_curve(self) -> list[tuple[int, float]]:
-        """Return list of (timestamp, equity) snapshots."""
-        return list(self._equity_curve)
+        """Return all equity snapshots."""
+        return list(self.equity_snapshots)
 
     @property
-    def closed_trades(self) -> list[Trade]:
-        """Return all closed trades."""
-        return [t for t in self.trades if t.status == TradeStatus.CLOSED]
-
-    @property
-    def open_trade(self) -> Trade | None:
-        """Return the current open trade, if any."""
-        if self.has_open_position:
-            return self.trades[-1]
-        return None
+    def all_trades(self) -> list[Trade]:
+        """All trades (open + closed)."""
+        return self.open_trades + self.closed_trades

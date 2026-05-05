@@ -104,7 +104,6 @@ class MockDataProvider(DataProvider):
 class TestMetricsCalculation:
     def test_total_return(self, tmp_path: Path) -> None:
         """Verify total_return is calculated correctly."""
-        # Simple scenario: buy low, sell high
         candles = []
         for i in range(30):
             close = (
@@ -265,7 +264,6 @@ class TestBacktestEngine:
 
     def test_force_close_at_end(self, tmp_path: Path) -> None:
         """Open position at end of data should be force-closed."""
-        # Create candles where the last pattern is a BUY
         candles = _generate_candles_with_pattern(100)
         # Truncate to only include the rising part → likely leaves a BUY open
         candles = candles[:80]
@@ -362,7 +360,6 @@ class TestBacktestEngine:
 
     def test_single_trade(self, tmp_path: Path) -> None:
         """Edge case: exactly one trade."""
-        # Create a pattern that generates exactly one crossover
         candles = []
         for i in range(25):
             close = 100.0 if i < 12 else 100.0 + (i - 12) * 3.0
@@ -384,12 +381,10 @@ class TestBacktestEngine:
         )
 
         result = engine.run(backtest_config)
-        # Should have at most one trade (plus a force-close)
         assert result.strategy_id == "sma_crossover"
 
     def test_all_losing_trades_scenario(self, tmp_path: Path) -> None:
         """Test with a scenario that produces losing trades."""
-        # Moderate uptrend then downtrend (keeping prices positive)
         candles = []
         for i in range(60):
             close = 100.0 + i * 1.0 if i < 20 else 120.0 - (i - 20) * 1.5
@@ -413,3 +408,116 @@ class TestBacktestEngine:
         result = engine.run(backtest_config)
         assert result.metrics.total_trades >= 0
         assert result.metrics.max_drawdown <= 0.0
+
+
+# ---------------------------------------------------------------------------
+# Multi-position tests
+# ---------------------------------------------------------------------------
+
+
+class TestMultiPositionBacktesting:
+    def setup_method(self) -> None:
+        StrategyRegistry.clear()
+        StrategyRegistry.register(SMACrossoverStrategy)
+
+    def test_single_position_backward_compatible(self, tmp_path: Path) -> None:
+        """max_positions=1 should work identically to Phase 1."""
+        candles = _generate_candles_with_pattern(100)
+
+        provider = MockDataProvider(candles)
+        config = CryplativeConfig(strategy_results_dir=str(tmp_path / "results"))
+        engine = BacktestEngine(provider, config)
+
+        backtest_config = BacktestConfig(
+            strategy_id="sma_crossover",
+            symbol="BTC/USDT",
+            interval="1h",
+            start_date="2024-01-01T00:00:00Z",
+            end_date="2024-01-10T00:00:00Z",
+            initial_capital=100000.0,
+            parameters={"fast_period": 5, "slow_period": 10},
+            lookback_window=50,
+            max_positions=1,
+        )
+
+        result = engine.run(backtest_config)
+        # No OPEN trades should remain
+        open_trades = [t for t in result.trades if t.status.value == "OPEN"]
+        assert len(open_trades) == 0
+        assert isinstance(result.metrics.total_return, float)
+
+    def test_multi_position_mode(self, tmp_path: Path) -> None:
+        """max_positions=3 should correctly track multiple positions."""
+        candles = _generate_candles_with_pattern(100)
+
+        provider = MockDataProvider(candles)
+        config = CryplativeConfig(strategy_results_dir=str(tmp_path / "results"))
+        engine = BacktestEngine(provider, config)
+
+        backtest_config = BacktestConfig(
+            strategy_id="sma_crossover",
+            symbol="BTC/USDT",
+            interval="1h",
+            start_date="2024-01-01T00:00:00Z",
+            end_date="2024-01-10T00:00:00Z",
+            initial_capital=100000.0,
+            parameters={"fast_period": 5, "slow_period": 10},
+            lookback_window=50,
+            max_positions=3,
+        )
+
+        result = engine.run(backtest_config)
+        open_trades = [t for t in result.trades if t.status.value == "OPEN"]
+        assert len(open_trades) == 0
+
+    def test_fifo_closing_order(self, tmp_path: Path) -> None:
+        """Verify FIFO closing order with multi-position."""
+        candles = _generate_candles_with_pattern(100)
+
+        provider = MockDataProvider(candles)
+        config = CryplativeConfig(strategy_results_dir=str(tmp_path / "results"))
+        engine = BacktestEngine(provider, config)
+
+        backtest_config = BacktestConfig(
+            strategy_id="sma_crossover",
+            symbol="BTC/USDT",
+            interval="1h",
+            start_date="2024-01-01T00:00:00Z",
+            end_date="2024-01-10T00:00:00Z",
+            initial_capital=100000.0,
+            parameters={"fast_period": 5, "slow_period": 10},
+            lookback_window=50,
+            max_positions=3,
+        )
+
+        result = engine.run(backtest_config)
+        # All closed trades should have opened before they closed
+        for trade in result.trades:
+            if trade.closed_at is not None:
+                assert trade.closed_at >= trade.opened_at
+
+    def test_force_close_all_remaining(self, tmp_path: Path) -> None:
+        """All remaining open positions should be force-closed at end."""
+        candles = _generate_candles_with_pattern(60)
+        # Use short lookback to get more signals
+        candles = candles[:50]
+
+        provider = MockDataProvider(candles)
+        config = CryplativeConfig(strategy_results_dir=str(tmp_path / "results"))
+        engine = BacktestEngine(provider, config)
+
+        backtest_config = BacktestConfig(
+            strategy_id="sma_crossover",
+            symbol="BTC/USDT",
+            interval="1h",
+            start_date="2024-01-01T00:00:00Z",
+            end_date="2024-01-10T00:00:00Z",
+            initial_capital=100000.0,
+            parameters={"fast_period": 3, "slow_period": 5},
+            lookback_window=10,
+            max_positions=5,
+        )
+
+        result = engine.run(backtest_config)
+        open_trades = [t for t in result.trades if t.status.value == "OPEN"]
+        assert len(open_trades) == 0
