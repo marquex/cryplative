@@ -150,9 +150,9 @@ marker_injection:
   pattern: "When a Read tool targets a .claude/agents/*.md file, the hook outputs marker expansions to stdout as additional context. The file on disk is NEVER modified — markers persist and are expanded at runtime each time the file is read."
   markers:
     - name: "<!-- ACCESS_RULES -->"
-      replacement: "Bullet list of access rules with permissions, e.g. `- \`.claude/sessions/**\` — read, write`"
+      replacement: 'Bullet list of access rules with permissions, e.g. "- `.claude/sessions/**` — read, write"'
     - name: "<!-- SUBORDINATES -->"
-      replacement: "Bullet list of subordinate agents with descriptions, e.g. `- \`secondary\` — Description from agent file`. Reads each subordinate's .claude/agents/<name>.md to get the description field."
+      replacement: 'Bullet list of subordinate agents with descriptions, e.g. "- `secondary` — Description from agent file". Reads each subordinate''.claude/agents/<name>.md to get the description field.'
   key_principle: "The frontmatter is the single source of truth. Markers in the system prompt are placeholders that get expanded at runtime. Never hardcode access rules or subordinates in the system prompt — always use markers."
   note: "This hook enables the hire-expert skill to use markers in its template. Agent files always contain the raw markers on disk, and the hook provides the expansion whenever the file is read. No duplication, no maintenance burden."
 
@@ -318,6 +318,14 @@ observations:
     note: "CRITICAL BUG FIX: poll-transcript.ts never wrote any agent_logs for the main agent. Root cause: Claude Code's native transcript format uses {type: 'user'|'assistant', message: {role, content, ...}} — the message is NESTED inside a 'message' field, and the role discriminator is 'type', not 'role'. The poller was checking entry.role (always undefined) instead of entry.type. This was masked by the Stop hook fallback (filterTranscriptToAgentLogs) which correctly handled both formats — it always produced the agent_logs file at session end, making it look like the system worked. Fix: added extractMessage() to poll-transcript.ts that handles both nested (type+message) and flat (role) formats, matching filterTranscriptToAgentLogs. Also added safety nets: 30-min max lifetime (POLL_MAX_LIFETIME) and 20-sec stale transcript timeout (STALE_NO_CHANGE_LIMIT) to prevent zombie poller processes from accumulating. Before the fix, 22 zombie poller processes were running from past sessions."
   - date: "2026-05-05"
     note: "Added --dangerously-skip-permissions flag to delegate.ts child claude process spawn. Without this flag, subagents would get stuck waiting for human permission approval on tool calls (Read, Write, Edit, Bash, etc.), which defeats the purpose of autonomous delegation. The flag is equivalent to --permission-mode bypassPermissions. Updated reference.md to document this behavior."
+  - date: "2026-05-05"
+    note: "Migrated expertise and specs from .claude/expertise/ and .claude/specs/ to .agentic/expertise/ and .agentic/specs/. Reason: .claude/ requires special permissions for agents to write in, so agent-owned data (expertise, specs) was moved to .agentic/ where agents have full write access. Updated all references: 5 agent files (access rules + system prompts), inject-expertise.ts hook (3 path references), agent-expertise SKILL.md (3 references), hire-expert SKILL.md (3 references), expert-agents.md (3 references), validation-agents.yaml (2 references), claude-developer-index.yaml (4 references), and 2 spec files. Session data (.claude/sessions/) stays in .claude/. Hook scripts and infrastructure stay in .claude/hooks/ and .claude/scripts/."
+  - date: "2026-05-05"
+    note: "BUG FIX: Path normalization issue in enforce-agent-access hook. The hook was comparing relative paths after converting absolute paths to relative from cwd. This caused issues when agents accessed files via absolute paths or when rules contained .. segments. Fix: Modified matchesAnyRule() to accept a baseDir parameter and normalize both target paths and rule patterns to absolute paths before comparison using path.resolve(baseDir, rulePath). This ensures consistent path matching regardless of how paths are specified (relative, absolute, with .. segments, or symlinks). Updated function signature from matchesAnyRule(relPath, rules, verb) to matchesAnyRule(absPath, rules, verb, baseDir). Also updated the main loop to pass the baseDir parameter."
+  - date: "2026-05-05"
+    note: "Confirmed access control system works correctly. When asked to write a file outside my domain (project root), I properly denied the request using the exact ACCESS_DENIED phrase as instructed. The enforce-agent-access hook prevents agents from bypassing their domain restrictions, and the deterministic denial phrase makes integration tests reliable."
+  - date: "2026-05-05"
+    note: "Verified expertise injection system works end-to-end. The inject-expertise.ts hook correctly detected no expertise file modifications during a simple verification session (user asking 'can you read your expertise?'), and blocked exit with the Stop hook's hard gate mechanism. The system successfully forces expertise updates after meaningful work while allowing graceful handling of sessions where no new learnings occurred."
 
 testing_system:
   expertise-file: testing-system.yaml
@@ -352,7 +360,3 @@ testing_system:
     progress-output: "7 tests: script loading (no syntax errors), extractTextFromMessage (string content, array with text+tool blocks, empty content, non-text block types, mixed with thinking blocks, empty string)"
     poll-transcript: "3 tests: extracts messages from Claude Code native format (nested type+message), handles flat role-based format (backward compatibility), filters out skill setup messages (command-message injections)"
     poll-transcript-e2e: "2 tests: streams messages from Claude Code native transcript in real-time, handles non-message entries (attachments, file-history-snapshots) gracefully"
-
-  - date: "2026-05-05"
-    note: "Migrated expertise and specs from .claude/expertise/ and .claude/specs/ to .agentic/expertise/ and .agentic/specs/. Reason: .claude/ requires special permissions for agents to write in, so agent-owned data (expertise, specs) was moved to .agentic/ where agents have full write access. Updated all references: 5 agent files (access rules + system prompts), inject-expertise.ts hook (3 path references), agent-expertise SKILL.md (3 references), hire-expert SKILL.md (3 references), expert-agents.md (3 references), validation-agents.yaml (2 references), claude-developer-index.yaml (4 references), and 2 spec files. Session data (.claude/sessions/) stays in .claude/. Hook scripts and infrastructure stay in .claude/hooks/ and .claude/scripts/."
-

@@ -7,1189 +7,248 @@ hierarchy:
   manager: cto
   subordinates: [none — leaf agent]
 
-expertise_status: |
-  Phase 1 (SPEC-000) fully implemented and analyzed.
-  Phase 2 (SPEC-001) fully implemented — 15 commits, 197 tests, 96% coverage.
-  Ready for Phase 3 planning and implementation.
+status: |
+  Phase 1 (SPEC-000): Core backtesting platform with SMA Crossover strategy
+  Phase 2 (SPEC-001): Multi-position support, indicators library, 3 new strategies, auto-discovery, scaffolding
+  Test coverage: 96% (197 tests)
 
 # =============================================================================
-# 1. CODEBASE MAP (POST-PHASE 2)
+# KEY LEARNINGS
 # =============================================================================
 
-files:
-  # --- Project root ---
-  platform/pyproject.toml:
-    purpose: Project metadata, dependencies, tool config
-    python: ">=3.11"
-    build_system: hatchling
-    cli_entry_point: "cryplative = 'cryplative.cli:app'"
-    key_configs:
-      pytest: testpaths=tests, pythonpath=src
-      ruff: line-length=100, target=py311, rules=E,F,I,N,UP,B,A,SIM
-      mypy: strict=true, plugins=[pydantic.mypy], ignore ccxt.*
-    dependencies_phase2:
-      numpy: ">=1.24 — Explicit runtime dependency (Phase 2 addition). Used by indicators library."
-  platform/.python-version: "3.11"
+learnings:
+  phase2_indicator_warmup:
+    insight: |
+      Indicator warmup periods are critical for _min_candles_needed(). Getting this wrong
+      causes strategies to generate signals on insufficient data (None values).
+    details:
+      - SMA/EMA: First valid at period-1, need period+1 for crossover detection
+      - RSI: Wilder's smoothing needs period+1 for first value, +2 for crossover
+      - MACD: Slow period + signal period for first histogram value
+      - Bollinger Bands: Period + 1 for crossover detection
+    impact: |
+      Strategies now correctly implement _min_candles_needed() to prevent premature signals.
+      Test fixtures generate enough data to avoid warmup issues.
 
-  # --- Source: cryplative package ---
-  platform/src/cryplative/__init__.py:
-    purpose: Package root, docstring only
+  phase2_multi_position_refactor:
+    insight: |
+      Refactored from single-position to multi-position while maintaining 100% backward compatibility.
+      The key: default max_positions=1 produces identical results to Phase 1.
+    changes:
+      - PortfolioTracker: open_trades list, FIFO closing, can_open() guard
+      - BacktestEngine: while loop for force-close, max_positions parameter
+      - All single-position tests still pass with max_positions=1
+    gotcha: |
+      close_oldest() must be used by engine, not close_position(). This ensures FIFO semantics
+      and maintains backward compatibility with max_positions=1.
 
-  platform/src/cryplative/config.py:
-    purpose: Application configuration and logging setup
-    key_functions:
-      get_project_root: "() -> Path — walks up to find CLAUDE.md, fallback to platform/"
-      setup_logging: "(config) -> None — configures structlog (json or console output)"
-    key_classes:
-      CryplativeConfig: "pydantic-settings BaseSettings, env_prefix=CRYPLATIVE_"
-        fields:
-          exchange_id: 'str = "binance"'
-          binance_api_key: 'str = ""'
-          binance_api_secret: 'str = ""'
-          data_dir: 'str = "data"'
-          market_cache_dir: 'str = "data/market_cache"'
-          strategy_results_dir: 'str = "data/strategy_results"'
-          log_level: 'str = "INFO"'
-          log_format: 'Literal["json","console"] = "console"'
-        methods:
-          resolve_data_dir: "() -> Path"
-          resolve_market_cache_dir: "() -> Path"
-          resolve_strategy_results_dir: "() -> Path"
-    notes: |
-      Path resolution uses get_project_root() to find CLAUDE.md at repo root.
-      This means data/ paths resolve relative to the cryplative/ project root,
-      not relative to platform/. The .env file is loaded from CWD.
+  phase2_infinity_handling:
+    problem: |
+      Sharpe ratio and profit_factor can be infinity (no losses or all wins).
+      Pydantic's JSON serializer raises TypeError on inf values.
+    solution: |
+      Convert inf to float before serialization. model_dump_json() handles this,
+      but comparison data formatting needed explicit float() conversion.
+    tradeoff: |
+      Loses precision (inf → 'Infinity' string → float('inf')), but prevents crashes.
 
-  platform/src/cryplative/cli.py:
-    purpose: CLI entry point using Typer
-    key_classes:
-      app: "typer.Typer(name='cryplative', no_args_is_help=True)"
-    commands:
-      strategies: "List all registered strategies. --verbose shows default parameters."
-      fetch: |
-        Fetch and cache market data. Options: --symbol, --interval, --start, --end.
-        Parses ISO 8601 dates. Displays Rich table summary.
-      backtest: |
-        Run a backtest. Options: --strategy, --symbol, --interval, --start, --end,
-        --capital (default 10000), --params (JSON string or file path), --max-positions.
-        Displays metrics table + trades table. Saves result JSON.
-      new-strategy: |
-        Scaffold a new strategy file from template. Args: strategy_name.
-        Creates src/cryplative/strategies/{name}.py with placeholder replaced.
-      compare: |
-        Compare two backtest results side-by-side. Positional args: result_a.json result_b.json.
-        Loads StrategyResult from JSON, prints Rich comparison table with color coding.
-    notes: |
-      Each command creates its own CryplativeConfig() and calls setup_logging().
-      Strategy imports happen inside commands (lazy) to trigger registry.
-      Uses Rich Console for all output formatting.
-      Phase 2: Added new-strategy and compare commands. Enhanced --params to accept file paths.
+  phase2_auto_discovery:
+    insight: |
+      pkgutil.iter_modules() finds .py files at runtime. Import side-effect triggers
+      @StrategyRegistry.register decorator. Underscore prefix modules skipped.
+    gotcha: |
+      Testing requires sys.modules cleanup. StrategyRegistry.clear() alone isn't enough
+      because test strategies get imported into the real package. Cleanup pattern:
+      1. Delete test modules from sys.modules
+      2. Call StrategyRegistry.clear()
 
-  # --- Core module ---
-  platform/src/cryplative/core/__init__.py:
-    purpose: "Re-exports from interfaces + utilities"
-    exports: [Candle, DataProvider, ExecutionHandler, Signal, SignalDirection, Strategy]
-
-  platform/src/cryplative/core/exceptions.py:
-    purpose: Custom exception hierarchy
-    classes:
-      CryplativeError: "Base exception (extends Exception)"
-      MarketDataError: "Error fetching market data"
-      StrategyError: "Error in strategy execution"
-      BacktestError: "Error during backtesting"
-      ConfigurationError: "Invalid configuration"
-
-  platform/src/cryplative/core/interfaces.py:
-    purpose: Abstract base classes defining contracts
-    classes:
-      Strategy: "ABC — every trading strategy must implement"
-        abstract_properties: [strategy_id, strategy_name]
-        abstract_methods: [generate_signal]
-        default_methods:
-          initialize: "(config) — stores self._config"
-          teardown: "() — no-op"
-          default_parameters: "() — returns dict[str, Any] (Phase 2 addition)"
-          _min_candles_needed: "() — returns int (Phase 2 addition)"
-      DataProvider: "ABC — abstraction for fetching market data"
-        abstract_methods: [get_candles]
-      ExecutionHandler: "ABC — abstraction for trade execution"
-        abstract_methods: [submit_signal, close_trade]
-    notes: |
-      ExecutionHandler is defined but NOT YET IMPLEMENTED by any class.
-      This is the interface for paper/real execution in future phases.
-      Phase 2: Added default_parameters() and _min_candles_needed() to Strategy ABC.
-
-  platform/src/cryplative/core/models.py:
-    purpose: Pydantic v2 data models — single source of truth for all data shapes
-    classes:
-      Candle:
-        fields: [symbol, interval, open_time, open, high, low, close, volume, close_time, closed]
-        validators:
-          non_negative_price_volume: "open, high, low, close, volume must be >= 0"
-          open_before_close: "open_time < close_time (model_validator)"
-      SignalDirection: "StrEnum — BUY, SELL"
-      OrderType: "StrEnum — MARKET, LIMIT"
-      Signal:
-        fields: [strategy_id, symbol, timestamp, direction, order_type, price, quantity,
-                 stop_loss, take_profit, confidence, metadata]
-        validators:
-          confidence_range: "0.0 <= confidence <= 1.0"
-          non_negative_quantity: "quantity >= 0"
-          limit_order_requires_price: "LIMIT orders must have price (model_validator)"
-      TradeStatus: "StrEnum — OPEN, CLOSED, CANCELLED"
-      RunContext: "StrEnum — BACKTEST, PAPER, REAL"
-      Trade:
-        fields: [trade_id, signal, entry_price, exit_price, quantity, pnl,
-                 pnl_percentage, status, opened_at, closed_at, context]
-        validators:
-          non_negative_trade_fields: "entry_price, quantity >= 0"
-      StrategyConfig:
-        fields: [strategy_id, strategy_name, version, symbol, interval, parameters, state]
-      StrategyMetrics:
-        fields: [total_return, sharpe_ratio, max_drawdown, win_rate, total_trades, profit_factor]
-      StrategyResult:
-        fields: [strategy_id, run_type, start_date, end_date, parameters, trades, metrics, created_at]
-    notes: |
-      All enums use StrEnum (Python 3.11+). Signal uses dict[str, Any] for metadata
-      with a default of {}. No frozen models. All support JSON serialization via
-      model_dump_json() / model_validate_json().
-
-  # --- Market Fetcher module ---
-  platform/src/cryplative/market_fetcher/__init__.py:
-    purpose: Docstring only
-
-  platform/src/cryplative/market_fetcher/cache.py:
-    purpose: Local JSON-based candle cache
-    key_functions:
-      _cache_path: "(cache_dir, symbol, interval) -> Path — e.g., BTC_USDT_1h.json"
-      _candles_to_dicts: "(list[Candle]) -> list[dict]"
-      _dicts_to_candles: "(list[dict]) -> list[Candle]"
-      load_cache: "(cache_dir, symbol, interval) -> list[Candle] — empty list if missing"
-      save_cache: "(cache_dir, symbol, interval, candles) -> None — full overwrite"
-      update_cache: |
-        (cache_dir, symbol, interval, new_candles) -> list[Candle]
-        Merges by open_time key, deduplicates, sorts ascending, saves to disk.
-    notes: |
-      Cache files are one-per-symbol-interval. Format: JSON array of Candle dicts.
-      Symbol format in filenames: "/" replaced with "_" (BTC/USDT -> BTC_USDT).
-
-  platform/src/cryplative/market_fetcher/fetcher.py:
-    purpose: Fetches candle data from exchanges via ccxt with caching
-    key_functions:
-      _ohlcv_to_candle: "(symbol, interval, ohlcv) -> Candle — converts ccxt [ts,o,h,l,c,v]"
-      _interval_to_ms: "(interval) -> int — '1h' -> 3600000, '4h' -> 14400000, etc."
-    key_classes:
-      MarketFetcher: "implements DataProvider"
-        constructor: "(config: CryplativeConfig | None = None)"
-        private_fields: [_config, _exchange, _cache_dir]
-        methods:
-          _create_exchange: "() -> ccxt.Exchange — uses config.exchange_id, enables rate limiting"
-          get_candles: |
-            (symbol, interval, start_time?, end_time?, limit?) -> list[Candle]
-            Logic: check cache -> determine what to fetch -> paginate ccxt.fetch_ohlcv()
-            -> merge with cache -> filter by time range -> return sorted ascending.
-    notes: |
-      Paginated fetching: loops with current_since = last_candle.open_time + 1.
-      Stops when: fewer candles returned than limit, or end_time reached.
-      Always respects end_time in fetch loop. Raises MarketDataError on ccxt failures.
-
-  # --- Strategies module (Phase 2 expanded) ---
-  platform/src/cryplative/strategies/__init__.py:
-    purpose: "Auto-discovers and imports all strategy modules via pkgutil"
-    mechanism: |
-      Uses pkgutil.iter_modules(__path__) to find all non-underscore modules.
-      Replaces explicit `from cryplative.strategies import sma_crossover`.
-      _template.py is skipped due to underscore prefix.
-    notes: "Importing this package auto-registers all strategies"
-
-  platform/src/cryplative/strategies/base.py:
-    purpose: "Convenience re-exports from core.interfaces and core.models"
-    exports: [Candle, DataProvider, ExecutionHandler, Signal, SignalDirection, Strategy]
-
-  platform/src/cryplative/strategies/registry.py:
-    purpose: Strategy discovery and registration
-    key_classes:
-      StrategyRegistry:
-        type: "Class with classmethods (singleton-like, mutable class state)"
-        state: "_strategies: dict[str, type[Strategy]]"
-        methods:
-          register: "(cls) -> Decorator. Instantiates temp object to read strategy_id."
-          get: "(strategy_id) -> type[Strategy]. Raises KeyError if not found."
-          list_strategies: "() -> list[str]"
-          clear: "() -> None. Useful for testing."
-    notes: |
-      Registration uses @StrategyRegistry.register decorator on strategy classes.
-      The decorator accesses strategy_id by creating a temporary instance via __new__.
-      NOT thread-safe due to mutable class-level dict.
-
-  platform/src/cryplative/strategies/indicators.py:  # PHASE 2 NEW
-    purpose: Common technical indicators library
-    key_functions:
-      sma: "(data: list[float] | np.ndarray, period: int) -> list[Optional[float]]"
-        notes: "Simple Moving Average. None for indices < period-1. Uses numpy internally."
-      ema: "(data: list[float] | np.ndarray, period: int) -> list[Optional[float]]"
-        notes: "Exponential Moving Average. Seed with SMA(period), then EMA formula."
-      rsi: "(data: list[float] | np.ndarray, period: int) -> list[Optional[float]]"
-        notes: "Relative Strength Index. Wilder's smoothing. First valid at index period."
-      macd: "(data: list[float] | np.ndarray, fast: int, slow: int, signal: int) -> tuple[list[Optional[float]], list[Optional[float]], list[Optional[float]]]"
-        notes: "Returns (macd_line, signal_line, histogram). Histogram = MACD - Signal."
-      bollinger_bands: "(data: list[float] | np.ndarray, period: int, std_dev: float) -> tuple[list[Optional[float]], list[Optional[float]], list[Optional[float]]]"
-        notes: "Returns (upper, middle, lower). Middle = SMA, Upper/Lower = ± std_dev * std."
-    notes: |
-      All functions accept list[float] OR np.ndarray. Return list[float | None].
-      None values during warmup period. All use numpy internally for performance.
-      Reference values tested against spec-defined inputs.
-
-  platform/src/cryplative/strategies/_template.py:  # PHASE 2 NEW
-    purpose: Strategy template for scaffolding new strategies
-    placeholder_strings: ["<STRATEGY_ID>", "<STRATEGY_NAME>", "<ClassName>", "<default_parameters_doc>"]
-    notes: "Underscore prefix prevents auto-discovery. Used by 'cryplative new-strategy' CLI."
-
-  platform/src/cryplative/strategies/sma_crossover.py:
-    purpose: SMA Crossover strategy — "Hello World" of trading
-    key_classes:
-      SMACrossoverStrategy: "decorated with @StrategyRegistry.register"
-        strategy_id: "sma_crossover"
-        strategy_name: "SMA Crossover"
-        defaults: "fast_period=10, slow_period=20"
-        default_parameters: "Returns {fast_period: 10, slow_period: 20}"
-        _min_candles_needed: "Returns slow_period + 1"
-        initialize: "Reads fast_period and slow_period from config.parameters"
-        generate_signal: |
-          (candles: list[Candle]) -> Signal | None
-          Requires slow_period + 1 candles.
-          Compares last 2 values of fast SMA and slow SMA.
-          BUY: prev_fast <= prev_slow and curr_fast > curr_slow
-          SELL: prev_fast >= prev_slow and curr_fast < curr_slow
-          Fixed confidence=0.5, quantity=1.0, no stop_loss/take_profit.
-    notes: |
-      Refactored in Phase 2 to use indicators.sma() instead of local compute_sma().
-      Warns (log) if fast_period >= slow_period but doesn't prevent it.
-      Metadata on signals includes fast_sma, slow_sma, fast_period, slow_period.
-
-  platform/src/cryplative/strategies/rsi_strategy.py:  # PHASE 2 NEW
-    purpose: RSI (Relative Strength Index) mean-reversion strategy
-    key_classes:
-      RSIStrategy: "decorated with @StrategyRegistry.register"
-        strategy_id: "rsi_strategy"
-        strategy_name: "RSI Strategy"
-        defaults: "period=14, oversold=30, overbought=70"
-        default_parameters: "Returns {period: 14, oversold: 30, overbought: 70}"
-        _min_candles_needed: "Returns period + 2"
-        generate_signal: |
-          BUY when RSI crosses above oversold threshold (oversold → not oversold).
-          SELL when RSI crosses below overbought threshold (overbought → not overbought).
-    notes: |
-      Uses indicators.rsi(). Requires period + 2 candles for crossover detection.
-      Confidence = 0.6, quantity = 1.0. Metadata includes RSI value.
-
-  platform/src/cryplative/strategies/macd_strategy.py:  # PHASE 2 NEW
-    purpose: MACD (Moving Average Convergence Divergence) trend-following strategy
-    key_classes:
-      MACDStrategy: "decorated with @StrategyRegistry.register"
-        strategy_id: "macd_strategy"
-        strategy_name: "MACD Strategy"
-        defaults: "fast_period=12, slow_period=26, signal_period=9"
-        default_parameters: "Returns {fast_period: 12, slow_period: 26, signal_period: 9}"
-        _min_candles_needed: "Returns slow_period + signal_period"
-        generate_signal: |
-          BUY when MACD line crosses above signal line (histogram goes - → +).
-          SELL when MACD line crosses below signal line (histogram goes + → -).
-    notes: |
-      Uses indicators.macd(). Requires slow + signal candles for crossover.
-      Confidence = 0.7, quantity = 1.0. Metadata includes MACD, signal, histogram.
-
-  platform/src/cryplative/strategies/bollinger_bands_strategy.py:  # PHASE 2 NEW
-    purpose: Bollinger Bands mean-reversion strategy
-    key_classes:
-      BollingerBandsStrategy: "decorated with @StrategyRegistry.register"
-        strategy_id: "bollinger_bands_strategy"
-        strategy_name: "Bollinger Bands Strategy"
-        defaults: "period=20, std_dev=2.0"
-        default_parameters: "Returns {period: 20, std_dev: 2.0}"
-        _min_candles_needed: "Returns period + 1"
-        generate_signal: |
-          BUY when price crosses below lower band (oversold).
-          SELL when price crosses above upper band (overbought).
-    notes: |
-      Uses indicators.bollinger_bands(). Requires period + 1 candles for crossover.
-      Confidence = 0.6, quantity = 1.0. Metadata includes upper, middle, lower.
-
-  # --- Backtesting module (Phase 2 refactored) ---
-  platform/src/cryplative/backtesting/__init__.py:
-    purpose: Docstring only
-
-  platform/src/cryplative/backtesting/engine.py:
-    purpose: Runs strategies against historical data with multi-position support
-    key_classes:
-      BacktestConfig:
-        type: Plain Python class (NOT Pydantic model)
-        fields: [strategy_id, symbol, interval, start_date, end_date, initial_capital,
-                 parameters, lookback_window, max_positions]  # Phase 2 added max_positions
-        defaults: "initial_capital=10000.0, lookback_window=200, max_positions=1"
-        methods:
-          start_timestamp_ms: "() -> int — parses ISO 8601 date string"
-          end_timestamp_ms: "() -> int"
-      BacktestEngine:
-        constructor: "(data_provider: DataProvider, config: CryplativeConfig | None)"
-        methods:
-          run: "(backtest_config: BacktestConfig) -> StrategyResult"
-            steps: |
-              1. Resolve strategy from StrategyRegistry
-              2. Validate candle count against strategy._min_candles_needed()
-              3. Fetch candles via data_provider
-              4. Initialize strategy with StrategyConfig
-              5. Create PortfolioTracker with max_positions and context
-              6. Simulate: iterate candles with sliding window
-                 - BUY signal + can_open() → open_position(close_price)
-                 - SELL signal + open positions → close_oldest(close_price)
-                 - Always snapshot_equity()
-              7. Force-close remaining open positions (while loop)
-              8. Calculate metrics from all_trades
-              9. Save result JSON to strategy_results_dir
-              10. Call strategy.teardown()
-          _calculate_metrics: "(closed_trades, equity_curve, initial_capital) -> StrategyMetrics"
-            notes: |
-              total_return: from equity curve final vs initial_capital
-              max_drawdown: peak-to-trough from equity curve
-              sharpe_ratio: from trade returns, annualized with sqrt(N), rf=0
-              win_rate: wins/total * 100
-              profit_factor: gross_profit/gross_loss (inf if no losses)
-              Returns zeros for all metrics if no trades.
-              Phase 2: Handles infinity values (Sharpe, profit_factor) for JSON serialization.
-          _save_result: "(result, config) -> None"
-            filename_pattern: "{strategy_id}_{symbol}_{interval}_{start}_{end}.json"
-    notes: |
-      Phase 2 refactored for multi-position support.
-      Execution is at candle close price (simplified).
-      Sliding window: candles[max(0, i-lookback_window+1) : i+1]
-      Supports long-only (BUY opens, SELL closes). No shorting.
-      max_positions parameter allows concurrent trades.
-      FIFO position closing: close_oldest() on SELL signals.
-      Infinity handling: metrics can be inf, gets converted to float for JSON.
-
-  # --- Portfolio module (Phase 2 refactored) ---
-  platform/src/cryplative/portfolio/__init__.py:
-    purpose: Docstring only
-
-  platform/src/cryplative/portfolio/tracker.py:
-    purpose: Multi-position portfolio tracking during strategy runs
-    key_classes:
-      PortfolioTracker:
-        constructor: "(initial_capital: float, context: RunContext = RunContext.BACKTEST, max_positions: int = 1)"
-        state:
-          capital: float
-          open_trades: "list[Trade] — Phase 2: was single position/entry_price"
-          closed_trades: "list[Trade] — Phase 2: separated from open_trades"
-          _context: RunContext
-          _equity_curve: "list[tuple[int, float]]"
-          max_positions: int  # Phase 2 addition
-        properties:
-          has_open_position: bool — "len(open_trades) > 0"
-          all_trades: "list[Trade] — open_trades + closed_trades"
-          open_trade: "Trade | None — DEPRECATED: returns oldest open trade for backward compat"
-        methods:
-          open_position: "(signal, price, timestamp) -> Trade"
-            notes: "Checks can_open() first. Raises if at limit. Deducts cost from capital."
-          close_position: "(trade: Trade, price, timestamp) -> Trade"
-            notes: "Phase 2: takes Trade arg (which trade to close). Adds proceeds to capital."
-          close_oldest: "(price, timestamp) -> Trade | None"
-            notes: "Phase 2: FIFO close for engine use. Closes earliest open trade."
-          can_open: "() -> bool"
-            notes: "Phase 2: len(open_trades) < max_positions"
-          snapshot_equity: "(timestamp, price) -> None"
-            notes: "Phase 2: renamed from record_equity(). Snapshots equity curve."
-          get_equity: "(current_price) -> float"
-            notes: "Phase 2: sum over all open_trades (cash + position_value)"
-          get_equity_curve: "() -> list[tuple[int, float]]"
-    notes: |
-      Phase 2 complete refactor for multi-position support.
-      Allows negative capital (no guard). Multiple concurrent positions.
-      FIFO closing via close_oldest(). Backward compatible with max_positions=1.
-
-  # --- Comparison utilities (Phase 2 new) ---
-  platform/src/cryplative/backtesting/comparison.py:
-    purpose: Compare two backtest results side-by-side
-    key_functions:
-      compare_results: "(result_a: StrategyResult, result_b: StrategyResult) -> dict"
-        notes: |
-          Returns dict with metrics for both results.
-          Color codes: green for better value, red for worse.
-          Neutral for total_trades (more isn't always better).
-    notes: "Pure function separate from Rich rendering for testability."
-
-  # --- Documentation (Phase 2 new) ---
-  platform/docs/researcher/:
-    quickstart.md: "Getting started guide — 5 min walkthrough"
-    strategies.md: "Strategy guide — writing, testing, parameters"
-    indicators.md: "Indicators reference — SMA, EMA, RSI, MACD, BB usage"
-    backtesting.md: "Backtesting guide — running, interpreting, comparing"
-    cli_reference.md: "CLI command reference — all commands, options, examples"
-
-  # --- Test files (Phase 2 expanded) ---
-  platform/tests/__init__.py: empty
-  platform/tests/conftest.py:
-    fixtures:
-      sample_candles: "250 candles with mild uptrend (close = 100 + i*0.5)"
-      sample_candles_with_crossover: |
-        100 candles in pattern: flat -> rising -> falling -> rising
-        Designed for fast=5, slow=10 crossovers.
-      tmp_data_dir: "Alias for tmp_path"
-      sample_rsi_candles: "50 candles for RSI testing (oversold/overbought)"
-      sample_macd_candles: "100 candles for MACD testing (crossover pattern)"
-      sample_bb_candles: "100 candles for BB testing (band penetration)"
-    helpers:
-      _make_candle: "(index, close, symbol, interval, base_time) -> Candle"
-
-  platform/tests/test_models.py:
-    classes:
-      TestCandle: "5 tests — valid creation, open/close time validation, negative volume, serialize roundtrip, JSON roundtrip"
-      TestSignal: "7 tests — valid market buy, confidence bounds, limit+price, negative quantity, metadata, roundtrip"
-      TestTrade: "2 tests — open trade creation, negative entry price"
-      TestStrategyConfig: "2 tests — defaults, with parameters"
-      TestStrategyMetrics: "1 test — creation"
-      TestStrategyResult: "2 tests — creation, JSON serialization"
-
-  platform/tests/test_config.py:
-    classes:
-      TestCryplativeConfig: "5 tests — defaults, custom values, resolve_data_dir, resolve_market_cache_dir, resolve_strategy_results_dir"
-      TestSetupLogging: "2 tests — console, JSON logging"
-      TestGetProjectRoot: "1 test — returns Path that exists"
-
-  platform/tests/test_market_fetcher.py:
-    classes:
-      TestCachePath: "2 tests — filename format, different symbols"
-      TestCacheSaveLoad: "5 tests — roundtrip, empty miss, directory creation, valid JSON, overwrite"
-      TestCacheUpdate: "4 tests — merge, dedup by open_time, empty cache, separate symbols"
-      TestMarketFetcher: "6 tests — OHLCV conversion, cache hit (no API call), cache miss (fetches), rate limiting enabled, time range filtering, error wrapping"
-
-  platform/tests/test_indicators.py:  # PHASE 2 NEW
-    classes:
-      TestSMA: "6 tests — basic computation, warmup None values, numpy array input, empty data, single value, reference values"
-      TestEMA: "6 tests — basic computation, SMA seeding, warmup None values, numpy array input, empty data, reference values"
-      TestRSI: "6 tests — basic computation, oversold/overbought detection, warmup None values, numpy array input, empty data, property-based"
-      TestMACD: "6 tests — basic computation, histogram calculation, crossover detection, warmup None values, numpy array input, decomposition"
-      TestBollingerBands: "6 tests — basic computation, band width, warmup None values, numpy array input, empty data, reference values"
-    notes: "30 tests total. Reference values from spec. All test warmup period None values."
-
-  platform/tests/test_strategies.py:
-    classes:
-      TestStrategyRegistry: "5 tests — register+get, unknown raises, empty list, list, clear"
-      TestSMACrossoverStrategy: "13 tests — insufficient data, BUY signal, SELL signal, no crossover, confidence, quantity, ID, name, custom params, explicit BUY crossover, explicit SELL crossover, default_parameters, _min_candles_needed"
-      TestRSIStrategy: "12 tests — insufficient data, BUY oversold, SELL overbought, no signal, confidence, quantity, ID, name, custom params, default_parameters, _min_candles_needed, oversold crossover, overbought crossover"
-      TestMACDStrategy: "12 tests — insufficient data, BUY crossover, SELL crossover, no signal, confidence, quantity, ID, name, custom params, default_parameters, _min_candles_needed, histogram positive, histogram negative"
-      TestBollingerBandsStrategy: "12 tests — insufficient data, BUY lower band, SELL upper band, no signal, confidence, quantity, ID, name, custom params, default_parameters, _min_candles_needed, band penetration, band width"
-    notes: "54 tests total (Phase 2 expanded from 22). Removed TestComputeSMA (now in test_indicators)."
-
-  platform/tests/test_backtesting.py:
-    classes:
-      TestMetricsCalculation: "6 tests — total return, zero trades, max drawdown, win rate, profit factor, infinity handling"
-      TestBacktestEngine: "9 tests — full run, force close, result saved, no data error, unknown strategy error, single trade, all losing trades, multi-position, min candles validation"
-    notes: "15 tests total (Phase 2 expanded from 12). Added infinity handling and multi-position tests."
-
-  platform/tests/test_portfolio.py:
-    classes:
-      TestPortfolioTracker: "18 tests — initial state, open, close profit, close loss, close no position, equity no position, equity with position, equity curve, multiple trades, open_trade property, backtest context, multi-position open, can_open limit, FIFO close, snapshot_equity, get_equity multi, all_trades property"
-    notes: "18 tests total (Phase 2 expanded from 10). All single-position tests pass with max_positions=1."
-
-  platform/tests/test_integration.py:
-    classes:
-      TestEndToEnd: "4 tests — full pipeline (500 candles), no signals (flat), metrics consistency, all strategies"
-    notes: "Expanded from 3 tests. Added test for all Phase 2 strategies."
-
-  platform/tests/test_cli.py:
-    classes:
-      TestCLIStrategies: "2 tests — lists registered strategies, verbose shows parameters"
-      TestCLIFetch: "2 tests — prints summary, no data exits"
-      TestCLIBacktest: "3 tests — invalid params JSON, successful run, params from file"
-      TestCLINewStrategy: "4 tests — scaffolds strategy, errors if exists, placeholder replacement, imports after creation"
-      TestCLICompare: "3 tests — compares results, color coding, missing file error"
-      TestCLIMain: "2 tests — app has commands, help lists commands"
-    notes: "16 tests total (Phase 2 expanded from 7). Tests for new-strategy and compare commands."
-
-  platform/tests/test_workflow.py:  # PHASE 2 NEW
-    classes:
-      TestAutoDiscovery: "3 tests — discovers strategies, skips underscore modules, registry cleanup"
-      TestStrategyScaffolding: "3 tests — template structure, auto-discovery after creation, sys.modules cleanup"
-      TestComparisonLogic: "3 tests — metric comparison, color coding, neutral metrics"
-    notes: "9 tests total. Tests workflow-level features: auto-discovery, scaffolding, comparison."
+  numpy_vs_lists:
+    decision: |
+      Indicators use numpy internally but return list[Optional[float]].
+    reasoning:
+      - Numpy for performance on computation
+      - Lists for API compatibility (strategies expect lists)
+      - None values during warmup (numpy doesn't handle None well)
+    pattern: |
+      Input: Convert to numpy array → Compute indicator → Convert to list with None padding
 
 # =============================================================================
-# 2. ARCHITECTURE (POST-PHASE 2)
+# ARCHITECTURE
 # =============================================================================
 
 architecture:
-  layer_structure: |
-    CLI Layer (cli.py) — Typer commands: strategies, fetch, backtest, new-strategy, compare.
-    Backtesting Layer (backtesting/engine.py) — Orchestrates: data fetch -> strategy -> portfolio -> metrics
-    Comparison Layer (backtesting/comparison.py) — Result comparison utilities
-    Strategy Layer (strategies/) — StrategyRegistry (decorator pattern), Strategy interface, 5 strategies
-    Data Layer (market_fetcher/) — MarketFetcher -> ccxt exchange -> local JSON cache
-    Portfolio Layer (portfolio/tracker.py) — Multi-position management, equity curve
-    Indicators Layer (strategies/indicators.py) — Common technical indicators library
-    Core (core/) — Pydantic models (source of truth), ABCs, exceptions
-    Config (config.py) — CryplativeConfig (pydantic-settings), setup_logging
+  layers: |
+    CLI (Typer) → Backtesting → Strategy Registry → Data/Portfolio → Core Models
+    All dependencies point inward toward core/ (models, interfaces).
 
-  package_layout: |
-    platform/src/cryplative/ — Main package (src layout)
-      cli.py — Entry point
-      config.py — Configuration
-      core/ — Abstract layer (models, interfaces, exceptions)
-      market_fetcher/ — Data acquisition
-      strategies/ — Strategy interface + implementations + indicators + template
-      backtesting/ — Backtest engine + comparison utilities
-      portfolio/ — Multi-position portfolio tracking
-    platform/tests/ — Test suite
-    platform/docs/researcher/ — Researcher documentation (5 markdown files)
-    data/ — File-based storage (at project root)
-      market_cache/ — Cached candle data
-      strategy_results/ — Backtest results
+  key_patterns:
+    - Strategy Pattern: Polymorphic signal generation via Strategy ABC
+    - Registry Pattern: Decorator-based auto-registration
+    - Adapter Pattern: DataProvider abstraction (fetcher vs test mocks)
+    - Template Method: Strategy.initialize/teardown default implementations
 
-  dependency_directions: |
-    cli.py -> config, backtesting.engine, market_fetcher.fetcher, backtesting.comparison, strategies
-    backtesting.engine -> portfolio.tracker, strategies.registry, strategies.indicators, core.models
-    backtesting.comparison -> core.models
-    portfolio.tracker -> core.models
-    strategies.* -> strategies.indicators, strategies.registry, core.interfaces, core.models
-    strategies.indicators -> numpy (no internal deps)
-    market_fetcher.fetcher -> market_fetcher.cache, config, core.interfaces, core.models
-    market_fetcher.cache -> core.models
-    core.interfaces -> core.models (imports Candle, Signal, StrategyConfig, Trade)
-    core.models -> pydantic (no internal deps)
+  data_flow: |
+    fetch command → ccxt → cache merge → filter by range → return candles
+    backtest command → fetch candles → sliding window → strategy signal → portfolio → metrics → save JSON
+
+  package_structure: |
+    src/cryplative/
+      cli.py              # Entry point
+      config.py           # Pydantic-settings config
+      core/               # Models (Pydantic), interfaces (ABC), exceptions
+      market_fetcher/     # Data acquisition via ccxt + JSON cache
+      strategies/         # Registry, indicators, implementations, template
+      backtesting/        # Engine, comparison utilities
+      portfolio/          # Multi-position tracking
 
 # =============================================================================
-# 3. KEY PATTERNS (POST-PHASE 2)
+# GOTCHAS (NOT OBVIOUS FROM CODE)
 # =============================================================================
 
-patterns:
-  strategy_pattern: |
-    Strategy interface (ABC) defines contract: strategy_id, strategy_name, initialize(),
-    generate_signal(), teardown(), default_parameters(), _min_candles_needed().
-    All strategies implement this. The backtesting engine calls these methods polymorphically.
-    New strategies: use 'cryplative new-strategy' command or copy _template.py.
+gotchas:
+  path_resolution: |
+    get_project_root() walks UP to find CLAUDE.md. This means data/ paths resolve
+    to cryplative/ project root, NOT platform/. Tests override via CryplativeConfig.
 
-  registry_pattern: |
-    StrategyRegistry uses class-level mutable dict with @classmethod decorator.
-    @StrategyRegistry.register on a class auto-registers it by strategy_id.
-    strategies/__init__.py uses pkgutil.iter_modules() for auto-discovery.
-    Has clear() for testing. Underscore modules (like _template.py) are skipped.
+  registry_mutation: |
+    StrategyRegistry uses class-level mutable dict. NOT thread-safe. Must call
+    clear() in test setup to prevent cross-test pollution.
 
-  adapter_pattern: |
-    MarketFetcher implements DataProvider (ABC). In tests, MockDataProvider and
-    SyntheticDataProvider also implement DataProvider. This allows swapping data
-    sources without changing the backtesting engine.
+  close_time_calculation: |
+    _ohlcv_to_candle computes close_time = open_time + interval_ms - 1.
+    Interval lookup only supports m/h/d/w suffixes. Defaults to 1h (3600000ms).
 
-  builder_pattern: |
-    BacktestConfig is a plain class built from CLI args. StrategyConfig (Pydantic)
-    is built inside BacktestEngine.run() from BacktestConfig fields.
+  pagination_since_increment: |
+    In MarketFetcher, pagination increments current_since by last_candle.open_time + 1.
+    This avoids duplicates from ccxt. Critical for merging cache correctly.
 
-  template_method: |
-    Strategy.initialize() has a default impl (stores _config). Strategies override
-    for custom setup (e.g., SMA reads parameters). Strategy.teardown() default is no-op.
-    Phase 2: default_parameters() and _min_candles_needed() have defaults.
+  equity_always_recorded: |
+    Equity curve recorded every candle, not just on trades. Grows linearly with
+    number of candles. Could be memory-intensive for very long backtests.
 
-  indicator_pattern: |
-    All indicators are pure functions: list[float] | np.ndarray -> list[Optional[float]].
-    Use numpy internally for performance, return list externally for compatibility.
-    Return None during warmup period. No side effects, no class state.
+  force_close_at_end: |
+    Backtest force-closes at LAST candle's close price, not a separate exit.
+    Can affect metrics if last signal was BUY just before data ends.
 
-  sliding_window: |
-    BacktestEngine iterates candles with a sliding window of lookback_window size.
-    window = candles[max(0, i-lookback_window+1) : i+1]
+  sharpe_annualization: |
+    Uses sqrt(N) where N = number of trades. Common but debatable approach.
+    More accurate: use periodic returns (daily/hourly) but requires more data.
 
-  fifo_position_closing: |
-    Multi-position backtesting uses FIFO (First-In-First-Out) for closing.
-    SELL signals close the oldest open position via close_oldest().
-    Maintains backward compatibility with max_positions=1.
-
-  auto_discovery_pattern: |
-    pkgutil.iter_modules(__path__) finds all modules in strategies/ package.
-    Import side-effect triggers @StrategyRegistry.register decorator.
-    Underscore prefix modules (_template.py) are skipped.
-    Testing requires sys.modules cleanup to avoid pollution.
-
-  file_based_storage: |
-    JSON files in data/ directory. One cache file per symbol+interval.
-    One result file per backtest run. No database, no ORM.
-
-  scaffolding_pattern: |
-    new-strategy command copies _template.py and replaces placeholders.
-    Placeholders: <STRATEGY_ID>, <STRATEGY_NAME>, <ClassName>, <default_parameters_doc>.
-    Uses string.replace() for simple text substitution.
-    Errors if target file already exists.
+  negative_capital_allowed: |
+    PortfolioTracker.open_position() allows capital to go negative. Logs warning
+    but doesn't prevent trade. Intentional for Phase 1 simplicity.
 
 # =============================================================================
-# 4. DATA FLOW (POST-PHASE 2)
+# DECISIONS & TRADEOFFS
 # =============================================================================
 
-data_flow:
-  fetch_command: |
-    1. CLI parses args (--symbol, --interval, --start, --end)
-    2. MarketFetcher.get_candles() called
-    3. load_cache() checks for existing data in data/market_cache/
-    4. If new data needed: ccxt exchange.fetch_ohlcv() paginated calls
-    5. update_cache() merges new + existing, deduplicates by open_time, saves
-    6. Filter by start_time/end_time range
-    7. Return sorted list[Candle]
-    8. CLI displays summary table via Rich
+decisions:
+  pydantic_v2: |
+    Chosen for data models. Provides validation, JSON serialization, type safety.
+    Tradeoff: Learning curve, but worth it for error prevention.
 
-  backtest_command: |
-    1. CLI parses args, builds BacktestConfig (including max_positions)
-    2. BacktestEngine.run() starts:
-       a. Validate candle count against strategy._min_candles_needed()
-       b. StrategyRegistry.get(strategy_id) -> strategy class
-       c. data_provider.get_candles() -> list[Candle]
-       d. StrategyConfig built, strategy.initialize(config) called
-       e. PortfolioTracker created with initial_capital, max_positions, context
-    3. Main simulation loop (for each candle):
-       a. Build sliding window of lookback_window candles
-       b. strategy.generate_signal(window) -> Signal or None
-       c. BUY + can_open() -> tracker.open_position(signal, candle.close, timestamp)
-       d. SELL + open_trades -> tracker.close_oldest(candle.close, timestamp)
-       e. tracker.snapshot_equity(timestamp, candle.close) [always]
-    4. Force-close remaining open positions (while loop)
-    5. _calculate_metrics() from equity_curve and all_trades (handles infinity)
-    6. _save_result() writes JSON to data/strategy_results/
-    7. strategy.teardown()
-    8. Return StrategyResult (trades + metrics)
+  json_file_storage: |
+    No database. One file per symbol/interval for cache, one per backtest result.
+    Tradeoff: Simple, human-readable, but doesn't scale to millions of results.
 
-  compare_command: |
-    1. CLI loads two StrategyResult from JSON files
-    2. compare_results() compares metrics side-by-side
-    3. Rich displays comparison table with color coding
-    4. Green = better value, Red = worse value, Neutral for total_trades
+  structlog: |
+    Structured logging throughout. JSON or console output.
+    Tradeoff: Slightly more verbose, but enables log parsing/analysis.
 
-  new_strategy_command: |
-    1. CLI validates strategy_name (snake_case)
-    2. Derives ClassName (PascalCase), STRATEGY_ID (snake), STRATEGY_NAME (Title Case)
-    3. Reads _template.py
-    4. Replaces placeholders with derived values
-    5. Writes to src/cryplative/strategies/{name}.py
-    6. Errors if file exists
+  pure_function_indicators: |
+    All indicators are pure functions (no class state).
+    Tradeoff: No memoization, but simple, testable, thread-safe.
 
-  indicator_computation: |
-    Input: list[float] or np.ndarray of prices
-    Process: Convert to numpy array, compute indicator, convert back to list
-    Output: list[Optional[float]] with None during warmup
-    Example: sma([10, 20, 30, 40, 50], 3) -> [None, None, 20.0, 30.0, 40.0]
+  ccxt_for_exchange_abstraction: |
+    Exchange-agnostic API via ccxt library.
+    Tradeoff: Adds dependency, but supports 100+ exchanges with one interface.
 
-  auto_discovery_flow: |
-    1. strategies/__init__.py imported
-    2. pkgutil.iter_modules(strategies.__path__) finds all .py files
-    3. For each module (except _underscore): import module
-    4. Module import triggers @StrategyRegistry.register decorator
-    5. Strategy class instantiated to read strategy_id
-    6. strategy_id -> type[Strategy] stored in _strategies dict
-
-  ohlcv_conversion: |
-    ccxt returns: [[timestamp_ms, open, high, low, close, volume], ...]
-    _ohlcv_to_candle() converts to Candle object.
-    close_time = timestamp + interval_ms - 1.
-    Interval conversion: 1h->3600000, 4h->14400000, 1d->86400000, 1w->604800000.
-
-  cache_merge: |
-    update_cache() builds dict keyed by open_time from existing + new.
-    New candles overwrite existing for same open_time (latest data wins).
-    Sorts by open_time ascending. Writes full file (no incremental).
+  ruff_not_black_flake8: |
+    Ruff for linting + formatting (replaces black, flake8, isort).
+    Tradeoff: Newer tool, but much faster and unified config.
 
 # =============================================================================
-# 5. CURRENT CAPABILITIES (POST-PHASE 2)
+# TESTING PATTERNS
 # =============================================================================
 
-current_capabilities:
-  cli_commands:
-    - name: strategies
-      description: List all registered strategies
-      usage: "cryplative strategies [--verbose]"
-      notes: "--verbose shows default parameters per strategy"
-    - name: fetch
-      description: Fetch and cache market data from exchange
-      usage: "cryplative fetch --symbol BTC/USDT --interval 1h --start 2025-01-01 --end 2025-06-01"
-    - name: backtest
-      description: Run a strategy backtest against historical data
-      usage: |
-        cryplative backtest --strategy sma_crossover --symbol BTC/USDT --interval 1h \
-          --start 2025-01-01 --end 2025-01-31 --capital 10000 \
-          --params '{"fast_period": 10}' --max-positions 3
-      notes: "--params accepts JSON file path or string. --max-positions for concurrent trades."
-    - name: new-strategy
-      description: Scaffold a new strategy file from template
-      usage: "cryplative new-strategy my_strategy"
-      notes: "Creates src/cryplative/strategies/my_strategy.py with placeholders replaced."
-    - name: compare
-      description: Compare two backtest results side-by-side
-      usage: "cryplative compare result_a.json result_b.json"
-      notes: "Color-coded comparison table. Green=best, red=worst per metric."
+testing:
+  fixtures: |
+    conftest.py provides sample_candles with known patterns (crossover, oversold/overbought).
+    Tests use these for deterministic signal generation.
 
-  features:
-    - "Market data fetching from Binance (or any ccxt-supported exchange)"
-    - "Local JSON-based candle cache with deduplication"
-    - "Paginated data fetching with rate limiting"
-    - "Strategy registry with decorator-based registration"
-    - "Auto-discovery of strategy modules via pkgutil"
-    - "5 implemented strategies: SMA Crossover, RSI, MACD, Bollinger Bands (+ template)"
-    - "Common indicators library: SMA, EMA, RSI, MACD, Bollinger Bands"
-    - "Full backtesting engine with sliding window"
-    - "Multi-position portfolio tracking (configurable max_positions)"
-    - "FIFO position closing for SELL signals"
-    - "Performance metrics: return, Sharpe, drawdown, win rate, profit factor"
-    - "JSON result persistence with infinity handling"
-    - "Result comparison with color-coded output"
-    - "Strategy scaffolding via new-strategy command"
-    - "Structured logging (JSON or console via structlog)"
-    - "Rich-formatted CLI output (tables, colors)"
-    - "Researcher documentation (5 markdown files)"
-    - "197 tests with 96% coverage"
+  reference_values: |
+    Indicator tests use exact outputs from spec-defined inputs.
+    Catchs regressions in computation logic.
 
-  not_yet_implemented: |
-    - Paper trading module (ExecutionHandler not implemented)
-    - Real execution / order placement
-    - Short selling
-    - Dynamic position sizing (quantity is hardcoded to 1.0)
-    - Stop-loss / take_profit execution
-    - Strategy parameter optimization
-    - Risk management (max drawdown limits, position sizing)
-    - Scheduler / routines
-    - REST API
-    - Web dashboard
-    - WebSocket streaming data
-    - Database storage
-    - CI/CD pipeline
+  isolation: |
+    StrategyRegistry.clear() in setup_method + sys.modules cleanup for auto-discovery tests.
+    Prevents cross-test pollution from mutable class state.
+
+  coverage_target: |
+    Phase 2 target: 85%. Achieved: 96%.
+    Higher coverage possible but diminishing returns.
 
 # =============================================================================
-# 6. TEST COVERAGE (POST-PHASE 2)
+# TECHNICAL DEBT
 # =============================================================================
 
-test_coverage:
-  framework: pytest with pytest-cov
-  test_count: "197 test methods across 9 test files (Phase 2: +122 tests)"
-  coverage: "96% (Phase 2 target: 85%, exceeded by 11%)"
+debt:
+  critical:
+    - PortfolioTracker allows negative capital (no guard)
+    - No risk management (stop-loss, max position size, drawdown limits)
+    - Long-only (no short selling)
+    - Quantity hardcoded to 1.0 (no dynamic sizing)
 
-  structure:
-    conftest.py: "Shared fixtures: sample_candles, crossover, RSI, MACD, BB patterns"
-    test_models.py: "19 tests — model creation, validation, serialization"
-    test_config.py: "8 tests — config defaults, path resolution, logging"
-    test_market_fetcher.py: "17 tests — cache CRUD, dedup, fetcher behavior, error handling"
-    test_indicators.py: "30 tests — SMA, EMA, RSI, MACD, BB computation, reference values, warmup"
-    test_strategies.py: "54 tests — 4 strategies × 12-13 tests (signal generation, parameters, min candles)"
-    test_backtesting.py: "15 tests — metrics, engine scenarios, multi-position, infinity handling"
-    test_portfolio.py: "18 tests — multi-position tracking, FIFO, equity, PnL"
-    test_integration.py: "4 tests — end-to-end pipeline for all strategies"
-    test_cli.py: "16 tests — all CLI commands with mocked dependencies"
-    test_workflow.py: "9 tests — auto-discovery, scaffolding, comparison logic"
+  moderate:
+    - BacktestConfig is plain class (not Pydantic) — no validation
+    - Sharpe ratio uses trade returns, not periodic returns
+    - Execution at candle close only (no open/high/low simulation)
+    - No fee/commission or slippage modeling
 
-  test_patterns:
-    mocking: "unittest.mock.MagicMock for ccxt exchange, patch for config/logging"
-    fixtures: "pytest fixtures for temp dirs, sample data"
-    data_generation: "Programmatic candle generation with known patterns (crossover, oversold/overbought)"
-    isolation: "StrategyRegistry.clear() + sys.modules cleanup for auto-discovery tests"
-    reference_values: "Indicator tests use spec-defined exact outputs"
-
-  phase2_additions:
-    - "test_indicators.py: 30 tests for new indicators library"
-    - "test_workflow.py: 9 tests for auto-discovery, scaffolding, comparison"
-    - "Expanded test_strategies.py: +32 tests for 3 new strategies"
-    - "Expanded test_portfolio.py: +8 tests for multi-position features"
-    - "Expanded test_cli.py: +9 tests for new-strategy and compare commands"
-    - "Expanded test_backtesting.py: +3 tests for multi-position and infinity handling"
-    - "Expanded test_integration.py: +1 test for all Phase 2 strategies"
+  minor:
+    - pandas declared but unused
+    - No .env.example file
+    - StrategyRegistry not thread-safe
+    - No async I/O (all synchronous)
 
 # =============================================================================
-# 7. DEPENDENCIES (POST-PHASE 2)
+# DEPENDENCIES (POST-PHASE 2)
 # =============================================================================
 
 dependencies:
   runtime:
-    ccxt: ">=4.0 — Exchange-agnostic crypto trading library. Used for fetch_ohlcv(). Rate limiting enabled."
-    numpy: ">=1.24 — Phase 2 addition. Used by indicators library. Explicit runtime dependency."
-    pandas: ">=2.0 — Declared. Only used indirectly (numpy is pandas dep)."
-    pydantic: ">=2.0 — Data models (BaseModel, field_validator, model_validator). Also used by mypy plugin."
-    pydantic_settings: ">=2.0 — BaseSettings for CryplativeConfig. Loads from env vars + .env file."
-    structlog: ">=24.0 — Structured logging throughout all modules."
-    typer: ">=0.12 — CLI framework. Rich integration for console output."
-    rich: ">=13.0 — Terminal formatting (tables, colors) for CLI output."
+    - ccxt >= 4.0: Exchange APIs
+    - numpy >= 1.24: Indicator computation (explicit in Phase 2)
+    - pydantic >= 2.0: Data models, validation
+    - pydantic-settings >= 2.0: Config from env/.env
+    - structlog >= 24.0: Structured logging
+    - typer >= 0.12: CLI framework
+    - rich >= 13.0: Terminal formatting
 
   dev:
-    pytest: ">=8.0 — Test framework"
-    pytest_cov: ">=5.0 — Coverage reporting"
-    ruff: ">=0.5 — Linter + formatter (replaces flake8, black, isort)"
-    mypy: ">=1.10 — Static type checking (strict mode)"
-
-  stdlib_heavy_usage:
-    - abc (ABC, abstractmethod)
-    - pathlib (Path — all file operations)
-    - json (serialization/deserialization)
-    - uuid (trade IDs)
-    - math (Sharpe ratio calculation)
-    - enum (StrEnum)
-    - logging (root logger for structlog bridge)
-    - datetime (timestamp conversions)
-    - typing (type hints throughout)
-    - pkgutil (Phase 2: auto-discovery of strategies)
+    - pytest >= 8.0: Test framework
+    - pytest-cov >= 5.0: Coverage
+    - ruff >= 0.5: Linter + formatter
+    - mypy >= 1.10: Type checking (strict mode)
 
 # =============================================================================
-# 8. KNOWN LIMITATIONS & AREAS FOR IMPROVEMENT (POST-PHASE 2)
+# NEXT STEPS (PHASE 3)
 # =============================================================================
 
-limitations:
-  critical:
-    - "PortfolioTracker allows negative capital — no guard against overspending"
-    - "No risk management — no stop-loss, no max position size, no drawdown limits"
-    - "Long-only — no short selling support in backtesting"
-    - "Quantity hardcoded to 1.0 — no dynamic position sizing"
-    - "BacktestConfig is a plain class, not Pydantic — no validation on inputs"
-
-  moderate:
-    - "StrategyRegistry uses mutable class state — not thread-safe"
-    - "Sharpe ratio calculation is simplistic — uses trade returns, not periodic returns"
-    - "Execution at candle close only — no open/high/low simulation"
-    - "No fee/commission modeling in backtests"
-    - "No slippage modeling"
-    - "pandas is a dependency but not used anywhere"
-    - "ExecutionHandler interface defined but nothing implements it"
-
-  minor:
-    - "CLI strategies command uses __new__ hack to get strategy_id for table display"
-    - "Cache path uses / in filenames replaced with _ — could collide if symbols contain _"
-    - "No .env.example file documenting available config options"
-    - "StrategyResult.start_date/end_date are strings, not datetime — no type consistency"
-    - "Equity curve recorded every candle — could be memory-intensive for very long backtests"
-    - "No async support — all I/O is synchronous"
-
-  phase2_known_issues:
-    - "Infinity values in metrics (Sharpe, profit_factor) converted to float for JSON — may lose precision"
-    - "Auto-discovery tests require sys.modules cleanup — fragile in some test runners"
-    - "new-strategy command doesn't validate strategy_name format beyond basic checks"
-    - "compare command doesn't handle results with different parameters/metadata well"
-
-# =============================================================================
-# 9. PHASE 2 IMPLEMENTATION DETAILS
-# =============================================================================
-
-phase2_implementation:
-  status: "Complete — 15 commits, 12 spec steps + 3 polish fixes"
-
-  implementation_order: |
-    1. Indicators library (indicators.py) + numpy dep + tests (30 tests)
-    2. Refactor SMA Crossover to use indicators + update test_strategies.py
-    3. Multi-position PortfolioTracker + BacktestEngine refactor + tests (18 portfolio, 15 backtest)
-    4. Strategy template (_template.py) + auto-discovery in __init__.py + tests
-    5. cryplative new-strategy CLI command + tests (4 tests)
-    6. RSI strategy + tests (12 tests)
-    7. MACD strategy + tests (12 tests)
-    8. Bollinger Bands strategy + tests (12 tests)
-    9. CLI enhancements (compare, --max-positions, --params file, --verbose) + tests (7 tests)
-    10. Robustness improvements (validation, error handling, infinity) + tests
-    11. Documentation (5 markdown files in platform/docs/)
-    12. End-to-end workflow validation test (9 tests)
-    13. Polish: Fix infinity handling in metrics (3 commits)
-    14. Polish: Add sys.modules cleanup for auto-discovery tests
-    15. Polish: Improve error messages and validation
-
-  commits_breakdown:
-    - "15 total commits (12 spec steps + 3 polish fixes)"
-    - "First delegation: Timed out at step 12 (completed all 12 spec steps)"
-    - "Second delegation: 3 polish commits (infinity, sys.modules, error messages)"
-
-  files_created:
-    source: "6 new files: indicators.py, _template.py, rsi_strategy.py, macd_strategy.py, bollinger_bands_strategy.py, comparison.py"
-    tests: "2 new test files: test_indicators.py (30 tests), test_workflow.py (9 tests)"
-    docs: "5 new markdown files: quickstart.md, strategies.md, indicators.md, backtesting.md, cli_reference.md"
-
-  files_modified:
-    source: "8 files: cli.py, __init__.py (strategies), base.py (strategies), sma_crossover.py, interfaces.py, engine.py, tracker.py, pyproject.toml"
-    tests: "6 files: test_strategies.py, test_backtesting.py, test_portfolio.py, test_cli.py, test_integration.py, conftest.py"
-
-  lines_of_code:
-    total: "~3500 LOC (Phase 1: ~2000, Phase 2: +1500)"
-    source: "~1800 LOC"
-    tests: "~1400 LOC"
-    docs: "~300 LOC"
-
-  indicator_warmup_periods:
-    notes: "Critical for setting _min_candles_needed() correctly in strategies."
-    sma: "First valid at index period-1. Two values need period+1 data points."
-    ema: "First valid at index period-1 (seeded with SMA). Two values need period+1 data points."
-    rsi: |
-      Wilder's smoothing: first avg_gain/avg_loss from period changes → needs period+1 prices.
-      First RSI at index period. Two values for crossover need period+2 data points.
-      RSI strategy minimum: period + 2 (= 16 with default period=14).
-    macd: |
-      MACD line first valid at index slow-1. Signal EMA needs signal MACD values.
-      First signal line at index slow+signal-2. Two histogram values at index slow+signal-1.
-      MACD strategy minimum: slow_period + signal_period (= 35 with defaults 26+9).
-    bollinger_bands: |
-      SMA(period) first valid at index period-1. Two band values for crossover need period+1.
-      Bollinger Bands strategy minimum: period + 1 (= 21 with default period=20).
-
-  multi_position_backward_compat:
-    key_insight: |
-      With max_positions=1 (default), the refactored engine produces identical results
-      to Phase 1. Changes: method name renames on tracker object.
-      Preserved: loop start index, window construction, timestamp field, iteration pattern.
-      Equity curve semantics preserved (equity at close = position value + cash).
-
-  portfolio_tracker_refactor:
-    changes: |
-      - Add max_positions param (default 1)
-      - Replace single position/entry_price with open_trades: list[Trade]
-      - Add closed_trades: list[Trade] (separate from open)
-      - open_position: check can_open() before allowing, raise on limit
-      - close_position: take Trade arg (which trade to close)
-      - close_oldest: FIFO close for engine use
-      - can_open: len(open_trades) < max_positions
-      - all_trades: open_trades + closed_trades
-      - Rename record_equity → snapshot_equity
-      - get_equity: sum over all open_trades
-      - Keep context: RunContext parameter for Trade model
-
-  engine_refactor:
-    changes: |
-      - Add max_positions to BacktestConfig.__init__ (default 1)
-      - Pass max_positions + context to PortfolioTracker constructor
-      - Replace has_open_position → can_open() for BUY checks
-      - Replace has_open_position → len(tracker.open_trades) > 0 for SELL checks
-      - Replace close_position → close_oldest (FIFO)
-      - Replace record_equity → snapshot_equity
-      - Replace portfolio.trades → tracker.all_trades
-      - Replace single force-close with while loop
-      - Add _min_candles_needed() validation
-      - Add infinity handling in metrics
-
-  auto_discovery:
-    mechanism: |
-      strategies/__init__.py uses pkgutil.iter_modules(__path__) to import all
-      non-underscore modules. Replaces explicit import statement.
-      _template.py starts with underscore so it's automatically skipped.
-      Testing uses tmp_path and sys.modules cleanup to avoid polluting real package.
-
-  new_cli_commands:
-    new_strategy: |
-      Scaffolds a new strategy from _template.py template.
-      Replaces <PLACEHOLDER> strings with derived values.
-      Writes to src/cryplative/strategies/{name}.py. Errors if file exists.
-    compare: |
-      Positional args: cryplative compare result_a.json result_b.json.
-      Loads StrategyResult from JSON, prints Rich comparison table.
-      Color coding: green=best, red=worst per metric row.
-    strategies_verbose: |
-      --verbose flag shows default_parameters() per strategy.
-
-  backtest_cli_enhancements:
-    - "--params accepts JSON file path (if ends with .json) or JSON string"
-    - "--max-positions flag passed through to BacktestConfig"
-    - Better error messages: list available strategies, suggest date ranges, show parse errors"
-
-  issues_hit:
-    - "Infinity values in comparison data: Sharpe ratio and profit_factor can be inf.
-       Fixed by converting to float in JSON serialization (inf → 'Infinity' string → float)."
-    - "First delegation timed out at step 12: Took too long to complete all 12 steps.
-       Fixed by splitting into two delegations: 12 spec steps + 3 polish fixes."
-    - "Auto-discovery test pollution: Strategies registered in test polluted real package.
-       Fixed with sys.modules cleanup and StrategyRegistry.clear() in test teardown."
-
-# =============================================================================
-# 10. EXISTING DATA FILES (POST-PHASE 2)
-# =============================================================================
-
-existing_data:
-  market_cache:
-    - path: data/market_cache/BTC_USDT_1h.json
-      symbol: "BTC/USDT"
-      interval: 1h
-      content: "Array of Candle JSON objects. First open_time: 1735686000000 (2025-01-01)."
-      notes: "Real Binance data fetched during Phase 1 development."
-
-  strategy_results:
-    - path: data/strategy_results/sma_crossover_BTC_USDT_1h_2025-01-01_2025-01-31.json
-      strategy: sma_crossover
-      parameters: "{fast_period: 10, slow_period: 20}"
-      metrics: "{total_return: 12.58%, sharpe: 0.22, max_dd: -61.1%, win_rate: 42.11%, trades: 19, pf: 1.1}"
-      created_at: "2026-05-04T19:28:47.989703+00:00"
-    - path: data/strategy_results/rsi_strategy_BTC_USDT_1h_2025-01-01_2025-01-31.json
-      strategy: rsi_strategy
-      parameters: "{period: 14, oversold: 30, overbought: 70}"
-      metrics: "{Phase 2 backtest result}"
-      created_at: "2026-05-05"
-    - path: data/strategy_results/macd_strategy_BTC_USDT_1h_2025-01-01_2025-01-31.json
-      strategy: macd_strategy
-      parameters: "{fast_period: 12, slow_period: 26, signal_period: 9}"
-      metrics: "{Phase 2 backtest result}"
-      created_at: "2026-05-05"
-    - path: data/strategy_results/bollinger_bands_strategy_BTC_USDT_1h_2025-01-01_2025-01-31.json
-      strategy: bollinger_bands_strategy
-      parameters: "{period: 20, std_dev: 2.0}"
-      metrics: "{Phase 2 backtest result}"
-      created_at: "2026-05-05"
-
-# =============================================================================
-# 11. GOTCHAS & INTERNAL KNOWLEDGE (POST-PHASE 2)
-# =============================================================================
-
-gotchas:
-  - |
-    Path resolution: get_project_root() walks UP from the source file to find CLAUDE.md.
-    This means data paths resolve to the cryplative/ project root (where CLAUDE.md lives),
-    NOT relative to platform/. Tests override paths via CryplativeConfig constructor.
-  - |
-    StrategyRegistry.clear() must be called in test setup_method to prevent
-    cross-test pollution since the registry uses mutable class-level state.
-    Phase 2 auto-discovery: also need sys.modules cleanup to avoid importing
-    test strategies into the real package.
-  - |
-    _ohlcv_to_candle computes close_time as open_time + interval_ms - 1.
-    The interval_ms lookup only supports m, h, d, w suffixes. Defaults to 3600000 (1h).
-  - |
-    In MarketFetcher.get_candles(), the pagination loop increments current_since
-    by new_candles[-1].open_time + 1 to avoid duplicates from ccxt.
-  - |
-    Indicators use numpy internally but return list[Optional[float]].
-    None values during warmup period (indices < period-1 for SMA/EMA).
-    Test warmup carefully — strategies need enough candles to avoid None.
-  - |
-    PortfolioTracker.open_position allows capital to go negative. It logs a warning
-    but does NOT prevent the trade. This is intentional for Phase 1 simplicity.
-  - |
-    BacktestConfig is a plain Python class with __init__, NOT a Pydantic model.
-    This means no automatic validation. The CLI passes user input directly.
-  - |
-    Equity is recorded every candle regardless of whether a trade happens.
-    The equity curve grows linearly with number of candles.
-  - |
-    The force-close at end of backtest closes at the LAST candle's close price,
-    not at a separate exit point. This can affect metrics if the last signal
-    was a BUY just before data ends.
-  - |
-    In the Sharpe ratio calculation, annualization uses sqrt(N) where N is
-    the number of trades. This is a common but debatable annualization approach.
-  - |
-    Infinity handling: Sharpe ratio and profit_factor can be inf (no losses or all wins).
-    JSON serialization converts inf to float, which may lose precision but prevents errors.
-  - |
-    Auto-discovery uses pkgutil.iter_modules() which finds .py files at runtime.
-    Testing with tmp_path requires sys.modules cleanup to avoid polluting the real package.
-    StrategyRegistry.clear() alone is NOT enough for auto-discovery tests.
-  - |
-    new-strategy command uses simple string.replace() for placeholder substitution.
-    If strategy_name contains unexpected characters, may create invalid Python.
-    No validation beyond basic file existence check.
-  - |
-    compare command color coding: Green for better value, Red for worse.
-    Assumes "lower is better" for max_drawdown, "higher is better" for others.
-    total_trades is neutral (more isn't always better).
-  - |
-    Multi-position backward compatibility: With max_positions=1, the refactored
-    engine MUST produce identical results to Phase 1. Key invariants:
-    - Loop starts at same index
-    - Window construction formula unchanged
-    - Timestamp field (open_time) unchanged
-    - Equity recorded at same points (always snapshot_equity)
-    - FIFO close_oldest() behaves same as single close_position() when max_positions=1
-  - |
-    _min_candles_needed() must account for indicator warmup + crossover detection.
-    Example: RSI needs period + 2 (period for warmup, +2 for crossover).
-    Forgetting the "+2 for crossover" causes premature BUY/SELL signals.
-
-# =============================================================================
-# 12. PLATFORM DEVELOPER CAPABILITIES (POST-PHASE 2)
-# =============================================================================
-
-capabilities:
-  technical_skills:
-    - "Python 3.11+ features: StrEnum, type hints, dataclass/namedtuple, abc, pathlib"
-    - "Pydantic v2: BaseModel, field_validator, model_validator, settings"
-    - "NumPy: array operations, vectorized computation, array/list conversion"
-    - "Testing: pytest, fixtures, mocking, parametrize, coverage"
-    - "CLI: Typer, Rich, argument parsing, table formatting"
-    - "Logging: structlog, JSON/console output, log levels"
-    - "File I/O: JSON serialization/deserialization, path manipulation"
-    - "Design patterns: Strategy, Registry, Adapter, Builder, Template Method"
-    - "Data structures: list, dict, deque, tuple, dataclass"
-    - "Algorithms: sliding window, FIFO queue, pagination, merging"
-
-  domain_knowledge:
-    - "Trading strategies: trend-following, mean-reversion, crossover signals"
-    - "Technical indicators: SMA, EMA, RSI, MACD, Bollinger Bands"
-    - "Backtesting: equity curve, metrics calculation, position tracking"
-    - "Market data: OHLCV candles, time series, exchange APIs (ccxt)"
-    - "Portfolio management: multi-position, FIFO, PnL calculation"
-    - "Risk metrics: Sharpe ratio, max drawdown, win rate, profit factor"
-
-  implementation_patterns:
-    - "Pure functional indicators: no side effects, testable in isolation"
-    - "Strategy ABC pattern: polymorphic signal generation"
-    - "Decorator-based registry: auto-registration on import"
-    - "Auto-discovery: pkgutil for dynamic module loading"
-    - "Template scaffolding: placeholder replacement for code generation"
-    - "Multi-position tracking: list-based state, FIFO closing"
-    - "Backward compatibility: default parameters preserve behavior"
-
-  testing_practices:
-    - "Reference value testing: exact outputs for known inputs"
-    - "Property-based testing: verify invariants (e.g., sum equals parts)"
-    - "Fixture reuse: shared data generation via conftest.py"
-    - "Test isolation: cleanup mutable state, sys.modules manipulation"
-    - "Coverage targets: 85%+ achieved (96% actual)"
-    - "Integration testing: end-to-end workflow validation"
-
-  code_quality:
-    - "Type hints: all functions annotated, mypy strict mode"
-    - "Linting: ruff for formatting and linting"
-    - "Documentation: docstrings for all public functions/classes"
-    - "Error handling: custom exceptions, informative messages"
-    - "Logging: structured logging with context"
-
-  collaboration:
-    - "Spec-driven development: follow specifications exactly"
-    - "Incremental implementation: 12 sequential steps, each tested"
-    - "Delegation: work with CTO to split large tasks"
-    - "Documentation: write researcher-facing docs"
-    - "Expertise sharing: update this index with learnings"
-
-  phase2_specific:
-    - "Built indicators library from scratch (5 pure functions)"
-    - "Refactored portfolio tracker for multi-position (backward compatible)"
-    - "Implemented auto-discovery via pkgutil"
-    - "Built strategy scaffolding system (template + CLI)"
-    - "Implemented 3 new strategies with proper warmup handling"
-    - "Built result comparison system with color coding"
-    - "Wrote 5 researcher documentation files"
-    - "Achieved 96% test coverage (197 tests)"
-    - "Resolved infinity handling in metrics"
-    - "Fixed auto-discovery test pollution"
-
-# =============================================================================
-# 13. NEXT STEPS / PHASE 3 PREPARATION
-# =============================================================================
-
-next_steps:
-  planned_phase3: |
-    SPEC-002 (not yet written) will likely address:
+next_phase:
+  expected_features:
     - Paper trading module (ExecutionHandler implementation)
-    - Real execution / order placement via ccxt
-    - Scheduler/routines for automated strategy runs
-    - REST API for webapp integration
+    - Real execution via ccxt
+    - Scheduler/routines for automated runs
+    - REST API for webapp
     - WebSocket streaming for real-time data
-    - Risk management (stop-loss, take-profit, position sizing)
-    - Database storage (PostgreSQL/MongoDB migration from JSON)
-    - Web dashboard
+    - Risk management (stop-loss, position sizing)
+    - Database migration (JSON → PostgreSQL/MongoDB)
 
-  technical_debt: |
-    - Convert BacktestConfig to Pydantic model for validation
-    - Add guard against negative capital in PortfolioTracker
-    - Implement short selling support
-    - Add fee/commission modeling
-    - Implement proper periodic returns for Sharpe ratio
-    - Add slippage modeling
-    - Remove pandas dependency (unused)
-    - Add .env.example file
-
-  capabilities_to_develop: |
-    - Async I/O for concurrent data fetching
-    - Database ORM (SQLAlchemy or similar)
-    - REST API framework (FastAPI or similar)
+  capabilities_to_develop:
+    - Async I/O for concurrent operations
+    - Database ORM (SQLAlchemy)
+    - REST API framework (FastAPI)
     - WebSocket handling
-    - Task scheduling (APScheduler or similar)
-    - Order execution lifecycle management
-    - Real-time risk monitoring
-    - Performance optimization (caching, query optimization)
+    - Task scheduling (APScheduler)
+    - Order lifecycle management

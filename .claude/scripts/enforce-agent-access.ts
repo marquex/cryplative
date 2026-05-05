@@ -238,15 +238,15 @@ function getDirectoryPrefix(rulePath: string): string | null {
   return m ? m[1] : null;
 }
 
-function matchesAnyRule(relPath: string, rules: AccessRule[], verb: Verb): RuleMatchResult {
+function matchesAnyRule(absPath: string, rules: AccessRule[], verb: Verb, baseDir: string): RuleMatchResult {
   // rules with empty permissions = explicit deny for that path
   for (const rule of rules) {
-    const directMatch = globToRegex(rule.path).test(relPath);
+    const normalizedTarget = absPath.split(path.sep).join("/"); const ruleAbsPath = path.resolve(baseDir, rule.path).split(path.sep).join("/"); const directMatch = globToRegex(ruleAbsPath).test(normalizedTarget);
     // A rule like "platform/**" or "platform/*" should also grant access to
     // the directory itself ("platform"), since you need to reach the directory
     // to access its contents (e.g. ls, stat, mkdir -p).
     const dirPrefix = getDirectoryPrefix(rule.path);
-    const dirMatch = dirPrefix !== null && relPath === dirPrefix;
+    const dirAbsMatch = dirPrefix !== null && normalizedTarget === path.resolve(baseDir, dirPrefix).split(path.sep).join("/"); const dirMatch = dirAbsMatch;
 
     if (directMatch || dirMatch) {
       if (rule.permissions.length === 0) {
@@ -422,7 +422,7 @@ async function main(): Promise<never> {
       continue;
     }
 
-    const result = matchesAnyRule(rel, policy.access, verb);
+    const result = matchesAnyRule(abs, policy.access, verb, cwdReal);
     if (!result.matched) {
       return deny(`agent '${agentType}' has no access rule covering '${rel}'`);
     }
