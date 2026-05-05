@@ -1,3 +1,10 @@
 node_modules/
 tmp/
 .claude/sessions/
+
+# Python
+*.py[cod]
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/

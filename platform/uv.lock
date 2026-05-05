@@ -533,6 +533,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "ccxt" },
+    { name = "numpy" },
     { name = "pandas" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -553,6 +554,7 @@ dev = [
 requires-dist = [
     { name = "ccxt", specifier = ">=4.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10" },
+    { name = "numpy", specifier = ">=1.24" },
     { name = "pandas", specifier = ">=2.0" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pydantic-settings", specifier = ">=2.0" },
