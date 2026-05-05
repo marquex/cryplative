@@ -7,7 +7,10 @@ from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
+from cryplative.cli import app
 from cryplative.config import CryplativeConfig
+
+runner = CliRunner()
 
 
 class TestCLIStrategies:
@@ -230,3 +233,93 @@ class TestCLIMain:
         assert "backtest" in result.output
         assert "fetch" in result.output
         assert "strategies" in result.output
+        assert "new-strategy" in result.output
+
+
+class TestNewStrategyCLI:
+    """Tests for the new-strategy CLI command."""
+
+    def _make_template(self, strategies_dir: Path) -> None:
+        """Write the template file to strategies_dir."""
+        template_content = '''"""Template."""
+
+from cryplative.core.interfaces import Strategy
+from cryplative.core.models import (
+    Candle, OrderType, Signal, SignalDirection, StrategyConfig,
+)
+from cryplative.strategies.registry import StrategyRegistry
+
+# NOTE: Do NOT add @StrategyRegistry.register here.
+# This is a template file only.
+
+class TemplateStrategy(Strategy):
+    """<PLACEHOLDER: One-line description>"""
+    @property
+    def strategy_id(self) -> str:
+        return "<PLACEHOLDER: unique_id>"
+    @property
+    def strategy_name(self) -> str:
+        return "<PLACEHOLDER: Human-readable name>"
+    def initialize(self, config: StrategyConfig) -> None:
+        super().initialize(config)
+    def generate_signal(self, candles: list[Candle]) -> Signal | None:
+        return None
+'''
+        (strategies_dir / "_template.py").write_text(template_content, encoding="utf-8")
+
+    def test_creates_strategy_file(self, tmp_path: Path) -> None:
+        """new-strategy creates a file with correct content."""
+        import cryplative.cli
+
+        strategies_dir = tmp_path / "strategies"
+        strategies_dir.mkdir()
+        self._make_template(strategies_dir)
+
+        with patch.object(cryplative.cli.Path, "resolve", return_value=strategies_dir):
+            result = runner.invoke(app, ["new-strategy", "test_strat"])
+
+        assert result.exit_code == 0
+        assert "Created strategy: test_strat" in result.output
+
+        created_file = strategies_dir / "test_strat.py"
+        assert created_file.exists()
+
+        content = created_file.read_text(encoding="utf-8")
+        assert "class TestStrat(Strategy):" in content
+        assert 'return "test_strat"' in content
+        assert "Test Strat" in content
+        assert "@StrategyRegistry.register" in content
+
+    def test_error_on_duplicate_name(self, tmp_path: Path) -> None:
+        """new-strategy errors when strategy file already exists."""
+        import cryplative.cli
+
+        strategies_dir = tmp_path / "strategies"
+        strategies_dir.mkdir()
+        self._make_template(strategies_dir)
+        (strategies_dir / "existing.py").write_text("# existing", encoding="utf-8")
+
+        with patch.object(cryplative.cli.Path, "resolve", return_value=strategies_dir):
+            result = runner.invoke(app, ["new-strategy", "existing"])
+
+        assert result.exit_code == 1
+        assert "already exists" in result.output
+
+    def test_invalid_name_rejected(self) -> None:
+        """new-strategy rejects names with uppercase or special chars."""
+        result = runner.invoke(app, ["new-strategy", "MyStrategy"])
+        assert result.exit_code == 1
+        assert "Invalid strategy name" in result.output
+
+        result2 = runner.invoke(app, ["new-strategy", "123strategy"])
+        assert result2.exit_code == 1
+
+    def test_helper_functions(self) -> None:
+        """Test the snake_case conversion helpers."""
+        from cryplative.cli import _snake_to_pascal, _snake_to_title
+
+        assert _snake_to_pascal("my_strategy") == "MyStrategy"
+        assert _snake_to_pascal("sma_crossover") == "SmaCrossover"
+        assert _snake_to_pascal("rsi") == "Rsi"
+        assert _snake_to_title("my_strategy") == "My Strategy"
+        assert _snake_to_title("bollinger_bands") == "Bollinger Bands"

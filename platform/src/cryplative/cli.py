@@ -6,7 +6,9 @@ Provides commands for backtesting, data fetching, and strategy management.
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -230,6 +232,89 @@ def backtest(
     # Save location
     results_dir = config.resolve_strategy_results_dir()
     console.print(f"\n[dim]Full results saved to {results_dir}/[/dim]")
+
+
+def _snake_to_pascal(name: str) -> str:
+    """Convert snake_case to PascalCase."""
+    return "".join(word.capitalize() for word in name.split("_"))
+
+
+def _snake_to_title(name: str) -> str:
+    """Convert snake_case to Title Case."""
+    return " ".join(word.capitalize() for word in name.split("_"))
+
+
+@app.command()
+def new_strategy(name: str) -> None:
+    """Scaffold a new strategy from the template.
+
+    Creates a new strategy file with boilerplate code and
+    registers it for immediate use.
+    """
+    # Validate name format
+    if not re.match(r"^[a-z][a-z0-9_]*$", name):
+        console.print(
+            f"[red]Invalid strategy name '{name}'. "
+            "Use lowercase letters, numbers, and underscores (must start with a letter).[/red]"
+        )
+        raise typer.Exit(1)
+
+    strategies_dir = Path(__file__).resolve().parent / "strategies"
+    target_file = strategies_dir / f"{name}.py"
+
+    if target_file.exists():
+        console.print(
+            f"[red]Strategy file already exists: {target_file}[/red]\n"
+            f"Choose a different name or delete the existing file."
+        )
+        raise typer.Exit(1)
+
+    # Read template
+    template_file = strategies_dir / "_template.py"
+    if not template_file.exists():
+        console.print("[red]Template file not found: _template.py[/red]")
+        raise typer.Exit(1)
+
+    template_content = template_file.read_text(encoding="utf-8")
+
+    # Replace placeholders
+    class_name = _snake_to_pascal(name)
+    template_content = template_content.replace(
+        "class TemplateStrategy(Strategy):", f"class {class_name}(Strategy):"
+    )
+    template_content = template_content.replace(
+        'return "<PLACEHOLDER: unique_id>"',
+        f'return "{name}"',
+    )
+    template_content = template_content.replace(
+        'return "<PLACEHOLDER: Human-readable name>"',
+        f'return "{_snake_to_title(name)}"',
+    )
+    template_content = template_content.replace(
+        '"""<PLACEHOLDER: One-line description of your strategy>"""',
+        f'"""{_snake_to_title(name)} strategy."""',
+    )
+
+    # Add the @StrategyRegistry.register decorator
+    template_content = template_content.replace(
+        "# NOTE: Do NOT add @StrategyRegistry.register here.",
+        "@StrategyRegistry.register",
+    )
+    template_content = template_content.replace(
+        "# This is a template file only. Auto-discovery skips files starting with \"_\".",
+        "",
+    )
+
+    target_file.write_text(template_content, encoding="utf-8")
+
+    console.print(f"[green]Created strategy: {name}[/green]")
+    console.print(f"[dim]File: {target_file}[/dim]")
+    console.print(
+        "\nNext steps:\n"
+        f"  1. Edit the file and implement generate_signal()\n"
+        f"  2. Run: cryplative backtest --strategy {name} "
+        "--symbol BTC/USDT --interval 1h --start 2025-01-01 --end 2025-06-01"
+    )
 
 
 if __name__ == "__main__":
