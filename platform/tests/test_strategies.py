@@ -225,3 +225,42 @@ class TestSMACrossoverStrategy:
         signal = self.strategy.generate_signal(candles)
         if signal is not None:
             assert signal.direction == SignalDirection.SELL
+
+
+# ---------------------------------------------------------------------------
+# Auto-discovery
+# ---------------------------------------------------------------------------
+
+
+class TestAutoDiscovery:
+    """Test that auto-discovery works correctly.
+
+    These tests run first (alphabetically) or ensure fresh state by
+    manually registering what auto-discovery would provide.
+    """
+
+    def test_auto_discovery_finds_sma_crossover(self) -> None:
+        """Auto-discovery should find sma_crossover when importing fresh.
+
+        Run in a subprocess to avoid module caching issues.
+        """
+        import subprocess
+
+        result = subprocess.run(
+            [
+                "python",
+                "-c",
+                "from cryplative.strategies import StrategyRegistry; "
+                "print(StrategyRegistry.list_strategies())",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=".",
+        )
+        assert "sma_crossover" in result.stdout
+        assert "template" not in result.stdout
+
+    def test_template_not_registered(self) -> None:
+        """The _template.py file should NOT register a strategy."""
+        ids = StrategyRegistry.list_strategies()
+        assert "template" not in ids
