@@ -313,8 +313,10 @@ async function runDelegation(
 
   // Spawn child claude process with --output-format stream-json
   // Note: --verbose is required when using --output-format stream-json with --print
+  // Note: --dangerously-skip-permissions skips permission prompts so the subagent
+  //       can complete its task without getting stuck waiting for human approval
   const child = Bun.spawn(
-    ["claude", "--agent", agentName, "-p", prompt, "--verbose", "--output-format", "stream-json"],
+    ["claude", "--agent", agentName, "-p", prompt, "--verbose", "--output-format", "stream-json", "--dangerously-skip-permissions"],
     {
       env: {
         ...Bun.env,

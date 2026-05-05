@@ -34,16 +34,18 @@ hiring_plan:
   - reminder: "MUST report the need to hire backend-developer and frontend-developer when Phase 4 approaches."
 
 external_agents:
-  - agent: quant-researcher
-    role: "Strategy research & analysis"
-    notes: "Will use the platform. NOT a CTO subordinate. Different reporting line."
+  - agent: algo-researcher
+    role: "Strategy research, development & analysis"
+    notes: "Will use the platform to develop and test strategies. NOT a CTO subordinate. Different reporting line. Phase 2 docs are written for this persona."
+    trigger: "After Phase 2 delivery — platform must be researcher-ready first"
 
-expertise_status: "Active — Phase 1 complete, platform foundation delivered and verified"
+expertise_status: "Active — Phase 2 spec written, awaiting user approval to delegate"
 
 expertise_entries:
   - file: architecture-rationale.md
-    description: "Technology stack decisions and rationale for each choice"
+    description: "Technology stack decisions, rationale, lessons learned, and Phase 2 planning insights"
     date: 2026-05-04
+    updated: 2026-05-05
 
 specs_authored:
   - file: architecture-overview.md
@@ -54,6 +56,10 @@ specs_authored:
     description: "Phase 1 Foundation — project scaffolding, models, interfaces, MarketFetcher, SMA strategy, backtesting, CLI"
     date: 2026-05-04
     status: COMPLETE — all 11 steps implemented, all acceptance criteria met
+  - file: 001-researcher-ready-platform.md
+    description: "Phase 2 Researcher-Ready — indicators library, multi-position backtesting, strategy template, RSI/MACD/Bollinger strategies, CLI enhancements, researcher docs"
+    date: 2026-05-05
+    status: READY — awaiting user approval to delegate
 
 key_decisions:
   - "Python for platform (ecosystem > raw performance for strategy research)"
@@ -62,11 +68,14 @@ key_decisions:
   - "File-based JSON storage initially, abstracted for DB migration"
   - "Binance as first exchange, adapter pattern for future extensibility"
   - "Universal Strategy Protocol as the most critical abstraction"
+  - "Phase 2 scope refined: researcher-ready platform over paper trading — validate framework, make it easy for algo-researchers"
+  - "Paper trading deferred to Phase 3 — researcher tooling is the priority"
+  - "Documentation is a first-class deliverable — the platform is only useful if researchers can use it"
 
 development_roadmap:
   phase_1: "Foundation — COMPLETE (SPEC-000 delivered 2026-05-04)"
-  phase_2: "Validation — paper trading, portfolio management, strategy registry (NEXT)"
-  phase_3: "Live Operations — real execution, routines/scheduler, risk management"
+  phase_2: "Researcher-Ready — indicators library, multi-position backtesting, strategy template, RSI/MACD/Bollinger strategies, CLI enhancements, researcher docs (SPEC-001 READY)"
+  phase_3: "Live Simulation — paper trading, async data feeds, strategy state persistence, real execution preparation"
   phase_4: "Monitoring & Control — Bun.js API, React webapp, interactive management"
   phase_5: "Optimization — parameter tuning, strategy ensembles, advanced analytics"
 

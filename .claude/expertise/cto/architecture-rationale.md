@@ -75,3 +75,35 @@ Cron-like scheduling (e.g., "run backtesting daily at 00:00 UTC", "execute strat
 - **Backtesting engine is single-position** — can only hold one position at a time. Multi-position support needed for portfolio-level strategies.
 - **No async yet** — everything is synchronous. ccxt supports async; we'll need it for real-time data feeds in Phase 3.
 - **Error handling is basic** — custom exceptions exist but recovery/retry logic is minimal. Needs hardening for production.
+
+## Phase 2 Design Decisions (2026-05-05)
+
+### Scope Refinement: Researcher-Ready Platform
+User redirected Phase 2 from paper trading to researcher readiness. The goal is making the platform flexible and easy enough for an algo-researcher (human or AI) to test any type of strategy. Paper trading deferred to Phase 3.
+
+Key components of Phase 2 (SPEC-001):
+1. **Common Indicators Library** — reusable building blocks (SMA, EMA, RSI, MACD, Bollinger Bands) so researchers compose rather than reimplement
+2. **Multi-Position Backtesting** — expand engine from single to multiple concurrent positions (backward compatible via max_positions config)
+3. **Strategy Template System** — `cryplative new-strategy <name>` scaffolding command + auto-discovery of strategy files
+4. **Diverse Strategies** — RSI, MACD, Bollinger Bands to validate the framework supports different strategy types (mean-reversion, trend-following, volatility)
+5. **CLI Enhancements** — `compare` command, `strategies --verbose`, better error messages, params from file
+6. **Robustness** — input validation, retry logic, edge case handling
+7. **Researcher Documentation** — 5 docs: getting-started, writing-strategies, cli-reference, backtesting-guide, indicators
+
+### Design Decisions for SPEC-001
+- **Indicators as pure functions** — no state, no classes, just data in → data out. Easy to test, compose, and understand.
+- **numpy internally, list externally** — researchers pass simple lists, we use numpy for correctness/speed under the hood.
+- **Multi-position via max_positions config** — backward compatible default of 1, opt-in to more. FIFO closing order.
+- **Auto-discovery via pkgutil** — strategies register on import, `__init__.py` auto-imports all modules. No manual registration.
+- **Template file prefixed with _** — `_template.py` is skipped by auto-discovery but serves as the scaffold source and living documentation.
+- **Docs in platform/docs/** — Markdown, concise, code-heavy. Written for the algo-researcher persona, not developers.
+- **Strategy.default_parameters()** — class method on Strategy ABC so CLI can show parameter info without instantiating.
+
+### Key Risks for Phase 2
+- **Indicator correctness** — technical indicators have subtle algorithmic differences (e.g., Wilder's vs simple RSI). Tests must validate against known values.
+- **Backward compatibility** — multi-position refactor must not break existing single-position behavior. Regression tests are critical.
+- **Documentation quality** — docs are only useful if they're accurate and complete. The platform-developer should verify all examples are runnable.
+
+### Hiring Note
+- **algo-researcher** is an external agent (not a CTO subordinate). They should be hired after Phase 2 is delivered and verified.
+- Phase 2 docs are the onboarding material for this agent.

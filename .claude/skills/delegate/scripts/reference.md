@@ -107,6 +107,7 @@ The `delegation_id` links a response entry to its corresponding delegation entry
 
 ## Behavior Notes
 
+- The child `claude` process is spawned with `--dangerously-skip-permissions` so it can complete its task without getting stuck waiting for human permission approvals.
 - The child `claude` process is spawned with `CRYPLATIVE_SESSION_ID` in its environment, ensuring session continuity across the delegation chain.
 - The child's stdout is passed through to the calling script's stdout so the delegating agent sees the response in its own context.
 - If the child process fails (non-zero exit code), the response entry is still written with the error exit code, and the response preview will contain any partial stdout.
