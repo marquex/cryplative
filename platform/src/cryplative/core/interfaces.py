@@ -46,6 +46,11 @@ class Strategy(ABC):
         Default is no-op; override if needed.
         """
 
+    @classmethod
+    def default_parameters(cls) -> dict[str, object]:
+        """Return the default parameters for this strategy. Override in subclasses."""
+        return {}
+
 
 class DataProvider(ABC):
     """Abstraction for fetching market data. Implemented by MarketFetcher."""

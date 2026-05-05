@@ -37,6 +37,10 @@ class SMACrossoverStrategy(Strategy):
         self._fast_period: int = 10
         self._slow_period: int = 20
 
+    @classmethod
+    def default_parameters(cls) -> dict[str, object]:
+        return {"fast_period": 10, "slow_period": 20}
+
     @property
     def strategy_id(self) -> str:
         return "sma_crossover"
