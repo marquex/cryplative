@@ -52,6 +52,7 @@ delegation_system:
     - name: delegate skill
       path: ".claude/skills/delegate/"
       structure: "SKILL.md + scripts/delegate.ts + scripts/reference.md"
+      progress_output: "delegate.ts writes keepalive output to stderr while the child process runs: (1) first assistant message printed immediately prefixed with [assistant], (2) dot '.' every 5 seconds, (3) latest assistant message (or '*' if unchanged) every 60 seconds. This prevents the calling agent's Bash tool from appearing stuck."
     - name: session directory
       path: ".claude/sessions/<CRYPLATIVE_SESSION_ID>/"
       files:
@@ -302,6 +303,8 @@ observations:
     note: "Added poll-transcript.ts — a background process spawned by the SessionStart hook for non-delegated sessions. Polls the Claude transcript file every 2 seconds, filtering to role=user|assistant messages, and appends them to agent_logs in near-real-time. Uses a line-count tracker to only process new entries. When the Stop hook writes a .poll-stop sentinel, the poller switches to drain mode (500ms intervals for up to 3 seconds) to catch any late-flushed entries, then exits and cleans up the sentinel. Handles SIGHUP gracefully so it survives parent process exits. The Stop hook now writes the sentinel before checking agent_logs, serving as a fallback if neither delegate.ts streaming nor the poller produced the file."
   - date: "2026-05-05"
     note: "Created inject-expertise.ts hook to automate expertise management. Previously, agents relied on the agent-expertise skill to remember to read their expertise index at the start of tasks and update it at the end — but agents frequently forgot one or both. Three-layer approach: (1) SessionStart injects expertise content automatically, (2) UserPromptSubmit provides a soft pre-emptive nudge before every response, (3) Stop acts as a hard gate — compares expertise file mtimes against session start timestamp, and if no files were modified, outputs a reminder prompt that forces a new iteration (the agent must update expertise or explain why no update is needed). A ._expertise_reminded marker prevents infinite loops — reminder is injected at most once per session. Initially tried Stop-only but it fires AFTER the agent responds (too late), then tried UserPromptSubmit-only (works but relies on agent noticing), finally settled on all three layers for defense in depth."
+  - date: "2026-05-05"
+    note: "Added keepalive progress output to delegate.ts. Problem: when delegate.ts spawns a child claude process, no output is produced until the child finishes. The calling agent (running the Bash tool) sees no output and may appear stuck/disconnected. Solution: (1) Print the first assistant message to stderr as soon as it arrives (prefixed with [assistant]), (2) Print a dot '.' to stderr every 5 seconds via setInterval as keepalive, (3) Every 60 seconds (12th dot), print the latest assistant message text if it changed since the last minute-print, or '*' if no new message. All progress goes to stderr; the final response still goes to stdout clean. Added extractTextFromMessage() helper to extract text from message objects (handles string content and array content blocks, filtering to type=text only). Added 7 unit tests in progress-output.test.ts covering script loading and extractTextFromMessage edge cases."
 
 testing_system:
   expertise-file: testing-system.yaml
@@ -333,4 +336,5 @@ testing_system:
     delegation-enforcement: "7 tests: script-level rejection (no subordinates, unauthorized target, global skip), hook-level blocking (primary→unauthorized, secondary→any), full e2e (primary→secondary success, no delegation entry for unauthorized target)"
     access-control: "3 tests: write deny outside domain (checks for deterministic ACCESS_DENIED phrase), read allow inside domain, read-only session access"
     inject-expertise: "14 tests: SessionStart (injection + start time, skip global, skip missing), UserPromptSubmit (inject, skip global), Stop mtime gate (allow when updated, inject when not, allow when already reminded, skip global, skip no expertise dir, fallback no start time), edge cases (malformed input, unknown event, content ordering)"
+    progress-output: "7 tests: script loading (no syntax errors), extractTextFromMessage (string content, array with text+tool blocks, empty content, non-text block types, mixed with thinking blocks, empty string)"
 

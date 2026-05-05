@@ -202,6 +202,30 @@ function isSkillSetupMessage(message: Record<string, unknown>): boolean {
 }
 
 /**
+ * Extract text content from a single message object.
+ * Handles both string content and array of content blocks (text only).
+ */
+function extractTextFromMessage(message: Record<string, unknown>): string {
+  const content = message.content;
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    const textParts: string[] = [];
+    for (const block of content) {
+      if (
+        block &&
+        typeof block === "object" &&
+        block.type === "text" &&
+        typeof block.text === "string"
+      ) {
+        textParts.push(block.text);
+      }
+    }
+    return textParts.join("\n").trim();
+  }
+  return "";
+}
+
+/**
  * Extract the final text result from stream-json output.
  * Scans for the "result" event type and returns its "result" field.
  * Falls back to concatenating all assistant text content blocks.
@@ -313,6 +337,37 @@ async function runDelegation(
   const reader = child.stdout.getReader();
   const decoder = new TextDecoder();
 
+  // Progress tracking: keep the calling agent informed that the child is still running.
+  // Without output, Claude Code's Bash tool may appear stuck/disconnected.
+  let firstAssistantMessagePrinted = false;
+  let lastAssistantText = "";
+  let lastPrintedProgressMessage = "";
+  let dotCount = 0;
+  let isChildComplete = false;
+
+  // Print a dot every 5 seconds to stderr (keepalive).
+  // Every 60 seconds (12th dot), print the latest assistant message if it changed,
+  // or a '*' wildcard if there's no new message.
+  const keepaliveInterval = setInterval(() => {
+    if (isChildComplete) return;
+    dotCount++;
+    process.stderr.write(".");
+
+    // Every 60 seconds, print progress update
+    if (dotCount % 12 === 0) {
+      if (lastAssistantText && lastAssistantText !== lastPrintedProgressMessage) {
+        const preview =
+          lastAssistantText.length > 300
+            ? lastAssistantText.substring(0, 300) + "..."
+            : lastAssistantText;
+        process.stderr.write(`\n${preview}\n`);
+        lastPrintedProgressMessage = lastAssistantText;
+      } else {
+        process.stderr.write("\n*\n");
+      }
+    }
+  }, 5000);
+
   try {
     while (true) {
       const { done, value } = await reader.read();
@@ -325,11 +380,34 @@ async function runDelegation(
         if (!line.trim()) continue;
         streamJsonLines.push(line);
 
-        // Stream user/assistant messages to agent_logs in real-time.
-        // The Stop hook checks if this file exists and skips writing if so,
-        // avoiding any race condition between the two writers.
         try {
           const event = JSON.parse(line);
+
+          // Print the first assistant message to stderr immediately as progress
+          if (
+            event.type === "assistant" &&
+            event.message &&
+            !firstAssistantMessagePrinted
+          ) {
+            const text = extractTextFromMessage(event.message);
+            if (text) {
+              process.stderr.write(`[assistant] ${text.substring(0, 300)}${text.length > 300 ? "..." : ""}\n`);
+              firstAssistantMessagePrinted = true;
+              lastAssistantText = text;
+            }
+          }
+
+          // Track the latest assistant text for minute-by-minute progress updates
+          if (event.type === "assistant" && event.message) {
+            const text = extractTextFromMessage(event.message);
+            if (text) {
+              lastAssistantText = text;
+            }
+          }
+
+          // Stream user/assistant messages to agent_logs in real-time.
+          // The Stop hook checks if this file exists and skips writing if so,
+          // avoiding any race condition between the two writers.
           if ((event.type === "user" || event.type === "assistant") && event.message) {
             if (!isSkillSetupMessage(event.message)) {
               await appendFile(agentLogsPath, JSON.stringify(event.message) + "\n");
@@ -342,6 +420,8 @@ async function runDelegation(
       }
     }
   } finally {
+    isChildComplete = true;
+    clearInterval(keepaliveInterval);
     reader.releaseLock();
   }
 
