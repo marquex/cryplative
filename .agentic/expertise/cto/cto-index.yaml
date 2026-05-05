@@ -39,7 +39,7 @@ external_agents:
     notes: "Will use the platform to develop and test strategies. NOT a CTO subordinate. Different reporting line. Phase 2 docs are written for this persona."
     trigger: "After Phase 2 delivery — platform must be researcher-ready first"
 
-expertise_status: "Active — Phase 2 spec written, awaiting user approval to delegate"
+expertise_status: "Active — SPEC-001 validated and ready for delegation"
 
 expertise_entries:
   - file: architecture-rationale.md
@@ -59,7 +59,7 @@ specs_authored:
   - file: 001-researcher-ready-platform.md
     description: "Phase 2 Researcher-Ready — indicators library, multi-position backtesting, strategy template, RSI/MACD/Bollinger strategies, CLI enhancements, researcher docs"
     date: 2026-05-05
-    status: READY — awaiting user approval to delegate
+    status: VALIDATED — reviewed by platform-developer, all issues resolved
 
 key_decisions:
   - "Python for platform (ecosystem > raw performance for strategy research)"
@@ -91,3 +91,14 @@ delegation_history:
       - "Platform developer adds a final polish commit (5533d21) to ensure acceptance criteria — good initiative"
       - "Delegation via `bun .claude/skills/delegate/scripts/delegate.ts` works but runs in background — need to wait for completion notification"
       - "Two delegation calls were made (bw7diecr4 and bvv8qyf74) — the first one completed the full implementation, second was redundant"
+  - task: "SPEC-001 Validation Review"
+    assignee: platform-developer
+    delegated: 2026-05-05
+    completed: 2026-05-05
+    outcome: SUCCESS
+    details: "Thorough review found 4 critical + 5 medium issues. All fixed in spec revision. Final confirmation passed — platform-developer updated own expertise with implementation notes."
+    lessons:
+      - "Pre-implementation validation catches real bugs — engine loop, missing context param, off-by-one candle counts would have caused failed tests and rework"
+      - "platform-developer reads actual codebase during validation, not just the spec — catches interface mismatches"
+      - "Two-round validation (initial review + fix confirmation) is efficient — total validation took ~10 minutes but saves hours of rework"
+      - "Provide concrete test vectors (reference values) in specs — reduces ambiguity for mathematical computations"

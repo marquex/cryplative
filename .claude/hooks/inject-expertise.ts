@@ -288,7 +288,7 @@ async function handleStop(
   Use the agent-expertise skill for instruction on how to update your expertise files.
   If you genuinely have nothing new to learn or record from this session, say just "No update needed for my mental model".`;
 
-  const reason = `Update expertise check`;
+  const reason = `Update expertise check using the 'agent-expertise' skill before exiting.`;
 
   // Output JSON using the advanced Stop hook API to block exit and feed
   // the prompt back to the agent

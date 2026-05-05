@@ -61,7 +61,7 @@ A library of pure technical indicator functions that any strategy can use. These
 
 - **Pure functions** — take data in, return computed values. No side effects, no state.
 - **Consistent interface** — all functions accept `list[float]` (closing prices), return `list[float | None]` where `None` means insufficient data at that index.
-- **Use numpy internally** — correct and fast. Convert back to list for output.
+- **Use numpy internally** — correct and fast. Convert back to list for output. Add `numpy>=1.24` as an **explicit dependency** in `pyproject.toml` (don't rely on transitive dependency via pandas).
 - **Well-documented docstrings** — each function has a clear docstring explaining the algorithm, parameters, and return format.
 
 ### 2.2 Functions to Implement
@@ -148,16 +148,64 @@ def compute_bollinger_bands(
 
 After creating the indicators library, **refactor** `sma_crossover.py` to import `compute_sma` from `indicators.py` instead of having its own implementation. Delete the old `compute_sma` from `sma_crossover.py`.
 
+**IMPORTANT**: Also update `tests/test_strategies.py` — the `TestComputeSMA` class (and any other test) imports `compute_sma` directly from `sma_crossover.py`. Change these imports to:
+```python
+from cryplative.strategies.indicators import compute_sma
+```
+
 This proves the indicators library is a drop-in replacement and keeps the SMA crossover strategy clean.
 
 ### 2.4 Testing Requirements
 
 For each indicator function:
-- Correct computation against **known values** (compute expected values manually or reference a known source — e.g., a well-known RSI calculator with specific inputs)
+- Correct computation against **known reference values** (see below)
 - Returns `None` for indices where insufficient data exists
 - Handles edge cases: empty list, single element, list shorter than period
 - Return list has same length as input list
 - Works with numpy arrays as input (in addition to lists)
+
+#### Reference Test Values
+
+Each indicator must be validated against hand-calculated or well-sourced reference values. Here are test vectors:
+
+**SMA (period=3)**:
+```
+Input:  [10.0, 20.0, 30.0, 40.0, 50.0]
+Output: [None, None, 20.0, 30.0, 40.0]
+```
+
+**EMA (period=3)**:
+```
+Input:  [10.0, 20.0, 30.0, 40.0, 50.0]
+Seed SMA(3) = 20.0
+Multiplier = 2/(3+1) = 0.5
+EMA[2] = 20.0 (seed)
+EMA[3] = 40*0.5 + 20*0.5 = 30.0
+EMA[4] = 50*0.5 + 30*0.5 = 40.0
+Output: [None, None, 20.0, 30.0, 40.0]
+```
+
+**RSI (period=5)** — Use a well-known reference. The implementer should construct a test case with known gains/losses and verify against a reliable RSI calculator (e.g., TradingView, stockcharts.com). At minimum, verify:
+- RSI returns values in range [0, 100]
+- RSI = 100 when all changes are positive
+- RSI = 0 when all changes are negative
+- RSI with alternating equal gains/losses ≈ 50
+
+**MACD (fast=3, slow=6, signal=3)** — Verify:
+- MACD line = EMA(fast) - EMA(slow)
+- Signal line = EMA of MACD line
+- Histogram = MACD - Signal
+- All three lists have same length as input
+
+**Bollinger Bands (period=3, num_std=2.0)**:
+```
+Input:  [10.0, 20.0, 30.0, 25.0, 35.0]
+SMA(3):  [None, None, 20.0, 25.0, 30.0]
+Stdev(3): [None, None, 10.0, 5.0, 5.0]
+Upper:   [None, None, 40.0, 35.0, 40.0]
+Middle:  [None, None, 20.0, 25.0, 30.0]
+Lower:   [None, None,  0.0, 15.0, 20.0]
+```
 
 ---
 
@@ -167,32 +215,40 @@ The current engine and tracker only support a single concurrent position. This b
 
 ### 3.1 BacktestConfig Changes
 
-Add to `BacktestConfig` (in `backtesting/engine.py`):
+Add `max_positions` to `BacktestConfig` (in `backtesting/engine.py`). Keep the existing plain class structure — do NOT convert to Pydantic BaseModel. Preserve all existing methods (`start_timestamp_ms()`, `end_timestamp_ms()`).
 
 ```python
-class BacktestConfig(BaseModel):
-    strategy_id: str
-    symbol: str
-    interval: str
-    start_date: str
-    end_date: str
-    initial_capital: float = 10000.0
-    parameters: dict = {}
-    lookback_window: int = 200
-    max_positions: int = 1  # NEW: max concurrent open positions. Default 1 = backward compatible.
+# Keep as a plain class. Just add max_positions to __init__.
+class BacktestConfig:
+    def __init__(
+        self,
+        strategy_id: str,
+        symbol: str,
+        interval: str,
+        start_date: str,
+        end_date: str,
+        initial_capital: float = 10000.0,
+        parameters: dict | None = None,
+        lookback_window: int = 200,
+        max_positions: int = 1,  # NEW: max concurrent open positions. Default 1 = backward compatible.
+    ):
+        ...
 ```
 
 ### 3.2 PortfolioTracker Refactor
 
 **File**: `src/cryplative/portfolio/tracker.py`
 
-Refactor from single-position to multi-position:
+Refactor from single-position to multi-position. **Preserve the `context: RunContext` parameter** — it's required by the `Trade` model:
 
 ```python
+from cryplative.core.models import RunContext
+
 class PortfolioTracker:
-    def __init__(self, initial_capital: float, max_positions: int = 1):
+    def __init__(self, initial_capital: float, context: RunContext = RunContext.BACKTEST, max_positions: int = 1):
         self.initial_capital = initial_capital
         self.capital = initial_capital
+        self._context = context
         self.max_positions = max_positions
         self.open_trades: list[Trade] = []
         self.closed_trades: list[Trade] = []
@@ -237,37 +293,52 @@ class PortfolioTracker:
 
 **File**: `src/cryplative/backtesting/engine.py`
 
-Update the simulation loop:
+**CRITICAL**: Preserve the existing simulation loop structure exactly. The only changes are:
+1. Pass `max_positions` from config to `PortfolioTracker` constructor (alongside existing `context`)
+2. Replace single-position `close_position(price, timestamp)` calls with `close_oldest(price, timestamp)` (FIFO)
+3. Replace `has_open_position` checks with `can_open()` and `len(tracker.open_trades) > 0`
+4. Replace `record_equity` calls with `snapshot_equity` (rename)
+5. Replace `portfolio.trades` with `tracker.all_trades`
+6. Add force-close loop at the end for remaining open positions
+
+Do NOT change: loop start index, window construction, timestamp usage, or iteration pattern. These must remain identical to Phase 1 for backward compatibility.
 
 ```python
 def run(self, config: BacktestConfig) -> StrategyResult:
     ...
-    # Create tracker with max_positions from config
-    tracker = PortfolioTracker(config.initial_capital, config.max_positions)
+    # Create tracker — preserve both context AND add max_positions
+    tracker = PortfolioTracker(
+        initial_capital=config.initial_capital,
+        context=RunContext.BACKTEST,
+        max_positions=config.max_positions,
+    )
 
-    for i in range(lookback_window, len(candles)):
-        window = candles[i - lookback_window : i + 1]
-        current_candle = candles[i]
+    # KEEP the existing loop structure exactly:
+    for i, candle in enumerate(candles):
+        window = candles[max(0, i - lookback_window + 1) : i + 1]
+
+        # ... strategy initialization check stays the same ...
+
         signal = strategy.generate_signal(window)
 
         if signal is not None:
             if signal.direction == SignalDirection.BUY and tracker.can_open():
-                trade = tracker.open_position(signal, current_candle.close, current_candle.close_time)
+                trade = tracker.open_position(signal, candle.close, candle.open_time)
             elif signal.direction == SignalDirection.SELL and len(tracker.open_trades) > 0:
-                # Close the oldest open trade (FIFO)
-                tracker.close_oldest(current_candle.close, current_candle.close_time)
+                # Close the oldest open trade (FIFO) — replaces single close_position
+                tracker.close_oldest(candle.close, candle.open_time)
 
-        # Snapshot equity at each candle
-        tracker.snapshot_equity(current_candle.close_time, current_candle.close)
+        # Snapshot equity at each candle — renamed from record_equity
+        tracker.snapshot_equity(candle.open_time, candle.close)
 
-    # Force-close all remaining open positions at the end
+    # NEW: Force-close all remaining open positions at the end
     while tracker.open_trades:
         last_candle = candles[-1]
-        tracker.close_oldest(last_candle.close, last_candle.close_time)
+        tracker.close_oldest(last_candle.close, last_candle.open_time)
     ...
 ```
 
-**Backward compatibility**: When `max_positions=1` (default), behavior is identical to the Phase 1 engine — single position, same P&L calculations.
+**Backward compatibility**: When `max_positions=1` (default), the loop behaves identically to Phase 1 — same candles processed, same windows, same timestamps, same P&L calculations. Only the method names on the tracker change (internal refactor).
 
 ### 3.4 Testing Requirements
 
@@ -373,7 +444,7 @@ class TemplateStrategy(Strategy):
         return Signal(
             strategy_id=self.strategy_id,
             symbol=candle.symbol,
-            timestamp=candle.close_time,
+            timestamp=candle.open_time,  # Use open_time for consistency with existing strategies
             direction=direction,
             order_type=OrderType.MARKET,
             price=None,
@@ -472,7 +543,7 @@ A mean-reversion strategy based on the Relative Strength Index.
 ### 5.3 Signal Logic
 
 1. Compute RSI(period) using `compute_rsi()` from indicators.
-2. Need at least `period + 1` candles to produce a signal.
+2. Need at least `period + 2` candles to produce a signal (need two consecutive RSI values for crossover detection).
 3. Look at the last two RSI values:
    - If previous RSI was **below** oversold AND current RSI **crosses above** oversold → **BUY** (price was oversold, now recovering)
    - If previous RSI was **above** overbought AND current RSI **crosses below** overbought → **SELL** (price was overbought, now declining)
@@ -560,8 +631,9 @@ A volatility-based mean-reversion strategy.
 ### 7.3 Signal Logic
 
 1. Compute Bollinger Bands using `compute_bollinger_bands()` from indicators.
-2. Need at least `period` candles.
+2. Need at least `period + 1` candles (need two consecutive band values for crossover detection).
 3. Look at the current candle's close price relative to the bands:
+   - First check that band values at both current and previous indices are **not None** (insufficient warmup). If either is None, return None.
    - If close **crosses below** the lower band (previous close was above or at lower, current is below) → **BUY** (price is statistically cheap)
    - If close **crosses above** the upper band (previous close was below or at upper, current is above) → **SELL** (price is statistically expensive)
    - Otherwise → None
@@ -593,6 +665,8 @@ def compare(
     """Compare backtest results from multiple result files."""
 ```
 
+`files` is a **positional argument** (not an option). Usage: `cryplative compare result_a.json result_b.json result_c.json`
+
 **Behavior**:
 1. Load each JSON file as a `StrategyResult`.
 2. Print a rich comparison table with columns:
@@ -606,8 +680,15 @@ def compare(
 | Total Trades | 20 | 35 | 18 |
 | Profit Factor | 1.8 | 1.2 | 0.8 |
 
-3. Use color coding in the table: green for best value in each row, red for worst.
+3. Use color coding in the table: green for best value in each row, red for worst. Metric optimality direction:
+   - `total_return`: **higher is better**
+   - `sharpe_ratio`: **higher is better**
+   - `max_drawdown`: **closer to zero is better** (less negative = better, -5% is better than -15%)
+   - `win_rate`: **higher is better**
+   - `total_trades`: **neutral** — no color coding, just display the value
+   - `profit_factor`: **higher is better**
 4. Handle errors gracefully: skip files that can't be loaded, warn user.
+5. **Separation of concerns**: Extract the comparison/metrics logic into testable functions separate from the Rich rendering. The CLI command should call a pure function that returns structured comparison data, then format it with Rich.
 
 ### 8.2 `cryplative backtest` Improvements
 
@@ -777,7 +858,7 @@ Complete reference for all CLI commands with examples:
 2. `cryplative fetch` — Fetch and cache market data
 3. `cryplative backtest` — Run a backtest
 4. `cryplative new-strategy <name>` — Scaffold a new strategy
-5. `cryplative compare --files <...>` — Compare backtest results
+5. `cryplative compare <file1> <file2> ...` — Compare backtest results (positional args)
 
 For each command: description, all flags with defaults, examples.
 
@@ -820,15 +901,15 @@ The developer MUST implement in this exact order, committing after each mileston
 
 | Step | What to implement | Commit message |
 |------|-------------------|----------------|
-| 1 | Common indicators library (`indicators.py`) with SMA, EMA, RSI, MACD, Bollinger Bands + comprehensive tests | `feat: add common technical indicators library` |
-| 2 | Refactor SMA Crossover to use shared indicators library | `refactor: move compute_sma to shared indicators library` |
-| 3 | Multi-position support in PortfolioTracker + BacktestEngine (backward compatible) + tests | `feat: add multi-position support to backtesting engine` |
+| 1 | Common indicators library (`indicators.py`) with SMA, EMA, RSI, MACD, Bollinger Bands + add `numpy>=1.24` to `pyproject.toml` + comprehensive tests with reference values | `feat: add common technical indicators library` |
+| 2 | Refactor SMA Crossover to use shared indicators library + update `test_strategies.py` imports from `sma_crossover` to `indicators` | `refactor: move compute_sma to shared indicators library` |
+| 3 | Multi-position support in PortfolioTracker (preserve `context` param) + BacktestEngine (preserve existing loop structure, only change method calls) + tests | `feat: add multi-position support to backtesting engine` |
 | 4 | Strategy template file (`_template.py`) + auto-discovery in `strategies/__init__.py` + tests | `feat: add strategy template and auto-discovery` |
 | 5 | `cryplative new-strategy` CLI command + tests | `feat: add new-strategy scaffold command` |
 | 6 | RSI strategy + tests | `feat: add RSI mean-reversion strategy` |
 | 7 | MACD strategy + tests | `feat: add MACD crossover strategy` |
 | 8 | Bollinger Bands strategy + tests | `feat: add Bollinger Bands strategy` |
-| 9 | CLI enhancements (`compare` command, `--max-positions`, `--params` from file, `strategies --verbose`, `default_parameters` on Strategy ABC) + tests | `feat: enhance CLI with compare command and improved UX` |
+| 9 | CLI enhancements (`compare` command with positional args, `--max-positions`, `--params` from file, `strategies --verbose`, `default_parameters` on Strategy ABC) + tests | `feat: enhance CLI with compare command and improved UX` |
 | 10 | Robustness improvements (input validation, error handling, retry logic, edge cases) + tests | `feat: improve error handling, validation, and robustness` |
 | 11 | Researcher documentation (`getting-started.md`, `writing-strategies.md`, `cli-reference.md`, `backtesting-guide.md`, `indicators.md`) | `docs: add comprehensive researcher documentation` |
 | 12 | End-to-end researcher workflow validation test | `feat: add end-to-end researcher workflow test` |
@@ -857,6 +938,11 @@ tests/
 ```
 
 ### Key Test Scenarios
+
+**Testing Auto-Discovery and Workflow**:
+- Auto-discovery tests: use `tmp_path` fixture to create strategy files in a temporary directory. Avoid polluting the real `strategies/` package. Clear `sys.modules` between tests if needed.
+- Workflow tests (`test_workflow.py`): scaffold strategies to `tmp_path`, clean up `sys.modules` and call `StrategyRegistry` cleanup between tests to avoid registry pollution.
+- CLI tests for `compare` and `strategies --verbose`: test the underlying comparison/metrics logic as pure functions separately from Rich rendering. Only test Rich output at a high level (table contains expected strings after stripping ANSI codes).
 
 **test_indicators.py**:
 - Each indicator computes correctly against known hand-calculated values

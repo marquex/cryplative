@@ -60,6 +60,10 @@ Cron-like scheduling (e.g., "run backtesting daily at 00:00 UTC", "execute strat
 - **Acceptance criteria tables are essential** — the Section 17 checklist gave an unambiguous definition of done. platform-developer even added an extra commit to ensure all criteria were met.
 - **Platform-developer quality is high** — 93% test coverage (exceeded 80% target), ruff clean, mypy strict clean. This agent can be trusted with complex implementations.
 - **Avoid double-delegation** — the first delegation (bw7diecr4) completed the full work but its notification arrived late, causing a redundant second delegation (bvv8qyf74). Always wait for task completion before re-delegating.
+- **Pre-implementation validation is essential** — SPEC-001 validation caught 4 critical issues (engine loop incompatibility, missing RunContext param, broken test imports, off-by-one candle counts) that would have caused failed tests and hours of rework. The 10-minute validation saved much more.
+- **Validate specs against actual codebase** — the platform-developer read the real engine, tracker, models, and interfaces during validation. This catches interface mismatches that can't be found by reading the spec alone.
+- **Provide concrete test vectors for math** — indicator functions need reference values (SMA, EMA, Bollinger Bands with exact inputs/outputs). Without them, implementers may write tests against their own bugs.
+- **Off-by-one errors are the #1 risk in financial code** — warmup periods for indicators, minimum candles for crossover detection, and loop bounds all have subtle +1/-1 issues. Always double-check with concrete examples.
 
 ### Platform Architecture (Validated by Implementation)
 - **Pydantic v2 models as single source of truth** works perfectly — models are used everywhere (cache, strategy signals, trade tracking, results). The round-trip serialization (model_dump / model_validate) is clean.

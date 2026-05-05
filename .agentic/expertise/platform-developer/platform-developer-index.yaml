@@ -10,6 +10,8 @@ hierarchy:
 expertise_status: |
   Phase 1 (SPEC-000) fully implemented and analyzed. Complete codebase understanding
   including all modules, models, interfaces, tests, and data flows.
+  Phase 2 (SPEC-001) spec reviewed and validated. All critical/medium issues resolved.
+  Ready for implementation — 12 steps in specified order.
 
 # =============================================================================
 # 1. CODEBASE MAP
@@ -528,9 +530,9 @@ current_capabilities:
     - Real execution / order placement
     - Short selling
     - Position sizing (quantity is hardcoded to 1.0)
-    - Stop-loss / take-profit execution
+    - Stop-loss / take_profit execution
     - Strategy parameter optimization
-    - Multiple concurrent positions
+    - Multiple concurrent positions (SPEC-001 addresses this)
     - Risk management
     - Scheduler / routines
     - REST API
@@ -538,6 +540,17 @@ current_capabilities:
     - WebSocket streaming data
     - Database storage
     - CI/CD pipeline
+
+  planned_phase2: |
+    SPEC-001 (Researcher-Ready Platform) will add:
+    - Common indicators library (SMA, EMA, RSI, MACD, Bollinger Bands)
+    - Multi-position backtesting (max_positions on BacktestConfig + PortfolioTracker)
+    - 3 new strategies (RSI, MACD, Bollinger Bands)
+    - Strategy template system + auto-discovery + new-strategy CLI command
+    - compare CLI command (side-by-side result comparison)
+    - Input validation and error handling improvements
+    - Researcher documentation (5 markdown files)
+    - numpy>=1.24 as explicit runtime dependency
 
 # =============================================================================
 # 6. TEST COVERAGE
@@ -575,7 +588,8 @@ test_coverage:
 dependencies:
   runtime:
     ccxt: ">=4.0 — Exchange-agnostic crypto trading library. Used for fetch_ohlcv(). Rate limiting enabled."
-    pandas: ">=2.0 — Declared but NOT currently used in any source code. Likely for future data analysis."
+    numpy: ">=1.24 — Phase 2 addition. Used internally by indicators library. Must be explicit dep (not just transitive via pandas)."
+    pandas: ">=2.0 — Declared. Only used indirectly (numpy is pandas dep). Phase 2 indicators use numpy directly."
     pydantic: ">=2.0 — Data models (BaseModel, field_validator, model_validator). Also used by mypy plugin."
     pydantic_settings: ">=2.0 — BaseSettings for CryplativeConfig. Loads from env vars + .env file."
     structlog: ">=24.0 — Structured logging throughout all modules."
@@ -668,6 +682,8 @@ gotchas:
     StrategyRegistry.clear() must be called in test setup_method to prevent
     cross-test pollution since the registry uses mutable class-level state.
     The __init__.py auto-import causes sma_crossover to register on import.
+    Phase 2 adds auto-discovery via pkgutil.iter_modules — testing with tmp_path
+    and sys.modules cleanup will be critical.
   - |
     _ohlcv_to_candle computes close_time as open_time + interval_ms - 1.
     The interval_ms lookup only supports m, h, d, w suffixes. Defaults to 3600000 (1h).
@@ -684,6 +700,7 @@ gotchas:
   - |
     BacktestConfig is a plain Python class with __init__, NOT a Pydantic model.
     This means no automatic validation. The CLI passes user input directly.
+    SPEC-001 keeps this as-is — do NOT convert to Pydantic.
   - |
     Equity is recorded every candle regardless of whether a trade happens.
     The equity curve grows linearly with number of candles.
@@ -697,3 +714,135 @@ gotchas:
   - |
     rich is used for CLI output but the Console() is created at module level in cli.py.
     Tests use CliRunner which captures output differently than direct console calls.
+  - |
+    Engine loop backward compatibility (Phase 2): The current loop uses
+    "if signal is None: record_equity; continue" pattern. Phase 2 restructures to
+    "if signal is not None: handle; snapshot_equity (always)". These are semantically
+    identical but the restructured form must ALWAYS call snapshot_equity regardless
+    of signal path. The force-close at end: equity at close price equals position
+    value + cash regardless of open/closed state, so missing snapshot_equity after
+    force-close is safe for metrics (same value as last main-loop snapshot).
+
+# =============================================================================
+# 11. PHASE 2 (SPEC-001) — IMPLEMENTATION NOTES
+# =============================================================================
+
+phase2_spec_001:
+  status: "Spec validated, all critical/medium issues resolved. Ready for implementation."
+
+  implementation_order: |
+    12 sequential steps, MUST be followed in order:
+    1. Indicators library (indicators.py) + numpy dep + tests
+    2. Refactor SMA Crossover to use indicators + update test_strategies.py imports
+    3. Multi-position PortfolioTracker + BacktestEngine refactor + tests
+    4. Strategy template (_template.py) + auto-discovery in __init__.py + tests
+    5. cryplative new-strategy CLI command + tests
+    6. RSI strategy + tests
+    7. MACD strategy + tests
+    8. Bollinger Bands strategy + tests
+    9. CLI enhancements (compare, --max-positions, --params file, --verbose) + tests
+    10. Robustness improvements (validation, error handling, retry) + tests
+    11. Documentation (5 markdown files in platform/docs/)
+    12. End-to-end workflow validation test
+
+  indicator_warmup_periods:
+    notes: "Critical for setting _min_candles_needed() correctly in strategies."
+    sma: "First valid at index period-1. Two values need period+1 data points."
+    ema: "First valid at index period-1 (seeded with SMA). Two values need period+1 data points."
+    rsi: |
+      Wilder's smoothing: first avg_gain/avg_loss from period changes → needs period+1 prices.
+      First RSI at index period. Two values for crossover need period+2 data points.
+      RSI strategy minimum: period + 2 (= 16 with default period=14).
+    macd: |
+      MACD line first valid at index slow-1. Signal EMA needs signal MACD values.
+      First signal line at index slow+signal-2. Two histogram values at index slow+signal-1.
+      MACD strategy minimum: slow_period + signal_period (= 35 with defaults 26+9).
+    bollinger_bands: |
+      SMA(period) first valid at index period-1. Two band values for crossover need period+1.
+      Bollinger Bands strategy minimum: period + 1 (= 21 with default period=20).
+
+  multi_position_backward_compat:
+    key_insight: |
+      With max_positions=1 (default), the refactored engine must produce identical results
+      to Phase 1. The only changes are method name renames on the tracker object.
+      Do NOT change: loop start index, window construction formula, timestamp field (open_time),
+      or iteration pattern. The equity curve semantics are preserved because equity at
+      close price is identical whether position is open or closed (cash + position_value = cash + proceeds).
+
+  portfolio_tracker_refactor:
+    changes: |
+      - Add max_positions param (default 1)
+      - Replace single position/entry_price with open_trades: list[Trade]
+      - Add closed_trades: list[Trade] (separate from open)
+      - open_position: check can_open() before allowing, raise on limit
+      - close_position: take Trade arg (which trade to close)
+      - close_oldest: FIFO close for engine use
+      - can_open: len(open_trades) < max_positions
+      - all_trades: open_trades + closed_trades
+      - Rename record_equity → snapshot_equity
+      - get_equity: sum over all open_trades
+      - Keep context: RunContext parameter for Trade model
+
+  engine_refactor:
+    changes: |
+      - Add max_positions to BacktestConfig.__init__ (default 1)
+      - Pass max_positions + context to PortfolioTracker constructor
+      - Replace has_open_position → can_open() for BUY checks
+      - Replace has_open_position → len(tracker.open_trades) > 0 for SELL checks
+      - Replace close_position → close_oldest (FIFO)
+      - Replace record_equity → snapshot_equity
+      - Replace portfolio.trades → tracker.all_trades
+      - Replace single force-close with while loop
+
+  auto_discovery:
+    mechanism: |
+      strategies/__init__.py uses pkgutil.iter_modules(__path__) to import all
+      non-underscore modules. This replaces the explicit `from cryplative.strategies import sma_crossover`.
+      _template.py starts with underscore so it's automatically skipped.
+      Testing must use tmp_path and sys.modules cleanup to avoid polluting real package.
+      StrategyRegistry.clear() + sys.modules cleanup between tests for isolation.
+
+  new_cli_commands:
+    new_strategy: |
+      Scaffolds a new strategy from _template.py template.
+      Replaces <PLACEHOLDER> strings with derived values (snake_case → PascalCase, etc.).
+      Writes to src/cryplative/strategies/{name}.py. Errors if file exists.
+    compare: |
+      Positional args (not options): cryplative compare result_a.json result_b.json
+      Loads StrategyResult from JSON, prints Rich comparison table.
+      Color coding: green=best, red=worst per metric row. total_trades is neutral.
+      Separation of concerns: testable comparison function separate from Rich rendering.
+    strategies_verbose: |
+      --verbose flag shows default parameters per strategy.
+      Requires default_parameters() classmethod on Strategy ABC (returns dict, default {}).
+      Each strategy overrides with its parameter defaults.
+
+  backtest_cli_enhancements:
+    - "--params accepts JSON file path (if ends with .json) or JSON string"
+    - "--max-positions flag passed through to BacktestConfig"
+    - Better error messages: list available strategies, suggest date ranges, show parse errors"
+
+  testing_notes_phase2:
+    new_test_files: "test_indicators.py (new), test_cli.py (expand), test_workflow.py (new)"
+    key_test_requirements: |
+      - test_indicators.py: reference values from spec (SMA/EMA exact, RSI property-based,
+        MACD decomposition, BB exact). Warmup None values. Edge cases. Numpy array input.
+      - Auto-discovery tests: use tmp_path, avoid real package pollution
+      - Workflow tests: scaffold to tmp_path, sys.modules cleanup, registry cleanup
+      - CLI compare: test comparison logic as pure functions, not Rich rendering
+      - Regression: max_positions=1 must match Phase 1 results
+      - Coverage target: 85%+ (raised from 80%)
+
+  reference_test_values:
+    sma_period3: |
+      Input:  [10.0, 20.0, 30.0, 40.0, 50.0]
+      Output: [None, None, 20.0, 30.0, 40.0]
+    ema_period3: |
+      Input:  [10.0, 20.0, 30.0, 40.0, 50.0]
+      Seed SMA(3) = 20.0, Multiplier = 0.5
+      Output: [None, None, 20.0, 30.0, 40.0]
+    bb_period3_std2: |
+      Input:  [10.0, 20.0, 30.0, 25.0, 35.0]
+      Upper:  [None, None, 40.0, 35.0, 40.0]
+      Middle: [None, None, 20.0, 25.0, 30.0]
+      Lower:  [None, None,  0.0, 15.0, 20.0]
