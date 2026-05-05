@@ -1,0 +1,11 @@
+{
+  "name": "cryplative",
+  "private": true,
+  "scripts": {
+    "test:platform": "cd platform && uv run pytest --tb=short -q",
+    "test:platform:coverage": "cd platform && uv run pytest --cov --cov-report=term-missing -q",
+    "lint:platform": "cd platform && uv run ruff check .",
+    "typecheck:platform": "cd platform && uv run mypy src/",
+    "check:platform": "bun run lint:platform && bun run typecheck:platform && bun run test:platform:coverage"
+  }
+}

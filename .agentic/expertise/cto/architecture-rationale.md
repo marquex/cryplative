@@ -111,3 +111,18 @@ Key components of Phase 2 (SPEC-001):
 ### Hiring Note
 - **algo-researcher** is an external agent (not a CTO subordinate). They should be hired after Phase 2 is delivered and verified.
 - Phase 2 docs are the onboarding material for this agent.
+
+## Delegation Tracking (2026-05-05)
+
+### Completed: SPEC-001 Phase 2
+- **Task**: Implement Researcher-Ready Platform (12 steps)
+- **Assignee**: platform-developer
+- **Delegated**: 2026-05-05
+- **Completed**: 2026-05-05
+- **Status**: COMPLETE — 15 commits (1cbe49e through d8ce3ee)
+- **Notes**: First delegation (b8lzhwahd) completed steps 1-11 but failed at step 12. Second delegation (btle28boz) finished step 12 and added polish fixes. Pending human verification of test suite and coverage.
+
+### Lessons from Phase 2 Implementation
+- **Large specs may need two delegations** — 12-step spec pushed the limits of a single background task. Having a progress tracking file (001-progress.md) enabled seamless resume.
+- **platform-developer adds defensive fixes** — self-identified infinity edge case in comparison data formatting and fixed it without being asked.
+- **Progress files are essential** — the 001-progress.md file created by the first delegation allowed the second delegation to pick up exactly where it left off. This is a pattern to formalize for all future specs.
