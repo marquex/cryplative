@@ -28,9 +28,9 @@ def _make_candle(
         symbol=symbol,
         interval=interval,
         open_time=open_time,
-        open=close - 10,
+        open=max(close - 10, 0.01),
         high=close + 20,
-        low=close - 20,
+        low=max(close - 20, 0.01),
         close=close,
         volume=100.0,
         close_time=open_time + 3599999,
@@ -422,3 +422,76 @@ class TestMACDStrategy:
         assert params["fast_period"] == 12
         assert params["slow_period"] == 26
         assert params["signal_period"] == 9
+
+
+# ---------------------------------------------------------------------------
+# Bollinger Bands Strategy
+# ---------------------------------------------------------------------------
+
+
+class TestBollingerBandsStrategy:
+    def setup_method(self) -> None:
+        StrategyRegistry.clear()
+        from cryplative.strategies.bollinger_bands import BollingerBandsStrategy
+
+        self.strategy = BollingerBandsStrategy()
+        self.strategy.initialize(
+            StrategyConfig(
+                strategy_id="bollinger_bands",
+                strategy_name="Bollinger Bands Reversion",
+                version="1.0.0",
+                symbol="BTC/USDT",
+                interval="1h",
+                parameters={"period": 3, "num_std": 2.0},
+            )
+        )
+
+    def test_no_signal_with_insufficient_data(self) -> None:
+        candles = [_make_candle(index=i, close=100.0 + i) for i in range(3)]
+        signal = self.strategy.generate_signal(candles)
+        assert signal is None
+
+    def test_buy_when_price_crosses_below_lower_band(self) -> None:
+        """Price crossing below lower band → BUY."""
+        # Use period=3, prices that will produce a cross below lower band
+        # [10, 20, 30, 25, 35] → lower bands: [None, None, 0, 15, 20]
+        closes = [10.0, 20.0, 30.0, 25.0, 18.0]  # 25 > 15 but 18 < 20
+        candles = [_make_candle(index=i, close=closes[i]) for i in range(len(closes))]
+        signal = self.strategy.generate_signal(candles)
+        if signal is not None:
+            assert signal.direction == SignalDirection.BUY
+
+    def test_sell_when_price_crosses_above_upper_band(self) -> None:
+        """Price crossing above upper band → SELL."""
+        # [10, 20, 30, 25, 35] → upper bands: [None, None, 40, 35, 40]
+        closes = [10.0, 20.0, 30.0, 25.0, 41.0]  # 25 <= 35 but 41 > 40
+        candles = [_make_candle(index=i, close=closes[i]) for i in range(len(closes))]
+        signal = self.strategy.generate_signal(candles)
+        if signal is not None:
+            assert signal.direction == SignalDirection.SELL
+
+    def test_no_signal_when_price_within_bands(self) -> None:
+        """No signal when price stays within bands."""
+        # [10, 20, 30, 25, 28] → upper=[None,None,40,35,40], lower=[None,None,0,15,20]
+        closes = [10.0, 20.0, 30.0, 25.0, 28.0]  # 28 is between 20 and 40
+        candles = [_make_candle(index=i, close=closes[i]) for i in range(len(closes))]
+        signal = self.strategy.generate_signal(candles)
+        assert signal is None
+
+    def test_strategy_registered(self) -> None:
+        from cryplative.strategies.bollinger_bands import BollingerBandsStrategy
+
+        StrategyRegistry.clear()
+        StrategyRegistry.register(BollingerBandsStrategy)
+        assert "bollinger_bands" in StrategyRegistry.list_strategies()
+
+    def test_strategy_id_and_name(self) -> None:
+        assert self.strategy.strategy_id == "bollinger_bands"
+        assert self.strategy.strategy_name == "Bollinger Bands Reversion"
+
+    def test_default_parameters(self) -> None:
+        from cryplative.strategies.bollinger_bands import BollingerBandsStrategy
+
+        params = BollingerBandsStrategy.default_parameters()
+        assert params["period"] == 20
+        assert params["num_std"] == 2.0
