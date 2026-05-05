@@ -41,6 +41,8 @@ import delegationSuite from './delegation.test';
 import delegationEnforcementSuite from './delegation-enforcement.test';
 import accessControlSuite from './access-control.test';
 import injectExpertiseSuite from './inject-expertise.test';
+import pollTranscriptSuite from './poll-transcript.test';
+import pollTranscriptE2ESuite from './poll-transcript-e2e';
 
 const ALL_SUITES: TestSuite[] = [
   enforceAccessSuite,
@@ -51,6 +53,8 @@ const ALL_SUITES: TestSuite[] = [
   delegationEnforcementSuite,
   accessControlSuite,
   injectExpertiseSuite,
+  pollTranscriptSuite,
+  pollTranscriptE2ESuite,
 ];
 
 // ============ CLI Args ============

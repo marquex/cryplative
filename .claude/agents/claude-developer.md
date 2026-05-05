@@ -25,13 +25,17 @@ Design, build, and maintain all Claude Code extensions: expert agents, skills wi
 
 ## Workflow
 
-Before starting any task, read `.claude/expertise/claude-developer/claude-developer-index.yaml` to leverage what you've learned in past sessions. Then follow the claude-developing skill to understand which extension point fits the task and how to approach it.
+Analyze the task and compare it against your expertise. To check what's about.
+
+After have an idea use the `claude-developing` skill to find documentation about the claude extension points are involved in the task and read the docs to deepen your understanding. 
+
+Then, design a solution and implement it by creating or modifying the necessary agent, skill, or hook files in the `.claude` directory.
 
 After completing changes, validate them:
+- Verify your changes are correct and well formed: no type errors, no linter errors, valid YAML frontmatter, etc.
 - Run the claude CLI to verify agent definitions load correctly: `claude agents`
 - Run some test using the print mode of claude CLI to verify your changes work as expected: `claude -p "Use the new created skill 'skill-name' to do X task"` or `claude --agent "agent-name" -p "Use your tools to do X task"`.
 - Test hook scripts execute without errors: `echo '{}' | bun <hook-script>`
-- Validate YAML frontmatter in any modified agent or skill files
 - Verify the access rules in modified agents are well-formed and match the enforce-agent-access.ts expectations
 
 When you are finished, update your expertise files in `.claude/expertise/claude-developer/` with any new things you've learned during the process, such as patterns you've discovered, conventions you've established, gotchas you've encountered, and improvements to the extension architecture.

@@ -11,25 +11,26 @@
  *   conversation as initial context.
  *
  * UserPromptSubmit:
- *   Injects a lightweight reminder to update expertise files before each
- *   agent response. Acts as a pre-emptive soft nudge.
+ *   Injects an expertise reminder and resets the Stop block counter so each
+ *   new prompt cycle gets a fresh expertise check at the end.
  *
  * Stop:
- *   Checks whether the agent has updated its expertise files during this
- *   session by comparing file mtimes against the recorded start time.
- *     - If files were modified → allow exit (agent already handled it)
- *     - If no modifications AND we haven't reminded yet → output a prompt
- *       that forces a new iteration (the agent must assess and update
- *       expertise before being allowed to exit)
- *     - If no modifications AND we already reminded → allow exit
- *       (prevent infinite loops — reminder is injected at most once)
+ *   Uses the advanced Stop hook API ("decision": "block") to prevent session
+ *   exit when the agent hasn't updated its expertise files. The hook checks
+ *   file mtimes against the recorded session start time. If no update is
+ *   detected, it blocks the exit and feeds a prompt back to the agent
+ *   instructing it to update expertise. Blocks at most once per prompt cycle
+ *   (the counter resets on each UserPromptSubmit) to prevent infinite loops.
  *
  * State files (hidden, inside the session directory):
- *   .claude/sessions/{session_id}/._expertise_start   — timestamp (ms)
- *   .claude/sessions/{session_id}/._expertise_reminded — marker file
+ *   .claude/sessions/{session_id}/._expertise_start       — timestamp (ms)
+ *   .claude/sessions/{session_id}/._expertise_prompt_count — counter (max 1, reset per prompt)
  *
  * Only activates for named agents (via --agent flag). Skips global sessions.
  * Always exits 0 (non-blocking).
+ *
+ * Reference: Ralph Wiggum plugin stop-hook pattern for the advanced
+ * Stop hook API (decision: block / reason / systemMessage).
  */
 
 import { readFile, writeFile, mkdir, stat, readdir } from "node:fs/promises";
@@ -43,10 +44,13 @@ interface HookInput {
   session_id: string;
   cwd: string;
   hook_event_name: string;
+  transcript_path?: string;
   agent_type?: string;
   prompt?: string;
   [key: string]: unknown;
 }
+
+const MAX_BLOCK_ATTEMPTS = 1;
 
 // ---------- Session ID derivation ----------
 
@@ -121,24 +125,43 @@ async function checkExpertiseUpdated(
   }
 }
 
-/** Check if we already injected a Stop reminder this session. */
-function hasAlreadyReminded(
+/** Get the current block attempt count for this session. */
+async function getBlockCount(
   sessionsDir: string,
   sessionId: string
-): boolean {
-  return existsSync(
-    join(sessionsDir, sessionId, "._expertise_reminded")
-  );
+): Promise<number> {
+  const countFile = join(sessionsDir, sessionId, "._expertise_prompt_count");
+  try {
+    const content = await readFile(countFile, "utf-8");
+    return parseInt(content.trim(), 10) || 0;
+  } catch {
+    return 0;
+  }
 }
 
-/** Mark that we've injected the Stop reminder. */
-async function markReminded(
+/** Reset the block counter (called on each new UserPromptSubmit). */
+async function resetBlockCount(
   sessionsDir: string,
   sessionId: string
 ): Promise<void> {
+  const countFile = join(sessionsDir, sessionId, "._expertise_prompt_count");
+  if (existsSync(countFile)) {
+    await writeFile(countFile, "0");
+  }
+}
+
+/** Increment and return the block attempt count. */
+async function incrementBlockCount(
+  sessionsDir: string,
+  sessionId: string
+): Promise<number> {
   const sessionPath = join(sessionsDir, sessionId);
   await mkdir(sessionPath, { recursive: true });
-  await writeFile(join(sessionPath, "._expertise_reminded"), "");
+  const countFile = join(sessionPath, "._expertise_prompt_count");
+  const current = await getBlockCount(sessionsDir, sessionId);
+  const next = current + 1;
+  await writeFile(countFile, String(next));
+  return next;
 }
 
 // ---------- main ----------
@@ -163,7 +186,7 @@ async function main() {
   if (input.hook_event_name === "SessionStart") {
     await handleSessionStart(input.cwd, agentName, sessionId, sessionsDir);
   } else if (input.hook_event_name === "UserPromptSubmit") {
-    handleUserPromptSubmit(agentName);
+    await handleUserPromptSubmit(sessionId, sessionsDir);
   } else if (input.hook_event_name === "Stop") {
     await handleStop(input.cwd, agentName, sessionId, sessionsDir);
   }
@@ -212,7 +235,13 @@ async function handleSessionStart(
 
 // ---------- UserPromptSubmit ----------
 
-function handleUserPromptSubmit(agentName: string) {
+async function handleUserPromptSubmit(
+  sessionId: string,
+  sessionsDir: string
+) {
+  // Reset the block counter so each prompt cycle gets a fresh expertise check
+  await resetBlockCount(sessionsDir, sessionId);
+
   process.stdout.write(
     `<expertise-reminder>Remember to read your expertise file to get the task in context.</expertise-reminder>\n`
   );
@@ -226,11 +255,6 @@ async function handleStop(
   sessionId: string,
   sessionsDir: string
 ) {
-  // If we already injected a reminder, allow exit (prevent infinite loop)
-  if (hasAlreadyReminded(sessionsDir, sessionId)) {
-    process.exit(0);
-  }
-
   // If there's no expertise directory, nothing to check or remind about
   const expertiseDir = join(cwd, ".claude", "expertise", agentName);
   if (!existsSync(expertiseDir)) {
@@ -249,18 +273,31 @@ async function handleStop(
     process.exit(0);
   }
 
-  // No expertise update detected — inject reminder to force a new iteration.
-  // Mark that we've done this so we don't loop forever.
-  await markReminded(sessionsDir, sessionId);
+  // No expertise update detected — check if we've already blocked enough
+  const blockCount = await getBlockCount(sessionsDir, sessionId);
+  if (blockCount >= MAX_BLOCK_ATTEMPTS) {
+    // Already blocked MAX_BLOCK_ATTEMPTS times — allow exit to prevent
+    // infinite loops
+    process.exit(0);
+  }
 
+  // Increment the counter and block the exit using the advanced Stop hook API
+  await incrementBlockCount(sessionsDir, sessionId);
+
+  const systemMessage = `As an expert agent, you MUST check updating your knowledge base before exiting.
+  Use the agent-expertise skill for instruction on how to update your expertise files.
+  If you genuinely have nothing new to learn or record from this session, say just "No update needed for my mental model".`;
+
+  const reason = `Update expertise check`;
+
+  // Output JSON using the advanced Stop hook API to block exit and feed
+  // the prompt back to the agent
   process.stdout.write(
-    `<expertise-reminder>\n` +
-      `As an expert agent, you are expected to continuously update your knowledge base. ` +
-      `Please review your work and update the files in \`.claude/expertise/${agentName}/\` ` +
-      `with any new knowledge, patterns, decisions, or observations.\n` +
-      `Use the agent-expertise skill to do so .\n` +
-      `If no meaningful update is needed, briefly explain why and then finish.\n` +
-      `</expertise-reminder>\n`
+    JSON.stringify({
+      decision: "block",
+      reason,
+      systemMessage,
+    })
   );
 }
 

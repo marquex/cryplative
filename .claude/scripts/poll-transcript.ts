@@ -14,10 +14,17 @@
  * 3. Exits after 3 seconds of no new entries in drain mode
  * 4. Cleans up the sentinel file on exit
  *
+ * Safety: A maximum lifetime (POLL_MAX_LIFETIME, default 30 minutes) prevents
+ * zombie processes if the Stop hook never writes the sentinel (e.g., user kills
+ * the terminal). A periodic stale-file check exits early if the transcript
+ * has not grown for 5 consecutive polls during normal (non-drain) mode.
+ *
  * Usage: bun .claude/scripts/poll-transcript.ts <session-path> <agent-name> <run-id> <transcript-path>
  *
  * Exit conditions:
  * - .poll-stop sentinel detected AND 3 seconds elapsed with no new transcript entries
+ * - POLL_MAX_LIFETIME exceeded (safety net against zombie processes)
+ * - 10 consecutive polls with no new entries and no sentinel (transcript idle)
  * - Unrecoverable error (exits silently to avoid disrupting the session)
  */
 
@@ -29,6 +36,8 @@ const POLL_INTERVAL = 2000; // Normal poll interval: 2 seconds
 const DRAIN_INTERVAL = 500; // After sentinel: poll every 500ms
 const DRAIN_TIMEOUT = 3000; // After sentinel: keep polling for 3 seconds
 const NO_CHANGE_LIMIT = Math.ceil(DRAIN_TIMEOUT / DRAIN_INTERVAL); // 6 iterations
+const POLL_MAX_LIFETIME = 30 * 60 * 1000; // 30 minutes max lifetime
+const STALE_NO_CHANGE_LIMIT = 10; // 10 consecutive polls with no new entries (20 seconds)
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -60,6 +69,33 @@ function isSkillSetupMessage(message: Record<string, unknown>): boolean {
   return false;
 }
 
+/**
+ * Extract a message object from a transcript entry.
+ * Handles both formats found in Claude Code transcript files:
+ * - Nested: { type: "user"|"assistant", message: { role, content, ... } } → extract message
+ * - Flat:   { role: "user"|"assistant", ... }                              → keep as-is
+ *
+ * Returns null if the entry is not a user or assistant message.
+ */
+function extractMessage(entry: Record<string, unknown>): Record<string, unknown> | null {
+  // Nested format: Claude Code native transcript and stream-json
+  // { type: "user", message: { role: "user", content: ... } }
+  if (
+    entry.message &&
+    typeof entry.message === "object" &&
+    (entry.type === "user" || entry.type === "assistant")
+  ) {
+    return entry.message as Record<string, unknown>;
+  }
+
+  // Flat format: simple { role: "user", content: ... }
+  if (entry.role === "user" || entry.role === "assistant") {
+    return entry;
+  }
+
+  return null;
+}
+
 async function main() {
   const args = process.argv.slice(2);
   if (args.length < 4) {
@@ -79,11 +115,17 @@ async function main() {
   // Ignore SIGHUP so the poller survives if the parent process exits
   process.on("SIGHUP", () => {});
 
+  const startTime = Date.now();
   let processedLines = 0;
   let sentinelDetected = false;
   let noChangeCount = 0;
 
   while (true) {
+    // Safety net: exit after max lifetime regardless of sentinel
+    if (Date.now() - startTime > POLL_MAX_LIFETIME) {
+      break;
+    }
+
     // Check for stop sentinel
     if (!sentinelDetected && existsSync(sentinelPath)) {
       sentinelDetected = true;
@@ -116,11 +158,10 @@ async function main() {
         for (const line of newLines) {
           try {
             const entry = JSON.parse(line);
-            if (
-              (entry.role === "user" || entry.role === "assistant") &&
-              !isSkillSetupMessage(entry)
-            ) {
-              await appendFile(agentLogsPath, JSON.stringify(entry) + "\n");
+            const message = extractMessage(entry);
+
+            if (message && !isSkillSetupMessage(message)) {
+              await appendFile(agentLogsPath, JSON.stringify(message) + "\n");
             }
           } catch {
             // Malformed line — skip
@@ -140,6 +181,13 @@ async function main() {
 
     // In drain mode, exit after NO_CHANGE_LIMIT consecutive polls with no new entries
     if (sentinelDetected && noChangeCount >= NO_CHANGE_LIMIT) {
+      break;
+    }
+
+    // In normal mode, exit after STALE_NO_CHANGE_LIMIT consecutive polls with no new entries
+    // (transcript has been idle for a while and no sentinel was written — session likely ended
+    // without the Stop hook firing, e.g., user killed the terminal)
+    if (!sentinelDetected && noChangeCount >= STALE_NO_CHANGE_LIMIT) {
       break;
     }
 

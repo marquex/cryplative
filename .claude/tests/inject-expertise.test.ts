@@ -71,14 +71,15 @@ async function writeStartTime(
   await writeFile(startFile, String(time ?? Date.now()));
 }
 
-/** Write the reminded marker that Stop would create. */
-async function writeRemindedMarker(
+/** Write the prompt count file that Stop creates. */
+async function writePromptCount(
   dir: string,
-  sessionId = 'test-session-123'
+  sessionId = 'test-session-123',
+  count: number = 2
 ): Promise<void> {
   const derivedId = deriveSessionId(sessionId);
-  const markerFile = join(dir, '.claude', 'sessions', derivedId, '._expertise_reminded');
-  await writeFile(markerFile, '');
+  const countFile = join(dir, '.claude', 'sessions', derivedId, '._expertise_prompt_count');
+  await writeFile(countFile, String(count));
 }
 
 /** Write an expertise index file for test-agent. */
@@ -119,7 +120,6 @@ export default {
           assertIncludes(stdout, '<expertise-context>', 'opening tag');
           assertIncludes(stdout, '</expertise-context>', 'closing tag');
           assertIncludes(stdout, 'key: value', 'expertise content');
-          assertIncludes(stdout, '600 lines', 'line limit instruction');
 
           // Verify start time file was created
           const derivedId = deriveSessionId(TEST_SESSION_ID);
@@ -190,8 +190,7 @@ export default {
 
         assertEqual(exitCode, 0, 'exit code');
         assertIncludes(stdout, '<expertise-reminder>', 'reminder tag');
-        assertIncludes(stdout, '.claude/expertise/test-agent/', 'expertise path');
-        assertIncludes(stdout, 'meaningful work', 'conditional phrasing');
+        assertIncludes(stdout, 'expertise file', 'reminder mentions expertise');
 
         await rm(dir, { recursive: true, force: true });
       },
@@ -255,7 +254,7 @@ export default {
 
     {
       description:
-        'Stop: injects reminder when no expertise files were modified',
+        'Stop: blocks exit with JSON when no expertise files were modified',
       async fn() {
         const dir = await createFakeProject(TEST_SESSION_ID);
         try {
@@ -271,29 +270,19 @@ export default {
           });
 
           assertEqual(exitCode, 0, 'exit code');
-          assertIncludes(stdout, '<expertise-reminder>', 'reminder tag');
-          assertIncludes(stdout, '</expertise-reminder>', 'closing tag');
-          assertIncludes(
-            stdout,
-            "haven't updated your expertise",
-            'reminder message'
-          );
-          assertIncludes(
-            stdout,
-            '.claude/expertise/test-agent/',
-            'expertise path in reminder'
-          );
-          assertIncludes(
-            stdout,
-            'If no meaningful update is needed',
-            'escape hatch'
-          );
+          // Should output JSON with the advanced Stop hook API format
+          const parsed = JSON.parse(stdout);
+          assertEqual(parsed.decision, 'block', 'decision should be block');
+          assertIncludes(parsed.reason, 'expertise', 'reason mentions expertise');
+          assertIncludes(parsed.reason, '.claude/expertise/test-agent/', 'expertise path in reason');
+          assertIncludes(parsed.reason, 'agent-expertise skill', 'reason mentions skill');
+          assertIncludes(parsed.systemMessage, 'attempt 1', 'systemMessage shows attempt count');
 
-          // Verify reminded marker was created
+          // Verify prompt count file was created (counter incremented to 1)
           const derivedId = deriveSessionId(TEST_SESSION_ID);
           assert(
-            existsSync(join(dir, '.claude', 'sessions', derivedId, '._expertise_reminded')),
-            'reminded marker should be created'
+            existsSync(join(dir, '.claude', 'sessions', derivedId, '._expertise_prompt_count')),
+            'prompt count file should be created'
           );
         } finally {
           await rm(dir, { recursive: true, force: true });
@@ -303,14 +292,14 @@ export default {
 
     {
       description:
-        'Stop: allows exit when already reminded (prevents infinite loop)',
+        'Stop: allows exit when max block attempts reached (prevents infinite loop)',
       async fn() {
         const dir = await createFakeProject(TEST_SESSION_ID);
         try {
           await writeExpertiseFile(dir, 'key: value\n');
           await writeStartTime(dir, TEST_SESSION_ID);
-          await writeRemindedMarker(dir, TEST_SESSION_ID);
-          // Files not modified, but we already reminded — should allow exit
+          await writePromptCount(dir, TEST_SESSION_ID, 1); // already at max
+          // Files not modified, but we already blocked max times — should allow exit
 
           const { stdout, exitCode } = await runHook(HOOK_PATH, {
             hook_event_name: 'Stop',
@@ -320,7 +309,43 @@ export default {
           });
 
           assertEqual(exitCode, 0, 'exit code');
-          assertNotIncludes(stdout, '<expertise', 'no reminder when already reminded');
+          assertEqual(stdout, '', 'no output when max blocks reached');
+        } finally {
+          await rm(dir, { recursive: true, force: true });
+        }
+      },
+    },
+
+    {
+      description:
+        'UserPromptSubmit resets block counter so Stop can block again',
+      async fn() {
+        const dir = await createFakeProject(TEST_SESSION_ID);
+        try {
+          await writeExpertiseFile(dir, 'key: value\n');
+          await writeStartTime(dir, TEST_SESSION_ID, Date.now() + 60_000);
+          await writePromptCount(dir, TEST_SESSION_ID, 1); // already at max
+
+          // UserPromptSubmit should reset the counter
+          await runHook(HOOK_PATH, {
+            hook_event_name: 'UserPromptSubmit',
+            session_id: TEST_SESSION_ID,
+            cwd: dir,
+            agent_type: 'test-agent',
+            prompt: 'new task',
+          });
+
+          // Stop should now block again (counter was reset to 0)
+          const { stdout, exitCode } = await runHook(HOOK_PATH, {
+            hook_event_name: 'Stop',
+            session_id: TEST_SESSION_ID,
+            cwd: dir,
+            agent_type: 'test-agent',
+          });
+
+          assertEqual(exitCode, 0, 'exit code');
+          const parsed = JSON.parse(stdout);
+          assertEqual(parsed.decision, 'block', 'should block again after reset');
         } finally {
           await rm(dir, { recursive: true, force: true });
         }
@@ -370,7 +395,7 @@ export default {
 
     {
       description:
-        'Stop: allows exit when start time file is missing (graceful degradation)',
+        'Stop: blocks exit when start time file is missing (graceful fallback)',
       async fn() {
         const dir = await createFakeProject(TEST_SESSION_ID);
         await writeExpertiseFile(dir, 'key: value\n');
@@ -385,9 +410,10 @@ export default {
 
         assertEqual(exitCode, 0, 'exit code');
         // When start time is missing, checkExpertiseUpdated returns false,
-        // so the reminder would be injected. That's acceptable — it's a
-        // fallback that ensures the agent gets at least one reminder.
-        assertIncludes(stdout, '<expertise-reminder>', 'reminder as fallback');
+        // so the block is triggered. That's acceptable — it's a fallback
+        // that ensures the agent gets at least one reminder.
+        const parsed = JSON.parse(stdout);
+        assertEqual(parsed.decision, 'block', 'blocks as fallback');
 
         await rm(dir, { recursive: true, force: true });
       },
@@ -465,10 +491,6 @@ export default {
             cwd: dir,
             agent_type: 'test-agent',
           });
-
-          assertIncludes(stdout, 'After completing meaningful work', 'update preamble');
-          assertIncludes(stdout, 'structured YAML', 'YAML format hint');
-          assertIncludes(stdout, 'yaml-validator', 'validator command');
 
           const separatorIdx = stdout.indexOf('---');
           const contentIdx = stdout.indexOf('key: value');
