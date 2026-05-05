@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import ccxt
 import pytest
 
 from cryplative.core.models import Candle
@@ -315,3 +316,59 @@ class TestMarketFetcher:
 
         with pytest.raises(MarketDataError, match="API rate limited"):
             fetcher.get_candles("BTC/USDT", "1h", start_time=1, end_time=2)
+
+
+class TestRetryLogic:
+    """Tests for network retry logic."""
+
+    def test_retry_on_network_error(self, tmp_path: Path) -> None:
+        """Network errors should be retried up to 3 times."""
+        from unittest.mock import MagicMock, patch
+
+        from cryplative.config import CryplativeConfig
+        from cryplative.market_fetcher.fetcher import MarketFetcher
+
+        config = CryplativeConfig(market_cache_dir=str(tmp_path / "cache"))
+        fetcher = MarketFetcher(config)
+
+        mock_exchange = MagicMock()
+        # Fail twice, then succeed
+        mock_exchange.fetch_ohlcv.side_effect = [
+            ccxt.NetworkError("Connection refused"),
+            ccxt.NetworkError("Timeout"),
+            [
+                [1704067200000, 42000.0, 42500.0, 41800.0, 42300.0, 1234.56],
+            ],
+        ]
+        mock_exchange.has = {"fetchOHLCV": True}
+        mock_exchange.rateLimit = 50
+        fetcher._exchange = mock_exchange
+
+        with patch("cryplative.market_fetcher.fetcher.time.sleep"):
+            result = fetcher.get_candles("BTC/USDT", "1h")
+
+        assert len(result) == 1
+        assert mock_exchange.fetch_ohlcv.call_count == 3
+
+    def test_no_retry_on_non_network_error(self, tmp_path: Path) -> None:
+        """Non-network errors should NOT be retried."""
+        from unittest.mock import MagicMock
+
+        from cryplative.config import CryplativeConfig
+        from cryplative.core.exceptions import MarketDataError
+        from cryplative.market_fetcher.fetcher import MarketFetcher
+
+        config = CryplativeConfig(market_cache_dir=str(tmp_path / "cache"))
+        fetcher = MarketFetcher(config)
+
+        mock_exchange = MagicMock()
+        mock_exchange.fetch_ohlcv.side_effect = ccxt.BadSymbol("Invalid symbol")
+        mock_exchange.has = {"fetchOHLCV": True}
+        mock_exchange.rateLimit = 50
+        fetcher._exchange = mock_exchange
+
+        with pytest.raises(MarketDataError, match="Invalid symbol"):
+            fetcher.get_candles("BTC/USDT", "1h", start_time=1, end_time=2)
+
+        # Should only be called once (no retry)
+        assert mock_exchange.fetch_ohlcv.call_count == 1

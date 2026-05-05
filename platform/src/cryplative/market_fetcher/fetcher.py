@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import ccxt
@@ -14,6 +15,9 @@ from cryplative.core.models import Candle
 from cryplative.market_fetcher.cache import load_cache, update_cache
 
 logger = structlog.get_logger()
+
+_MAX_RETRIES = 3
+_RETRY_BACKOFFS = [1.0, 2.0, 4.0]
 
 
 def _ohlcv_to_candle(symbol: str, interval: str, ohlcv: list[Any]) -> Candle:
@@ -122,17 +126,42 @@ class MarketFetcher(DataProvider):
                 current_since = fetch_since
 
                 while True:
-                    try:
-                        ohlcv = self._exchange.fetch_ohlcv(
-                            symbol,
-                            timeframe=interval,
-                            since=current_since,
-                            limit=fetch_limit,
-                        )
-                    except Exception as e:
+                    ohlcv: list[list[Any]] | None = None
+                    last_error: Exception | None = None
+
+                    for attempt in range(_MAX_RETRIES):
+                        try:
+                            ohlcv = self._exchange.fetch_ohlcv(
+                                symbol,
+                                timeframe=interval,
+                                since=current_since,
+                                limit=fetch_limit,
+                            )
+                            last_error = None
+                            break
+                        except ccxt.NetworkError as e:
+                            last_error = e
+                            if attempt < _MAX_RETRIES - 1:
+                                wait = _RETRY_BACKOFFS[attempt]
+                                logger.warning(
+                                    "network_error_retrying",
+                                    symbol=symbol,
+                                    interval=interval,
+                                    attempt=attempt + 1,
+                                    max_retries=_MAX_RETRIES,
+                                    wait_seconds=wait,
+                                )
+                                time.sleep(wait)
+                            continue
+                        except Exception as e:
+                            last_error = e
+                            break
+
+                    if last_error is not None:
                         raise MarketDataError(
-                            f"Failed to fetch OHLCV data for {symbol} {interval}: {e}"
-                        ) from e
+                            f"Failed to fetch OHLCV data for {symbol} {interval}: "
+                            f"{last_error}"
+                        ) from last_error
 
                     if not ohlcv:
                         break
