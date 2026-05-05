@@ -104,6 +104,8 @@ session_logger_hook:
     - "UserPromptSubmit reads agent_type from hook input (more reliable than env vars)"
     - "hasInitialPromptEntry() reads last 50 lines of _conversation.jsonl to check for existing initial_prompt entry (no marker files)"
     - "SubagentStop writes to _conversation.jsonl (not a separate file) to keep session folders clean"
+    - "SessionStart spawns poll-transcript.ts as a detached background process for non-delegated sessions. The poller streams transcript entries to agent_logs in real-time (2s poll interval). The Stop hook writes a .poll-stop sentinel to signal the poller to drain and exit."
+    - "Stop hook skips agent_logs writing if the file already exists (written by delegate.ts streaming or poll-transcript.ts polling). This avoids race conditions between multiple writers. The hook serves as a fallback — if neither streaming nor polling produced the file, it writes agent_logs at the end with the last_assistant_message race condition fix."
   env_var_leakage_bug:
     description: |
       When running `claude -p` from within a Claude session's Bash tool, the child process

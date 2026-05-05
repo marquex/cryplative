@@ -313,7 +313,7 @@ async function main() {
   const sessionsDir = join(projectDir, ".claude", "sessions");
 
   if (input.hook_event_name === "SessionStart") {
-    await handleSessionStart(sessionsDir, input);
+    await handleSessionStart(sessionsDir, input, projectDir);
   } else if (input.hook_event_name === "UserPromptSubmit") {
     await handleUserPromptSubmit(sessionsDir, input);
   } else if (input.hook_event_name === "Stop") {
@@ -325,7 +325,7 @@ async function main() {
   process.exit(0);
 }
 
-async function handleSessionStart(sessionsDir: string, input: HookInput) {
+async function handleSessionStart(sessionsDir: string, input: HookInput, projectDir: string) {
   // Use parent's session directory for delegated sessions, derive for normal ones
   const sessionId = getSessionId(input);
 
@@ -378,6 +378,35 @@ async function handleSessionStart(sessionsDir: string, input: HookInput) {
     await appendFile(envFile, `export CLAUDE_AGENT_NAME="${agentName}"\n`);
     await appendFile(envFile, `export CLAUDE_SESSION_ID="${input.session_id}"\n`);
     await appendFile(envFile, `export CRYPLATIVE_AGENT_RUN_ID="${runId}"\n`);
+  }
+
+  // Spawn background poller to stream transcript entries to agent_logs
+  // in real-time. Only for non-delegated sessions where we have a transcript path.
+  // The poller runs as a detached process and exits when the Stop hook writes
+  // a .poll-stop sentinel file.
+  if (input.transcript_path && runId) {
+    const pollerScript = join(
+      projectDir,
+      ".claude",
+      "scripts",
+      "poll-transcript.ts"
+    );
+    Bun.spawn(
+      [
+        "bun",
+        pollerScript,
+        sessionPath,
+        agentName,
+        runId,
+        input.transcript_path,
+      ],
+      {
+        detached: true,
+        stdout: "ignore",
+        stderr: "ignore",
+        stdin: "ignore",
+      }
+    );
   }
 
   process.exit(0);
@@ -478,22 +507,30 @@ async function handleStop(sessionsDir: string, input: HookInput) {
     await appendFile(conversationFile, JSON.stringify(entry) + "\n");
   }
 
+  // Signal the background poller to finish (no-op if poller isn't running).
+  const sentinelPath = join(sessionPath, ".poll-stop");
+  await writeFile(sentinelPath, "");
+
   // Copy the session transcript to agent_logs.
   // Use transcript_path from hook input (Stop includes it), falling back to
   // the transcript_path stored in metadata by SessionStart.
   // Pass last_assistant_message so the final response is guaranteed to be
   // in the log even if the transcript file hasn't been flushed yet.
+  // Skip if the file already exists (written by delegate.ts streaming or poller).
   const transcriptPath =
     input.transcript_path ?? metadata?.transcript_path;
   const cleanLastMessage = extractCleanResponse(lastMessage);
   if (transcriptPath && runId) {
-    await filterTranscriptToAgentLogs(
-      sessionPath,
-      agentName,
-      runId,
-      transcriptPath,
-      cleanLastMessage
-    );
+    const destPath = join(sessionPath, "agent_logs", `${agentName}-${runId}.jsonl`);
+    if (!existsSync(destPath)) {
+      await filterTranscriptToAgentLogs(
+        sessionPath,
+        agentName,
+        runId,
+        transcriptPath,
+        cleanLastMessage
+      );
+    }
   }
 
   process.exit(0);

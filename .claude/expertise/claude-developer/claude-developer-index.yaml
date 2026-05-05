@@ -76,10 +76,11 @@ delegation_system:
       contents: "One JSONL file per agent run: {agent-name}-{run_id}.jsonl"
       format: "Only user and assistant messages. Each line is just the message object (e.g. {role, content}). System messages, tool_use, tool_result, result events are all filtered out."
       sources:
-        - "delegate.ts: stream-json output from --output-format stream-json, filtered to type=user|assistant, keeping only the message field"
-        - "Stop hook: reads main session transcript, filters to role=user|assistant"
-        - "SubagentStop hook: reads subagent transcript, filters to role=user|assistant"
-      note: "delegate.ts filters stream-json events (type+message format) extracting only message. Hooks filter Claude transcripts (role+content format) keeping matching lines."
+        - "delegate.ts: streams to agent_logs in real-time as stream-json events arrive (type=user|assistant), extracting only the message field"
+        - "poll-transcript.ts: background process spawned by SessionStart hook, polls the main agent's transcript every 2 seconds and appends filtered entries to agent_logs. Detects .poll-stop sentinel from Stop hook, then drains for 3 seconds (500ms intervals) before exiting."
+        - "Stop hook: writes .poll-stop sentinel, then skips agent_logs if file already exists (from poller or delegate.ts). Fallback: writes agent_logs if file doesn't exist (poller crash scenario)."
+        - "SubagentStop hook: reads subagent transcript, filters to role=user|assistant (no poller for subagents)"
+      note: "For delegated children, delegate.ts handles streaming. For the main agent, poll-transcript.ts handles real-time polling. For internal subagents, SubagentStop writes at the end. The Stop hook always serves as a fallback if neither streaming nor polling produced the file."
     - name: CLAUDE_ENV_FILE
       note: "Exports written here by SessionStart hook propagate to Bash tool commands but NOT to other hook processes"
   conversation_log_format:
@@ -278,6 +279,10 @@ observations:
     note: "BUG FIX: Bootstrap problem with marker injection. The inject-agent-markers.ts hook is PostToolUse — it only fires after a successful tool call. For an agent to see its expanded ACCESS_RULES/SUBORDINATES markers, it must successfully Read an agent file. But if the agent's access rules don't cover .claude/agents/<name>.md, the Read is denied by PreToolUse before PostToolUse ever fires. Result: the agent sees empty ACCESS_RULES in its system prompt (the raw HTML comment is invisible) and concludes it has no permissions. Fix: enforce-agent-access.ts now auto-allows agents to READ their own agent file, regardless of access rules. Write/delete still require explicit rules."
   - date: "2026-05-04"
     note: "BUG FIX: Access rules like 'platform/**' or 'platform/*' did not grant access to the directory itself ('platform'). Agents couldn't ls, stat, or mkdir directories they had content access to. Fix: added getDirectoryPrefix() helper to enforce-agent-access.ts that extracts the parent directory from glob patterns ending with /** or /*. The matchesAnyRule() function now also checks if the requested path exactly equals the directory prefix of any rule. The directory inherits the same permissions as the content rule."
+  - date: "2026-05-04"
+    note: "Streaming agent_logs: delegate.ts now writes user/assistant messages to agent_logs in real-time as stream-json events arrive, instead of waiting for the Stop hook to write them at the end. The Stop hook checks if the file already exists and skips writing to avoid race conditions. This makes agent_logs appear incrementally during delegated agent work. For interactive/internal subagent sessions, agent_logs are still written at the end because Claude Code doesn't expose per-message hooks — only SessionStart, UserPromptSubmit, Stop, SubagentStop, PreToolUse, PostToolUse, and Notification are available."
+  - date: "2026-05-04"
+    note: "Added poll-transcript.ts — a background process spawned by the SessionStart hook for non-delegated sessions. Polls the Claude transcript file every 2 seconds, filtering to role=user|assistant messages, and appends them to agent_logs in near-real-time. Uses a line-count tracker to only process new entries. When the Stop hook writes a .poll-stop sentinel, the poller switches to drain mode (500ms intervals for up to 3 seconds) to catch any late-flushed entries, then exits and cleans up the sentinel. Handles SIGHUP gracefully so it survives parent process exits. The Stop hook now writes the sentinel before checking agent_logs, serving as a fallback if neither delegate.ts streaming nor the poller produced the file."
 
 testing_system:
   expertise-file: testing-system.yaml

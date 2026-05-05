@@ -181,7 +181,6 @@ function validateDelegation(fromAgent: string, targetAgent: string, projectDir: 
  * <command-message> — they contain the full skill definition and are
  * very large, so we filter them out from agent_logs.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function isSkillSetupMessage(message: Record<string, unknown>): boolean {
   if (message.role !== "user") return false;
   const content = message.content;
@@ -307,9 +306,9 @@ async function runDelegation(
   );
 
   // Read stdout stream line by line, collecting all lines for text extraction.
-  // Note: agent_logs are NOT written here — the child's Stop hook handles
-  // that via filterTranscriptToAgentLogs. Writing here would cause a race
-  // condition with the Stop hook (both writing to the same file).
+  // Stream user/assistant messages to agent_logs in real-time so logs appear
+  // as the agent works, not just after it finishes.
+  const agentLogsPath = join(agentLogsDir, `${agentName}-${runId}.jsonl`);
   const streamJsonLines: string[] = [];
   const reader = child.stdout.getReader();
   const decoder = new TextDecoder();
@@ -325,10 +324,25 @@ async function runDelegation(
       for (const line of lines) {
         if (!line.trim()) continue;
         streamJsonLines.push(line);
+
+        // Stream user/assistant messages to agent_logs in real-time.
+        // The Stop hook checks if this file exists and skips writing if so,
+        // avoiding any race condition between the two writers.
+        try {
+          const event = JSON.parse(line);
+          if ((event.type === "user" || event.type === "assistant") && event.message) {
+            if (!isSkillSetupMessage(event.message)) {
+              await appendFile(agentLogsPath, JSON.stringify(event.message) + "\n");
+            }
+          }
+        } catch {
+          // Not valid JSON or not a message event — skip
+          continue;
+        }
       }
     }
   } finally {
-    // No file handle to close — agent_logs handled by Stop hook
+    reader.releaseLock();
   }
 
   const stderr = await new Response(child.stderr).text();

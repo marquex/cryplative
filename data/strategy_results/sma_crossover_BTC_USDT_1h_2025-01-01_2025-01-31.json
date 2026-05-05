@@ -1,0 +1,591 @@
+{
+  "strategy_id": "sma_crossover",
+  "run_type": "BACKTEST",
+  "start_date": "2025-01-01",
+  "end_date": "2025-01-31",
+  "parameters": {
+    "fast_period": 10,
+    "slow_period": 20
+  },
+  "trades": [
+    {
+      "trade_id": "06dfd5b1-17f5-442b-be82-395d9f0647c9",
+      "signal": {
+        "strategy_id": "sma_crossover",
+        "symbol": "BTC/USDT",
+        "timestamp": 1735923600000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "confidence": 0.5,
+        "metadata": {
+          "fast_sma": 96953.341,
+          "slow_sma": 96884.596,
+          "fast_period": 10,
+          "slow_period": 20
+        }
+      },
+      "entry_price": 98026.0,
+      "exit_price": 97789.32,
+      "quantity": 1.0,
+      "pnl": -236.67999999999302,
+      "pnl_percentage": -0.24144614694060484,
+      "status": "CLOSED",
+      "opened_at": 1735923600000,
+      "closed_at": 1735984800000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "0590e555-9cd7-4292-99ec-73a29b3eece0",
+      "signal": {
+        "strategy_id": "sma_crossover",
+        "symbol": "BTC/USDT",
+        "timestamp": 1736024400000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "confidence": 0.5,
+        "metadata": {
+          "fast_sma": 98036.428,
+          "slow_sma": 98033.5285,
+          "fast_period": 10,
+          "slow_period": 20
+        }
+      },
+      "entry_price": 98362.43,
+      "exit_price": 97737.48,
+      "quantity": 1.0,
+      "pnl": -624.9499999999971,
+      "pnl_percentage": -0.6353543725993727,
+      "status": "CLOSED",
+      "opened_at": 1736024400000,
+      "closed_at": 1736071200000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "48265237-a8fa-41ca-b5e1-992ecb37c148",
+      "signal": {
+        "strategy_id": "sma_crossover",
+        "symbol": "BTC/USDT",
+        "timestamp": 1736114400000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "confidence": 0.5,
+        "metadata": {
+          "fast_sma": 98080.62299999999,
+          "slow_sma": 98054.6615,
+          "fast_period": 10,
+          "slow_period": 20
+        }
+      },
+      "entry_price": 98695.21,
+      "exit_price": 101723.19,
+      "quantity": 1.0,
+      "pnl": 3027.979999999996,
+      "pnl_percentage": 3.068011102058543,
+      "status": "CLOSED",
+      "opened_at": 1736114400000,
+      "closed_at": 1736240400000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "32f46b2a-2800-41e5-a9b6-fdbd3f1f64d5",
+      "signal": {
+        "strategy_id": "sma_crossover",
+        "symbol": "BTC/USDT",
+        "timestamp": 1736488800000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "confidence": 0.5,
+        "metadata": {
+          "fast_sma": 93210.38499999998,
+          "slow_sma": 93093.11200000001,
+          "fast_period": 10,
+          "slow_period": 20
+        }
+      },
+      "entry_price": 94252.83,
+      "exit_price": 94366.69,
+      "quantity": 1.0,
+      "pnl": 113.86000000000058,
+      "pnl_percentage": 0.12080273876127201,
+      "status": "CLOSED",
+      "opened_at": 1736488800000,
+      "closed_at": 1736571600000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "8285ded8-b148-4f95-bd95-b79393844c40",
+      "signal": {
+        "strategy_id": "sma_crossover",
+        "symbol": "BTC/USDT",
+        "timestamp": 1736614800000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "confidence": 0.5,
+        "metadata": {
+          "fast_sma": 94409.869,
+          "slow_sma": 94407.0615,
+          "fast_period": 10,
+          "slow_period": 20
+        }
+      },
+      "entry_price": 94151.52,
+      "exit_price": 93906.22,
+      "quantity": 1.0,
+      "pnl": -245.3000000000029,
+      "pnl_percentage": -0.2605374825600304,
+      "status": "CLOSED",
+      "opened_at": 1736614800000,
+      "closed_at": 1736672400000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "e903c2c3-e3cd-47e3-b76a-2dcae4380bfe",
+      "signal": {
+        "strategy_id": "sma_crossover",
+        "symbol": "BTC/USDT",
+        "timestamp": 1736701200000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "confidence": 0.5,
+        "metadata": {
+          "fast_sma": 94540.758,
+          "slow_sma": 94537.307,
+          "fast_period": 10,
+          "slow_period": 20
+        }
+      },
+      "entry_price": 95139.45,
+      "exit_price": 94269.23,
+      "quantity": 1.0,
+      "pnl": -870.2200000000012,
+      "pnl_percentage": -0.9146784010208187,
+      "status": "CLOSED",
+      "opened_at": 1736701200000,
+      "closed_at": 1736737200000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "54cd39ae-a2c7-4a72-a2e1-f5ec077b4456",
+      "signal": {
+        "strategy_id": "sma_crossover",
+        "symbol": "BTC/USDT",
+        "timestamp": 1736809200000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "confidence": 0.5,
+        "metadata": {
+          "fast_sma": 92837.887,
+          "slow_sma": 92726.8335,
+          "fast_period": 10,
+          "slow_period": 20
+        }
+      },
+      "entry_price": 94536.1,
+      "exit_price": 99214.25,
+      "quantity": 1.0,
+      "pnl": 4678.149999999994,
+      "pnl_percentage": 4.948532888494439,
+      "status": "CLOSED",
+      "opened_at": 1736809200000,
+      "closed_at": 1737021600000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "58696d1b-3cda-44a6-9bc6-27046ab5f380",
+      "signal": {
+        "strategy_id": "sma_crossover",
+        "symbol": "BTC/USDT",
+        "timestamp": 1737061200000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "confidence": 0.5,
+        "metadata": {
+          "fast_sma": 99507.85299999999,
+          "slow_sma": 99463.4675,
+          "fast_period": 10,
+          "slow_period": 20
+        }
+      },
+      "entry_price": 100156.98,
+      "exit_price": 102821.75,
+      "quantity": 1.0,
+      "pnl": 2664.770000000004,
+      "pnl_percentage": 2.660593400479927,
+      "status": "CLOSED",
+      "opened_at": 1737061200000,
+      "closed_at": 1737183600000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "b1744321-48c4-4bf7-aced-da736bb999d2",
+      "signal": {
+        "strategy_id": "sma_crossover",
+        "symbol": "BTC/USDT",
+        "timestamp": 1737223200000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "confidence": 0.5,
+        "metadata": {
+          "fast_sma": 103748.29199999999,
+          "slow_sma": 103716.79449999999,
+          "fast_period": 10,
+          "slow_period": 20
+        }
+      },
+      "entry_price": 104084.74,
+      "exit_price": 101331.57,
+      "quantity": 1.0,
+      "pnl": -2753.1699999999983,
+      "pnl_percentage": -2.6451235791144723,
+      "status": "CLOSED",
+      "opened_at": 1737223200000,
+      "closed_at": 1737327600000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "020aef17-0aca-4465-8749-2b1a9ea1a712",
+      "signal": {
+        "strategy_id": "sma_crossover",
+        "symbol": "BTC/USDT",
+        "timestamp": 1737367200000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "confidence": 0.5,
+        "metadata": {
+          "fast_sma": 104811.148,
+          "slow_sma": 104443.48250000001,
+          "fast_period": 10,
+          "slow_period": 20
+        }
+      },
+      "entry_price": 107964.56,
+      "exit_price": 102596.0,
+      "quantity": 1.0,
+      "pnl": -5368.559999999998,
+      "pnl_percentage": -4.972520612319453,
+      "status": "CLOSED",
+      "opened_at": 1737367200000,
+      "closed_at": 1737406800000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "cb0e36cb-54a7-407b-b1b4-d4cbd1974900",
+      "signal": {
+        "strategy_id": "sma_crossover",
+        "symbol": "BTC/USDT",
+        "timestamp": 1737464400000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "confidence": 0.5,
+        "metadata": {
+          "fast_sma": 102894.53099999999,
+          "slow_sma": 102842.31650000002,
+          "fast_period": 10,
+          "slow_period": 20
+        }
+      },
+      "entry_price": 104457.07,
+      "exit_price": 104984.83,
+      "quantity": 1.0,
+      "pnl": 527.7599999999948,
+      "pnl_percentage": 0.5052410526161566,
+      "status": "CLOSED",
+      "opened_at": 1737464400000,
+      "closed_at": 1737536400000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "4ed399fe-7e06-48cc-81bd-bd1891f165c4",
+      "signal": {
+        "strategy_id": "sma_crossover",
+        "symbol": "BTC/USDT",
+        "timestamp": 1737648000000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "confidence": 0.5,
+        "metadata": {
+          "fast_sma": 102999.019,
+          "slow_sma": 102993.60750000001,
+          "fast_period": 10,
+          "slow_period": 20
+        }
+      },
+      "entry_price": 105139.18,
+      "exit_price": 104631.99,
+      "quantity": 1.0,
+      "pnl": -507.1899999999878,
+      "pnl_percentage": -0.4823986643228362,
+      "status": "CLOSED",
+      "opened_at": 1737648000000,
+      "closed_at": 1737691200000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "9e1886da-2b40-4c8a-a20d-58275d4087d3",
+      "signal": {
+        "strategy_id": "sma_crossover",
+        "symbol": "BTC/USDT",
+        "timestamp": 1737702000000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "confidence": 0.5,
+        "metadata": {
+          "fast_sma": 104136.97900000002,
+          "slow_sma": 104130.981,
+          "fast_period": 10,
+          "slow_period": 20
+        }
+      },
+      "entry_price": 105046.8,
+      "exit_price": 105500.76,
+      "quantity": 1.0,
+      "pnl": 453.95999999999185,
+      "pnl_percentage": 0.4321502416065881,
+      "status": "CLOSED",
+      "opened_at": 1737702000000,
+      "closed_at": 1737705600000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "b854f407-18a0-4991-9270-452f797b6681",
+      "signal": {
+        "strategy_id": "sma_crossover",
+        "symbol": "BTC/USDT",
+        "timestamp": 1737712800000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "confidence": 0.5,
+        "metadata": {
+          "fast_sma": 104609.819,
+          "slow_sma": 104466.122,
+          "fast_period": 10,
+          "slow_period": 20
+        }
+      },
+      "entry_price": 105416.75,
+      "exit_price": 104738.0,
+      "quantity": 1.0,
+      "pnl": -678.75,
+      "pnl_percentage": -0.6438730087960365,
+      "status": "CLOSED",
+      "opened_at": 1737712800000,
+      "closed_at": 1737766800000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "13328cbc-429f-4da2-ab9b-e4a25f63aaaf",
+      "signal": {
+        "strategy_id": "sma_crossover",
+        "symbol": "BTC/USDT",
+        "timestamp": 1737824400000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "confidence": 0.5,
+        "metadata": {
+          "fast_sma": 104644.212,
+          "slow_sma": 104635.8675,
+          "fast_period": 10,
+          "slow_period": 20
+        }
+      },
+      "entry_price": 104899.71,
+      "exit_price": 104630.03,
+      "quantity": 1.0,
+      "pnl": -269.68000000000757,
+      "pnl_percentage": -0.2570836468470783,
+      "status": "CLOSED",
+      "opened_at": 1737824400000,
+      "closed_at": 1737882000000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "e0673184-e3b5-42ab-b417-7cf20a72fa97",
+      "signal": {
+        "strategy_id": "sma_crossover",
+        "symbol": "BTC/USDT",
+        "timestamp": 1737885600000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "confidence": 0.5,
+        "metadata": {
+          "fast_sma": 104901.325,
+          "slow_sma": 104899.85999999999,
+          "fast_period": 10,
+          "slow_period": 20
+        }
+      },
+      "entry_price": 104715.29,
+      "exit_price": 104944.0,
+      "quantity": 1.0,
+      "pnl": 228.7100000000064,
+      "pnl_percentage": 0.21841127499147017,
+      "status": "CLOSED",
+      "opened_at": 1737885600000,
+      "closed_at": 1737900000000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "bd23ff4d-a355-40ad-9520-8b9098be26ce",
+      "signal": {
+        "strategy_id": "sma_crossover",
+        "symbol": "BTC/USDT",
+        "timestamp": 1737918000000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "confidence": 0.5,
+        "metadata": {
+          "fast_sma": 104943.65899999999,
+          "slow_sma": 104916.72550000002,
+          "fast_period": 10,
+          "slow_period": 20
+        }
+      },
+      "entry_price": 105081.63,
+      "exit_price": 104330.22,
+      "quantity": 1.0,
+      "pnl": -751.4100000000035,
+      "pnl_percentage": -0.7150726535170793,
+      "status": "CLOSED",
+      "opened_at": 1737918000000,
+      "closed_at": 1737928800000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "babe19a6-710d-41bf-a00f-e4984b64781e",
+      "signal": {
+        "strategy_id": "sma_crossover",
+        "symbol": "BTC/USDT",
+        "timestamp": 1738008000000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "confidence": 0.5,
+        "metadata": {
+          "fast_sma": 100205.825,
+          "slow_sma": 100070.5765,
+          "fast_period": 10,
+          "slow_period": 20
+        }
+      },
+      "entry_price": 101386.5,
+      "exit_price": 101264.48,
+      "quantity": 1.0,
+      "pnl": -122.02000000000407,
+      "pnl_percentage": -0.12035132882582955,
+      "status": "CLOSED",
+      "opened_at": 1738008000000,
+      "closed_at": 1738094400000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "1bd91060-786a-4d3e-bc06-b7cbe46a8484",
+      "signal": {
+        "strategy_id": "sma_crossover",
+        "symbol": "BTC/USDT",
+        "timestamp": 1738137600000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "confidence": 0.5,
+        "metadata": {
+          "fast_sma": 102126.928,
+          "slow_sma": 102080.18000000001,
+          "fast_period": 10,
+          "slow_period": 20
+        }
+      },
+      "entry_price": 102732.03,
+      "exit_price": 104722.94,
+      "quantity": 1.0,
+      "pnl": 1990.9100000000035,
+      "pnl_percentage": 1.937964235691636,
+      "status": "CLOSED",
+      "opened_at": 1738137600000,
+      "closed_at": 1738278000000,
+      "context": "BACKTEST"
+    }
+  ],
+  "metrics": {
+    "total_return": 12.58,
+    "sharpe_ratio": 0.22,
+    "max_drawdown": -61.1,
+    "win_rate": 42.11,
+    "total_trades": 19,
+    "profit_factor": 1.1
+  },
+  "created_at": "2026-05-04T19:28:47.989703+00:00"
+}

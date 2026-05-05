@@ -53,5 +53,25 @@ This affects the signal model — signals can't just be "buy/sell". They need to
 The system needs a scheduler that can run modules at configurable intervals.
 Cron-like scheduling (e.g., "run backtesting daily at 00:00 UTC", "execute strategies every hour").
 
-## Lessons Learned (To Be Updated)
-- No lessons yet — project is in bootstrap phase.
+## Lessons Learned
+
+### Delegation & Specification
+- **Detailed specs with exact commit messages produce excellent results** — platform-developer followed SPEC-000 step-by-step without deviation. The 11-step ordered implementation table with explicit commit messages was the most valuable part of the spec.
+- **Acceptance criteria tables are essential** — the Section 17 checklist gave an unambiguous definition of done. platform-developer even added an extra commit to ensure all criteria were met.
+- **Platform-developer quality is high** — 93% test coverage (exceeded 80% target), ruff clean, mypy strict clean. This agent can be trusted with complex implementations.
+- **Avoid double-delegation** — the first delegation (bw7diecr4) completed the full work but its notification arrived late, causing a redundant second delegation (bvv8qyf74). Always wait for task completion before re-delegating.
+
+### Platform Architecture (Validated by Implementation)
+- **Pydantic v2 models as single source of truth** works perfectly — models are used everywhere (cache, strategy signals, trade tracking, results). The round-trip serialization (model_dump / model_validate) is clean.
+- **ABC-based interfaces enforce contracts well** — Strategy, DataProvider, ExecutionHandler abstractions held up. The SMA crossover strategy cleanly implements Strategy ABC.
+- **Registry pattern for strategies** — `@StrategyRegistry.register` decorator is elegant and extensible. Adding new strategies will be trivial.
+- **ccxt as exchange abstraction** — correct choice. Binance market data works without API keys. Rate limiting built-in.
+- **File-based JSON caching** — adequate for Phase 1. Market cache deduplication by open_time works correctly. Will need to reconsider for high-frequency or multi-symbol scenarios.
+- **typer + rich for CLI** — gives professional-looking output with minimal code. Good developer experience.
+
+### What Needs Attention Next
+- **Strategy state persistence** — currently strategies are stateless between runs. Phase 2 needs to address this for paper/live trading.
+- **More strategies needed** — only SMA crossover exists. Need RSI, MACD, Bollinger Bands at minimum to validate the framework.
+- **Backtesting engine is single-position** — can only hold one position at a time. Multi-position support needed for portfolio-level strategies.
+- **No async yet** — everything is synchronous. ccxt supports async; we'll need it for real-time data feeds in Phase 3.
+- **Error handling is basic** — custom exceptions exist but recovery/retry logic is minimal. Needs hardening for production.
