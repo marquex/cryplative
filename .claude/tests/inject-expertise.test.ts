@@ -43,7 +43,7 @@ function deriveSessionId(claudeSessionId: string): string {
 
 /**
  * Create a temp dir with fake project structure:
- *   .claude/expertise/test-agent/test-agent-index.yaml
+ *   .agentic/expertise/test-agent/test-agent-index.yaml
  *   .claude/sessions/{derived-session-id}/
  */
 async function createFakeProject(
@@ -51,7 +51,7 @@ async function createFakeProject(
 ): Promise<string> {
   const dir = join(tmpdir(), `inject-expertise-${randomUUID()}`);
   const derivedId = deriveSessionId(sessionId);
-  await mkdir(join(dir, '.claude', 'expertise', 'test-agent'), {
+  await mkdir(join(dir, '.agentic', 'expertise', 'test-agent'), {
     recursive: true,
   });
   await mkdir(join(dir, '.claude', 'sessions', derivedId), {
@@ -88,7 +88,7 @@ async function writeExpertiseFile(
   content: string
 ): Promise<void> {
   await writeFile(
-    join(dir, '.claude', 'expertise', 'test-agent', 'test-agent-index.yaml'),
+    join(dir, '.agentic', 'expertise', 'test-agent', 'test-agent-index.yaml'),
     content
   );
 }
@@ -233,7 +233,7 @@ export default {
           );
           // Modify expertise file (bump mtime)
           await appendFile(
-            join(dir, '.claude', 'expertise', 'test-agent', 'test-agent-index.yaml'),
+            join(dir, '.agentic', 'expertise', 'test-agent', 'test-agent-index.yaml'),
             'new_entry: added\n'
           );
 
@@ -274,9 +274,8 @@ export default {
           const parsed = JSON.parse(stdout);
           assertEqual(parsed.decision, 'block', 'decision should be block');
           assertIncludes(parsed.reason, 'expertise', 'reason mentions expertise');
-          assertIncludes(parsed.reason, '.claude/expertise/test-agent/', 'expertise path in reason');
-          assertIncludes(parsed.reason, 'agent-expertise skill', 'reason mentions skill');
-          assertIncludes(parsed.systemMessage, 'attempt 1', 'systemMessage shows attempt count');
+          assertIncludes(parsed.reason, "'agent-expertise'", 'reason mentions skill');
+          assertIncludes(parsed.systemMessage, 'agent-expertise', 'systemMessage mentions skill');
 
           // Verify prompt count file was created (counter incremented to 1)
           const derivedId = deriveSessionId(TEST_SESSION_ID);

@@ -11,6 +11,7 @@ import {
   assertIncludes,
 } from './helpers';
 import type { TestSuite } from './helpers';
+import * as path from 'node:path';
 
 const PROJECT_DIR = process.cwd();
 
@@ -498,6 +499,145 @@ const suite: TestSuite = {
         const { decision, reason } = parseDecision(stdout);
         assertEqual(decision, 'deny');
         assertIncludes(reason, "lacks 'write' permission");
+      },
+    },
+
+    // --- Absolute paths within project ---
+
+    {
+      description: 'allows claude-developer to read .claude/ using absolute path',
+      fn: async () => {
+        const absolutePath = path.join(PROJECT_DIR, '.claude/agents/primary.md');
+        const { stdout } = await runHook('.claude/scripts/enforce-agent-access.ts', {
+          agent_type: 'claude-developer',
+          tool_name: 'Read',
+          tool_input: { file_path: absolutePath },
+          cwd: PROJECT_DIR,
+        });
+        const { decision } = parseDecision(stdout);
+        assertEqual(decision, 'allow');
+      },
+    },
+
+    {
+      description: 'allows claude-developer to write .claude/ using absolute path',
+      fn: async () => {
+        const absolutePath = path.join(PROJECT_DIR, '.claude/agents/test.md');
+        const { stdout } = await runHook('.claude/scripts/enforce-agent-access.ts', {
+          agent_type: 'claude-developer',
+          tool_name: 'Edit',
+          tool_input: { file_path: absolutePath },
+          cwd: PROJECT_DIR,
+        });
+        const { decision } = parseDecision(stdout);
+        assertEqual(decision, 'allow');
+      },
+    },
+
+    {
+      description: 'denies claude-developer to read outside .claude/ using absolute path',
+      fn: async () => {
+        const absolutePath = path.join(PROJECT_DIR, 'src/index.ts');
+        const { stdout } = await runHook('.claude/scripts/enforce-agent-access.ts', {
+          agent_type: 'claude-developer',
+          tool_name: 'Read',
+          tool_input: { file_path: absolutePath },
+          cwd: PROJECT_DIR,
+        });
+        const { decision, reason } = parseDecision(stdout);
+        assertEqual(decision, 'deny');
+        assertIncludes(reason, 'no access rule');
+      },
+    },
+
+    {
+      description: 'allows primary to write .claude/sessions/** using absolute path',
+      fn: async () => {
+        const absolutePath = path.join(PROJECT_DIR, '.claude/sessions/test/file.txt');
+        const { stdout } = await runHook('.claude/scripts/enforce-agent-access.ts', {
+          agent_type: 'primary',
+          tool_name: 'Write',
+          tool_input: { file_path: absolutePath },
+          cwd: PROJECT_DIR,
+        });
+        const { decision } = parseDecision(stdout);
+        assertEqual(decision, 'allow');
+      },
+    },
+
+    {
+      description: 'allows platform-developer to read platform/ using absolute path',
+      fn: async () => {
+        const absolutePath = path.join(PROJECT_DIR, 'platform/README.md');
+        const { stdout } = await runHook('.claude/scripts/enforce-agent-access.ts', {
+          agent_type: 'platform-developer',
+          tool_name: 'Read',
+          tool_input: { file_path: absolutePath },
+          cwd: PROJECT_DIR,
+        });
+        const { decision } = parseDecision(stdout);
+        assertEqual(decision, 'allow');
+      },
+    },
+
+    {
+      description: 'denies platform-developer to read outside platform/ using absolute path',
+      fn: async () => {
+        const absolutePath = path.join(PROJECT_DIR, '.claude/agents/primary.md');
+        const { stdout } = await runHook('.claude/scripts/enforce-agent-access.ts', {
+          agent_type: 'platform-developer',
+          tool_name: 'Read',
+          tool_input: { file_path: absolutePath },
+          cwd: PROJECT_DIR,
+        });
+        const { decision, reason } = parseDecision(stdout);
+        assertEqual(decision, 'deny');
+        assertIncludes(reason, 'no access rule');
+      },
+    },
+
+    {
+      description: 'allows claude-developer to access .claude/ directory using absolute path',
+      fn: async () => {
+        const absoluteDir = path.join(PROJECT_DIR, '.claude');
+        const { stdout } = await runHook('.claude/scripts/enforce-agent-access.ts', {
+          agent_type: 'claude-developer',
+          tool_name: 'Bash',
+          tool_input: { command: `ls ${absoluteDir}` },
+          cwd: PROJECT_DIR,
+        });
+        const { decision } = parseDecision(stdout);
+        assertEqual(decision, 'allow');
+      },
+    },
+
+    {
+      description: 'allows primary to access .claude/sessions/ directory using absolute path',
+      fn: async () => {
+        const absoluteDir = path.join(PROJECT_DIR, '.claude/sessions');
+        const { stdout } = await runHook('.claude/scripts/enforce-agent-access.ts', {
+          agent_type: 'primary',
+          tool_name: 'Bash',
+          tool_input: { command: `ls ${absoluteDir}` },
+          cwd: PROJECT_DIR,
+        });
+        const { decision } = parseDecision(stdout);
+        assertEqual(decision, 'allow');
+      },
+    },
+
+    {
+      description: 'allows platform-developer to read platform/ directory using absolute path',
+      fn: async () => {
+        const absoluteDir = path.join(PROJECT_DIR, 'platform');
+        const { stdout } = await runHook('.claude/scripts/enforce-agent-access.ts', {
+          agent_type: 'platform-developer',
+          tool_name: 'Bash',
+          tool_input: { command: `ls ${absoluteDir}` },
+          cwd: PROJECT_DIR,
+        });
+        const { decision } = parseDecision(stdout);
+        assertEqual(decision, 'allow');
       },
     },
   ],

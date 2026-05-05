@@ -223,7 +223,7 @@ async function handleSessionStart(
 
     process.stdout.write(
       `<expertise-context>\n` +
-        `Your expertise index is loaded below. Review it for relevant context before starting your task. It contains links to relevant files that you may want to read after understanding the scope of your task.\n` +
+        `Your expertise index (${expertiseIndex}) is loaded below. Review it for relevant context before starting your task. It contains links to relevant files that you may want to read after understanding the scope of your task.\n` +
         `---\n` +
         `${content.trim()}\n` +
         `</expertise-context>\n`
