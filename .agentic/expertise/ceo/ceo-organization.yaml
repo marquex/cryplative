@@ -44,9 +44,25 @@ current_org_chart:
     isolation: "Business-isolated — does not engage with trading, strategies, or market decisions"
     hiring_protocol: "CEO provides: agent name, purpose, manager, subordinates"
 
+  head-of-research:
+    role: "Head of Quantitative Research"
+    responsibilities:
+      - "Coordinate the research pipeline: data → ideas → backtesting → portfolio"
+      - "Set research direction and priorities"
+      - "Ensure scientific methodology across all research"
+      - "Make decisions about which strategies to pursue and which to drop"
+      - "Report findings and recommendations to CEO"
+    reports_to: "ceo"
+    access: ["data directory", "platform_docs directory"]
+    subordinates: "none yet — will eventually manage data-acquisition, strategy-researcher, strategy-implementer, portfolio-risk"
+    agent_file: ".claude/agents/head-of-research.md"
+    expertise_folder: ".agentic/expertise/head-of-research/"
+
 planned_teams:
   algorithmic_trading_research_team:
-    status: "scoping"
+    status: "manager hired — head-of-research operational"
+    manager: "head-of-research"
+    manager_title: "Head of Quantitative Research"
     purpose: "Research trading strategies systematically — research is the core function, implementation and testing support the research"
     roles:
       data_acquisition:

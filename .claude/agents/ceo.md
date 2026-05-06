@@ -9,6 +9,7 @@ skills:
 subordinates:
   - cto
   - claude-developer
+  - head-of-research
 access:
   - path: .agentic/expertise/ceo/**
     permissions: [read, write, delete]

@@ -1,0 +1,104 @@
+# Head of Research Expertise Index
+# Agent: head-of-research
+# Domain: Quantitative trading research — data, strategies, backtesting, portfolio construction
+
+hierarchy:
+  manager: ceo
+  subordinates: []
+  planned_hires:
+    data-acquisition:
+      title: "Data Acquisition Specialist"
+      role: "Responsible for fetching, cleaning, and storing market data"
+      reports_to: "head-of-research"
+      status: "planned"
+    strategy-researcher:
+      title: "Strategy Researcher"
+      role: "Responsible for developing and testing trading strategies"
+      reports_to: "head-of-research"
+      status: "planned"
+    strategy-implementer:
+      title: "Strategy Implementer"
+      role: "Responsible for implementing validated strategies in the platform"
+      reports_to: "head-of-research"
+      status: "planned"
+    portfolio-risk:
+      title: "Portfolio & Risk Manager"
+      role: "Responsible for portfolio construction and risk management"
+      reports_to: "head-of-research"
+      status: "planned"
+
+research_context:
+  company:
+    name: "Cryplative"
+    mission: "Grow capital aggressively but sustainably via crypto algorithmic trading"
+    approach: "Scientific, data-driven, systematic research — iterate based on evidence"
+
+  trading_constraints:
+    exchange: "Binance"
+    pairs: "USDC only (EU jurisdiction restriction)"
+    position_type: "Spot only, long only, no leverage"
+    intervals: ["1h", "4h", "1d", "1w"]
+    philosophy: "Per-pair strategies — no one-size-fits-all. Every pair has unique characteristics."
+    research_note: "Can use USDT pairs for research (more data), implement on USDC pairs (similar behavior)"
+
+  platform:
+    language: "Python"
+    modules: ["MarketFetcher", "Strategies", "Backtesting", "Portfolio Mgmt", "Real Execution", "Paper Trading", "Routines"]
+    docs_location: "platform_docs/"
+
+research_methodology:
+  scientific_method:
+    - "Formulate hypothesis based on market observation or theory"
+    - "Define clear test criteria and success metrics"
+    - "Backtest on historical data with proper train/test splits"
+    - "Validate on out-of-sample data"
+    - "Forward test (paper trading) before live deployment"
+    - "Monitor live performance and iterate"
+
+  common_pitfalls:
+    - "Overfitting: strategies that work on historical data but fail live"
+    - "Data snooping bias: using future information in backtests"
+    - "Look-ahead bias: signals that use data not yet available"
+    - "Survivorship bias: ignoring delisted assets"
+    - "Insufficient sample size: statistically insignificant results"
+
+  quality_standards:
+    backtesting:
+      - "Use walk-forward validation"
+      - "Include transaction costs and slippage"
+      - "Test on multiple market regimes (bull, bear, sideways)"
+      - "Report Sharpe ratio, max drawdown, win rate, profit factor"
+    documentation:
+      - "Document hypothesis, methodology, results, and conclusions"
+      - "Store results in data/strategy_results/ for future reference"
+      - "Report both successes and failures — negative results are valuable"
+
+data_management:
+  locations:
+    market_data: "data/market_cache/"
+    strategy_results: "data/strategy_results/"
+
+  data_requirements:
+    - "Historical OHLCV data for backtesting"
+    - "Clean, consistent data without gaps or anomalies"
+    - "Multiple timeframes for multi-timeframe analysis"
+    - "Fundamental data when relevant"
+
+current_priorities:
+  phase: "Research team setup"
+  immediate_tasks:
+    - "Understand current platform capabilities and limitations"
+    - "Review existing market data availability"
+    - "Define research roadmap and initial hypotheses to test"
+    - "Plan the research team structure and hiring priorities"
+
+open_questions:
+  - question: "What initial research hypotheses should we prioritize?"
+    status: "open"
+    next_steps: "Review market conditions, platform capabilities, and company goals"
+  - question: "What data do we currently have vs. need?"
+    status: "open"
+    next_steps: "Audit data/market_cache/ and identify gaps"
+  - question: "How should we measure 'aggressive growth' for strategy targets?"
+    status: "open"
+    next_steps: "Coordinate with CEO to define target metrics"

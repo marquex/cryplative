@@ -4,10 +4,19 @@
 
 hierarchy:
   manager: "none — reports to Javi (human founder)"
-  subordinates: [cto, claude-developer]
+  subordinates: [cto, claude-developer, head-of-research]
+  planned_hires:
+    head-of-research:
+      title: "Head of Quantitative Research"
+      role: "Manager of the algorithmic trading research team"
+      reports_to: "ceo"
+      manages: ["data-acquisition", "strategy-researcher", "strategy-implementer", "portfolio-risk"]
+      reasoning: "Research IS the core function — needs scientific rigor, pipeline coordination (data → ideas → backtesting → portfolio), and authority without overcomplicating org chart"
+      status: "hired — agent operational, reporting to CEO, no subordinates yet"
   future_teams:
     - name: "algorithmic trading research team"
-      status: "not yet hired"
+      manager: "head-of-research"
+      status: "not yet hired — manager role proposed"
       needed_roles: ["data acquisition", "strategy research", "strategy implementation/testing", "portfolio & risk management"]
     - name: "trading team"
       status: "future — execute trades, manage real & paper portfolios, monitor live performance"
@@ -72,8 +81,8 @@ open_decisions:
     status: "undefined"
     needs: "Systematic way to evaluate and mitigate strategy risk"
   - question: "Algorithmic trading research team structure"
-    status: "scoping"
-    needs: "Define roles, hire agents"
+    status: "manager hired — head-of-research is now building the research team"
+    needs: "Hire subordinate roles: data-acquisition, strategy-researcher, strategy-implementer, portfolio-risk"
   - question: "Which trading pairs to start with"
     status: "undefined"
     needs: "Research USDC pairs on Binance, select initial set"
