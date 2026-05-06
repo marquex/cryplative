@@ -9,7 +9,9 @@ skills:
 access:
   - path: .claude/**
     permissions: [read, write, delete]
-  - path: .agentic/**
+  - path: .agentic/specs/engineering/**
+    permissions: [read, write, delete]
+  - path: .agentic/expertise/**
     permissions: [read, write, delete]
 hooks:
   PreToolUse:

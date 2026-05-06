@@ -13,6 +13,8 @@ subordinates:
 access:
   - path: .agentic/expertise/ceo/**
     permissions: [read, write, delete]
+  - path: .agentic/specs/managers/**
+    permissions: [read, write, delete]
   - path: "*" # only the root directory
     permissions: [read, write]
 

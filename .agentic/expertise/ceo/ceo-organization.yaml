@@ -53,10 +53,32 @@ current_org_chart:
       - "Make decisions about which strategies to pursue and which to drop"
       - "Report findings and recommendations to CEO"
     reports_to: "ceo"
-    access: ["data directory", "platform_docs directory"]
+    access: ["data directory", "platform_docs directory", ".agentic/specs/managers/", ".agentic/specs/research/"]
     subordinates: "none yet — will eventually manage data-acquisition, strategy-researcher, strategy-implementer, portfolio-risk"
     agent_file: ".claude/agents/head-of-research.md"
     expertise_folder: ".agentic/expertise/head-of-research/"
+
+communication_channels:
+  mechanism: "Async spec files in .agentic/specs/ subfolders"
+  set_up_date: "2026-05-06"
+  channels:
+    managers_channel:
+      path: ".agentic/specs/managers/"
+      purpose: "CEO shares direction with CTO and Head of Research; managers coordinate cross-team"
+      who_can_read_write: [ceo, cto, head-of-research]
+      usage: "Drop text files with updates, decisions, questions for other managers"
+    engineering_channel:
+      path: ".agentic/specs/engineering/"
+      purpose: "Engineering team specs, progress updates, architecture decisions"
+      who_can_read_write: [cto, claude-developer]
+      contains: ["All original engineering specs (moved from specs root on 2026-05-06)"]
+    research_channel:
+      path: ".agentic/specs/research/"
+      purpose: "Research team specs, strategy findings, data requests, backtest results"
+      who_can_read_write: [head-of-research, "research team members"]
+      usage: "Research team shares findings and coordinates work"
+  direct_communication:
+    claude-developer: "Delegate directly — no need for spec files"
 
 planned_teams:
   algorithmic_trading_research_team:

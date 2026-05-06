@@ -56,6 +56,23 @@ trading_constraints:
   philosophy: "Per-pair strategies — no one-size-fits-all. Every pair has unique characteristics."
   research_note: "Can use USDT pairs for research (more data), implement on USDC pairs (similar behavior)"
 
+communication:
+  mechanism: "Async text files in .agentic/specs/ subfolders — agents read/write files to share updates"
+  channels:
+    managers:
+      path: ".agentic/specs/managers/"
+      purpose: "Cross-team manager communication (CEO, CTO, Head of Research)"
+      access: [ceo, cto, head-of-research]
+    engineering:
+      path: ".agentic/specs/engineering/"
+      purpose: "Engineering team specs and updates (CTO, claude-developer)"
+      access: [cto, claude-developer]
+    research:
+      path: ".agentic/specs/research/"
+      purpose: "Research team specs and updates (head-of-research + research team members)"
+      access: [head-of-research, "research team members"]
+  direct_communication: "claude-developer — communicate directly via delegation, no need for spec files"
+
 platform:
   language: "Python"
   modules: ["MarketFetcher", "Strategies", "Backtesting", "Portfolio Mgmt", "Real Execution", "Paper Trading", "Routines"]

@@ -11,7 +11,9 @@ subordinates:
 access:
   - path: .agentic/expertise/cto/**
     permissions: [read, write, delete]
-  - path: .agentic/specs/**
+  - path: .agentic/specs/managers/**
+    permissions: [read, write, delete]
+  - path: .agentic/specs/engineering/**
     permissions: [read, write, delete]
   - path: platform_docs/**
     permissions: [read, write, delete]

@@ -10,6 +10,10 @@ subordinates: []
 access:
   - path: .agentic/expertise/head-of-research/**
     permissions: [read, write, delete]
+  - path: .agentic/specs/managers/**
+    permissions: [read, write, delete]
+  - path: .agentic/specs/research/**
+    permissions: [read, write, delete]
   - path: data/**
     permissions: [read, write, delete]
   - path: platform_docs/**
