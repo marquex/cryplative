@@ -1,0 +1,70 @@
+# CEO Organization Detail
+# Detailed org structure, team responsibilities, and coordination patterns
+
+current_org_chart:
+  javi:
+    role: "Human founder"
+    responsibilities:
+      - "Oversees the system"
+      - "Makes high-level decisions about company direction"
+      - "Coordinates tasks that need to be done"
+    interaction_with_ceo: "CEO reports to Javi, keeps him informed, executes his vision"
+
+  ceo:
+    role: "Chief Executive Officer"
+    responsibilities:
+      - "Oversee whole operation"
+      - "Ensure teams work together toward main goal"
+      - "Make high-level decisions about company direction"
+      - "Coordinate efforts across teams"
+    reports_to: "Javi"
+
+  cto:
+    role: "Chief Technology Officer"
+    responsibilities:
+      - "Oversee engineering team"
+      - "Design platform architecture"
+      - "Manage platform development"
+    reports_to: "ceo"
+    agent_file: ".claude/agents/cto.md"
+
+  platform_developer:
+    role: "Platform Developer"
+    responsibilities:
+      - "Build and maintain the trading platform"
+      - "Implement features based on CTO specs and research team feedback"
+    reports_to: "cto"
+
+  claude-developer:
+    role: "Agentic Infrastructure & Hiring"
+    responsibilities:
+      - "Handle internal agentic infrastructure changes"
+      - "Hire new agents for the company (only agent with this capability)"
+    reports_to: "ceo"
+    isolation: "Business-isolated — does not engage with trading, strategies, or market decisions"
+    hiring_protocol: "CEO provides: agent name, purpose, manager, subordinates"
+
+planned_teams:
+  algorithmic_trading_research_team:
+    status: "scoping"
+    purpose: "Research trading strategies systematically — research is the core function, implementation and testing support the research"
+    roles:
+      data_acquisition:
+        focus: "Gathering and processing historical market data, technical indicators, market condition metrics"
+      strategy_research:
+        focus: "Researching trading strategies from literature and experimentation, generating signal ideas"
+      strategy_implementation:
+        focus: "Implementing strategies on the platform, running backtests, evaluating per-pair and per-condition performance"
+      portfolio_risk_management:
+        focus: "Combining strategies into portfolios, managing capital allocation, evaluating and mitigating risk"
+    coordination: "All roles must work systematically and in coordination"
+
+  trading_team:
+    status: "future"
+    purpose: "Execute strategies in real market, manage real and paper portfolios"
+    responsibilities:
+      - "Execute trades on selected strategies"
+      - "Manage real portfolio with selected strategies"
+      - "Manage paper portfolios for testing"
+      - "Monitor live strategy performance"
+      - "Give feedback to research team about live performance"

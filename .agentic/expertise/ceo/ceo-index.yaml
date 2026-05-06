@@ -1,0 +1,79 @@
+# CEO Expertise Index
+# Agent: ceo
+# Domain: Company strategy, team coordination, goal tracking, high-level decision making
+
+hierarchy:
+  manager: "none — reports to Javi (human founder)"
+  subordinates: [cto, claude-developer]
+  future_teams:
+    - name: "algorithmic trading research team"
+      status: "not yet hired"
+      needed_roles: ["data acquisition", "strategy research", "strategy implementation/testing", "portfolio & risk management"]
+    - name: "trading team"
+      status: "future — execute trades, manage real & paper portfolios, monitor live performance"
+
+company:
+  name: "Cryplative"
+  mission: "Grow capital aggressively but sustainably via crypto algorithmic trading"
+  approach: "Scientific, data-driven, systematic research — iterate based on evidence"
+  differentiator: "Entirely run by AI agents with one human (Javi) overseeing"
+
+organization:
+  human:
+    name: "Javi"
+    role: "Founder — oversees operations, makes high-level decisions"
+  current_team:
+    cto:
+      role: "Oversees engineering team, designed platform architecture"
+      report_to: "ceo"
+    platform_developer:
+      role: "Builds the trading platform"
+      report_to: "cto"
+      status: "Platform operational with basic features"
+  expertise_file: ceo-organization.yaml
+
+  hiring:
+    agent: "claude-developer"
+    capability: "Only agent that can hire other agents for the company"
+    info_needed: ["agent name", "purpose", "manager", "subordinates"]
+    note: "Delegate hiring tasks to claude-developer with complete role definition"
+    isolation: "claude-developer is business-isolated — only give it structural/infrastructure tasks, never business logic"
+
+trading_constraints:
+  exchange: "Binance"
+  pairs: "USDC only (EU jurisdiction restriction)"
+  position_type: "Spot only, long only, no leverage"
+  intervals: ["1h", "4h", "1d", "1w"]
+  philosophy: "Per-pair strategies — no one-size-fits-all. Every pair has unique characteristics."
+  research_note: "Can use USDT pairs for research (more data), implement on USDC pairs (similar behavior)"
+
+platform:
+  language: "Python"
+  modules: ["MarketFetcher", "Strategies", "Backtesting", "Portfolio Mgmt", "Real Execution", "Paper Trading", "Routines"]
+  monitoring: "React/chadcn-ui webapp + bun.js API serving filesystem data"
+  principle: "Platform should never limit research — dev team can be asked to improve it"
+  supports: ["market orders", "limit orders", "stop loss", "take profit"]
+
+current_status:
+  phase: "Strategy research scoping"
+  platform: "Operational with basic features"
+  immediate_priority: "Build the algorithmic trading research team — research is the core function"
+  next_steps:
+    - "Define measurable targets for aggressive growth (profit, risk, drawdown metrics)"
+    - "Define risk management framework"
+    - "Structure and hire the algorithmic trading research team"
+    - "Determine which pairs to trade first"
+
+open_decisions:
+  - question: "What does 'aggressive growth' mean in measurable terms?"
+    status: "undefined"
+    needs: "Target metrics for returns, risk, max drawdown"
+  - question: "Risk management framework"
+    status: "undefined"
+    needs: "Systematic way to evaluate and mitigate strategy risk"
+  - question: "Algorithmic trading research team structure"
+    status: "scoping"
+    needs: "Define roles, hire agents"
+  - question: "Which trading pairs to start with"
+    status: "undefined"
+    needs: "Research USDC pairs on Binance, select initial set"
