@@ -1,7 +1,7 @@
 # Platform Developer Expertise Index
 # Agent: platform-developer
 # Domain: Python trading platform — market data, strategies, backtesting, live execution
-# Last updated: 2026-05-05 (Phase 2 complete)
+# Last updated: 2026-05-06 (Documentation reorganization)
 
 hierarchy:
   manager: cto
@@ -109,6 +109,10 @@ gotchas:
   path_resolution: |
     get_project_root() walks UP to find CLAUDE.md. This means data/ paths resolve
     to cryplative/ project root, NOT platform/. Tests override via CryplativeConfig.
+
+  documentation_location: |
+    Researcher documentation moved from platform/docs/ to platform_docs/ at project root
+    (2026-05-06). This makes docs accessible to all agents. No references in Python code.
 
   registry_mutation: |
     StrategyRegistry uses class-level mutable dict. NOT thread-safe. Must call

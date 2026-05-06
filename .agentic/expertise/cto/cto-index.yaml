@@ -72,6 +72,8 @@ key_decisions:
   - "Phase 2 scope refined: researcher-ready platform over paper trading — validate framework, make it easy for algo-researchers"
   - "Paper trading deferred to Phase 3 — researcher tooling is the priority"
   - "Documentation is a first-class deliverable — the platform is only useful if researchers can use it"
+  - "Platform docs moved to platform_docs/ at project root (2026-05-06) — accessible to all agents, not just platform-developer"
+  - "Added platform_docs/architecture.md as cross-agent architecture overview"
 
 development_roadmap:
   phase_1: "Foundation — COMPLETE (SPEC-000 delivered 2026-05-04)"

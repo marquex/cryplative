@@ -12,6 +12,8 @@ access:
     permissions: [read, write]
   - path: platform/**
     permissions: [read, write, delete]
+  - path: platform_docs/**
+    permissions: [read, write, delete]
   - path: data/**
     permissions: [read, write, delete]
 hooks:

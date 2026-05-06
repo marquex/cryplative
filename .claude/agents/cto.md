@@ -13,8 +13,11 @@ access:
     permissions: [read, write, delete]
   - path: .agentic/specs/**
     permissions: [read, write, delete]
-  - path: "*"
+  - path: platform_docs/**
+    permissions: [read, write, delete]
+  - path: "*" # the root directory only
     permissions: [read, write]
+  
 hooks:
   PreToolUse:
     - matcher: "Read|Write|Edit|MultiEdit|Bash"

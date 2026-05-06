@@ -795,11 +795,11 @@ Validate all CLI inputs before executing:
 
 ## 10. Documentation for Researchers
 
-**New directory**: `platform/docs/`
+**New directory**: `platform/docs/` (originally specified, subsequently moved to `platform_docs/` at project root on 2026-05-06 for cross-agent access)
 
 All documentation is Markdown, written for an algo-researcher who has never seen the platform. It should be concise, code-heavy, and actionable.
 
-### 10.1 `platform/docs/getting-started.md`
+### 10.1 `getting-started.md`
 
 **Title**: Getting Started with Cryplative Platform
 
@@ -815,7 +815,7 @@ All documentation is Markdown, written for an algo-researcher who has never seen
 5. **What Happens** — Explain the output (metrics table, JSON file saved)
 6. **Next Steps** — Link to writing-strategies.md and backtesting-guide.md
 
-### 10.2 `platform/docs/writing-strategies.md`
+### 10.2 `writing-strategies.md`
 
 **Title**: How to Write a Trading Strategy
 
@@ -848,7 +848,7 @@ This is the most important document. An algo-researcher should be able to read t
 8. **Testing Your Strategy** — How to write tests, available fixtures, mocking patterns.
 9. **Registering Your Strategy** — It's automatic via the decorator. Explain how.
 
-### 10.3 `platform/docs/cli-reference.md`
+### 10.3 `cli-reference.md`
 
 **Title**: CLI Reference
 
@@ -862,7 +862,7 @@ Complete reference for all CLI commands with examples:
 
 For each command: description, all flags with defaults, examples.
 
-### 10.4 `platform/docs/backtesting-guide.md`
+### 10.4 `backtesting-guide.md`
 
 **Title**: Backtesting Guide
 
@@ -879,7 +879,7 @@ For each command: description, all flags with defaults, examples.
 5. **Common Pitfalls** — Overfitting, look-ahead bias, survivorship bias, insufficient data.
 6. **Result Files** — Where results are saved, JSON format, how to programmatically read them.
 
-### 10.5 `platform/docs/indicators.md`
+### 10.5 `indicators.md`
 
 **Title**: Technical Indicators Reference
 
@@ -1004,11 +1004,11 @@ This phase is complete when ALL of the following are true:
 - [ ] `uv run mypy src/` passes with no errors
 
 ### Documentation
-- [ ] `platform/docs/getting-started.md` exists and is complete
-- [ ] `platform/docs/writing-strategies.md` exists with full working examples
-- [ ] `platform/docs/cli-reference.md` covers all 5 CLI commands
-- [ ] `platform/docs/backtesting-guide.md` explains metrics and multi-position
-- [ ] `platform/docs/indicators.md` documents all 5 indicator functions
+- [ ] `platform_docs/getting-started.md` exists and is complete (originally `platform/docs/`, moved 2026-05-06)
+- [ ] `platform_docs/writing-strategies.md` exists with full working examples
+- [ ] `platform_docs/cli-reference.md` covers all 5 CLI commands
+- [ ] `platform_docs/backtesting-guide.md` explains metrics and multi-position
+- [ ] `platform_docs/indicators.md` documents all 5 indicator functions
 
 ---
 
