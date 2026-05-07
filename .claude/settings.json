@@ -1,43 +1,59 @@
 {
   "hooks": {
-    "SessionStart": [
+    "PostToolUse": [
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "bun .claude/hooks/inject-expertise.ts"
-          },
-          {
-            "type": "command",
-            "command": "bun .claude/hooks/session-logger.ts"
+            "command": "bun .claude/hooks/inject-agent-markers.ts",
+            "type": "command"
           }
         ]
       }
     ],
-    "UserPromptSubmit": [
+    "PreCompact": [
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "bun .claude/hooks/inject-expertise.ts"
+            "command": "bd prime",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "bun .claude/hooks/inject-expertise.ts",
+            "type": "command"
           },
           {
-            "type": "command",
-            "command": "bun .claude/hooks/session-logger.ts"
+            "command": "bun .claude/hooks/session-logger.ts",
+            "type": "command"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "command": "bd prime",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
       }
     ],
     "Stop": [
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "bun .claude/hooks/inject-expertise.ts"
+            "command": "bun .claude/hooks/inject-expertise.ts",
+            "type": "command"
           },
           {
-            "type": "command",
-            "command": "bun .claude/hooks/session-logger.ts"
+            "command": "bun .claude/hooks/session-logger.ts",
+            "type": "command"
           }
         ]
       }
@@ -46,18 +62,22 @@
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "bun .claude/hooks/session-logger.ts"
+            "command": "bun .claude/hooks/session-logger.ts",
+            "type": "command"
           }
         ]
       }
     ],
-    "PostToolUse": [
+    "UserPromptSubmit": [
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "bun .claude/hooks/inject-agent-markers.ts"
+            "command": "bun .claude/hooks/inject-expertise.ts",
+            "type": "command"
+          },
+          {
+            "command": "bun .claude/hooks/session-logger.ts",
+            "type": "command"
           }
         ]
       }

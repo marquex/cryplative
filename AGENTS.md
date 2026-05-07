@@ -1,22 +1,40 @@
-# Cryplative - An agentic crypto trading company
+# Agent Instructions
 
-Cryplative is a project that aims to grow capital in an aggressive way by using trading strategies in the crypto market. We want to create a system that allows us to easily implement, test and execute different trading strategies, and adapt quickly to changing market conditions.
+This project uses **bd** (beads) for issue tracking. Run `bd prime` for full workflow context.
 
-What makes cryplative different is that the company is completely run by AI agents, with only one human that oversees the system and makes high-level decisions.
+## Quick Reference
 
-You are working in the context of the project repository that will contain:
+```bash
+bd ready              # Find available work
+bd show <id>          # View issue details
+bd update <id> --claim  # Claim work atomically
+bd close <id>         # Complete work
+bd dolt push          # Push beads data to remote
+```
 
-* A platform to implement, test and execute trading strategies.
-* A catalog of trading strategies with their performance under different market conditions.
-* A webapp to monitor the system and interact with it in a more user-friendly way.
-* An API to serve the data from the system to the webapp and allow to run strategies and backtesting from it.
-* A team of AI agents with different roles, specialized in different areas and with different levels of expertise, that will be responsible of running the system and making it work.
+## Non-Interactive Shell Commands
 
-All the team should work together to achieve the main goal of the company, which is to grow capital in an aggressive way. The agents should be able to communicate and collaborate with each other, and also to learn from their experience and improve over time.
+**ALWAYS use non-interactive flags** with file operations to avoid hanging on confirmation prompts.
 
+Shell commands like `cp`, `mv`, and `rm` may be aliased to include `-i` (interactive) mode on some systems, causing the agent to hang indefinitely waiting for y/n input.
 
+**Use these forms instead:**
+```bash
+# Force overwrite without prompting
+cp -f source dest           # NOT: cp source dest
+mv -f source dest           # NOT: mv source dest
+rm -f file                  # NOT: rm file
 
+# For recursive operations
+rm -rf directory            # NOT: rm -r directory
+cp -rf source dest          # NOT: cp -r source dest
+```
 
+**Other commands that may prompt:**
+- `scp` - use `-o BatchMode=yes` for non-interactive
+- `ssh` - use `-o BatchMode=yes` to fail instead of prompting
+- `apt-get` - use `-y` flag
+- `brew` - use `HOMEBREW_NO_AUTO_UPDATE=1` env var
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
 ## Beads Issue Tracker
