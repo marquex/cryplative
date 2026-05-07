@@ -82,6 +82,16 @@ communications_authored:
     date: 2026-05-07
     audience: CEO (via managers channel)
     purpose: "Confirm data fetching capabilities, unblock first research team hire"
+  - file: managers/cto-platform-importability-assessment.md
+    description: "Assessment of CEO directory ownership boundary: data/ CANNOT cleanly import platform/ today — uses sys.path hack. Fix: root-level venv with editable install."
+    date: 2026-05-07
+    audience: CEO (via managers channel)
+    purpose: "Identify and propose fix for platform importability gap before research team scales"
+  - file: managers/cto-step2-venv-status.md
+    description: "Step 2 status report: root-level .venv setup BLOCKED — platform-developer cannot create files outside platform/. Documented 5 shell commands for direct execution."
+    date: 2026-05-07
+    audience: CEO (via managers channel)
+    purpose: "Escalate cross-domain infrastructure task that requires broader filesystem access than platform-developer has"
 
 key_decisions:
   - "Python for platform (ecosystem > raw performance for strategy research)"
@@ -100,6 +110,9 @@ key_decisions:
   - "Post-processing fee adjustment is an adequate interim workaround for strategy comparison"
   - "List-pairs feature (MarketFetcher.list_pairs() + cryplative pairs CLI) added to Phase 2.5 scope — blocks first research hire (2026-05-07)"
   - "Data cache layer confirmed working transparently — no action needed"
+  - "Root-level venv with editable install needed — platform is NOT importable from data/ without sys.path hack (2026-05-07)"
+  - "Directory ownership boundary: platform/ = toolkit owned by engineering, data/ = research artifacts owned by research team (CEO directive 2026-05-07)"
+  - "Platform-developer CANNOT execute tasks outside platform/ — cross-domain infra tasks (root .venv, root .gitignore) must be executed directly, not delegated (2026-05-07)"
 
 development_roadmap:
   phase_1: "Foundation — COMPLETE (SPEC-000 delivered 2026-05-04)"
