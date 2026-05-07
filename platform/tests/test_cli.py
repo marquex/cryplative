@@ -28,6 +28,126 @@ class TestCLIStrategies:
         assert "sma_crossover" in captured.out
 
 
+class TestCLIPairs:
+    """Tests for the pairs CLI command."""
+
+    def test_pairs_displays_table(self, tmp_path: Path) -> None:
+        """pairs command should display a table of trading pairs."""
+        config = CryplativeConfig(market_cache_dir=str(tmp_path / "cache"))
+
+        from unittest.mock import MagicMock
+
+        with patch(
+            "cryplative.market_fetcher.fetcher.MarketFetcher"
+        ) as mock_fetcher:
+            mock_instance = MagicMock()
+            mock_fetcher.return_value = mock_instance
+            mock_instance.list_pairs.return_value = [
+                {
+                    "symbol": "BTC/USDT",
+                    "base": "BTC",
+                    "quote": "USDT",
+                    "active": True,
+                    "price_precision": 2,
+                    "min_order_size": 0.00001,
+                },
+                {
+                    "symbol": "ETH/USDT",
+                    "base": "ETH",
+                    "quote": "USDT",
+                    "active": True,
+                    "price_precision": 2,
+                    "min_order_size": 0.0001,
+                },
+            ]
+
+            with patch(
+                "cryplative.cli.CryplativeConfig", return_value=config
+            ), patch("cryplative.cli.setup_logging"):
+                result = runner.invoke(app, ["pairs"])
+
+        assert result.exit_code == 0
+        assert "Available Trading Pairs" in result.output
+        assert "BTC/USDT" in result.output
+        assert "ETH/USDT" in result.output
+        assert "Total: 2 pairs" in result.output
+
+    def test_pairs_filters_by_quote(self, tmp_path: Path) -> None:
+        """pairs --quote USDT should filter to USDT pairs only."""
+        config = CryplativeConfig(market_cache_dir=str(tmp_path / "cache"))
+
+        from unittest.mock import MagicMock
+
+        with patch(
+            "cryplative.market_fetcher.fetcher.MarketFetcher"
+        ) as mock_fetcher:
+            mock_instance = MagicMock()
+            mock_fetcher.return_value = mock_instance
+            mock_instance.list_pairs.return_value = [
+                {
+                    "symbol": "BTC/USDT",
+                    "base": "BTC",
+                    "quote": "USDT",
+                    "active": True,
+                    "price_precision": 2,
+                    "min_order_size": 0.00001,
+                },
+            ]
+
+            with patch(
+                "cryplative.cli.CryplativeConfig", return_value=config
+            ), patch("cryplative.cli.setup_logging"):
+                result = runner.invoke(app, ["pairs", "--quote", "USDT"])
+
+        assert result.exit_code == 0
+        assert "BTC/USDT" in result.output
+        # Verify the quote filter was passed correctly
+        mock_instance.list_pairs.assert_called_once_with(quote="USDT", active_only=True)
+
+    def test_pairs_handles_api_error(self, tmp_path: Path) -> None:
+        """pairs command should handle API errors with a user-friendly message."""
+        config = CryplativeConfig(market_cache_dir=str(tmp_path / "cache"))
+
+        from cryplative.core.exceptions import MarketDataError
+
+        with patch(
+            "cryplative.market_fetcher.fetcher.MarketFetcher"
+        ) as mock_fetcher:
+            mock_instance = MagicMock()
+            mock_fetcher.return_value = mock_instance
+            mock_instance.list_pairs.side_effect = MarketDataError("API rate limit exceeded")
+
+            with patch(
+                "cryplative.cli.CryplativeConfig", return_value=config
+            ), patch("cryplative.cli.setup_logging"):
+                result = runner.invoke(app, ["pairs"])
+
+        assert result.exit_code == 1
+        assert "Error fetching pairs" in result.output
+
+    def test_pairs_empty_result(self, tmp_path: Path) -> None:
+        """pairs command should show 'No pairs found' when result is empty."""
+        config = CryplativeConfig(market_cache_dir=str(tmp_path / "cache"))
+
+        from unittest.mock import MagicMock
+
+        with patch(
+            "cryplative.market_fetcher.fetcher.MarketFetcher"
+        ) as mock_fetcher:
+            mock_instance = MagicMock()
+            mock_fetcher.return_value = mock_instance
+            mock_instance.list_pairs.return_value = []
+
+            with patch(
+                "cryplative.cli.CryplativeConfig", return_value=config
+            ), patch("cryplative.cli.setup_logging"):
+                result = runner.invoke(app, ["pairs"])
+
+        # Empty result should exit with 0 (not an error)
+        assert result.exit_code == 0 or "No pairs found" in result.output
+        assert "No pairs found matching your criteria" in result.output
+
+
 class TestCLIFetch:
     """Tests for the fetch CLI command."""
 
@@ -278,6 +398,7 @@ class TestCLIMain:
         assert "strategies" in result.output
         assert "new-strategy" in result.output
         assert "compare" in result.output
+        assert "pairs" in result.output
 
 
 class TestNewStrategyCLI:

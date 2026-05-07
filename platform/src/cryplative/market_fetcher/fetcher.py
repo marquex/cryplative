@@ -206,3 +206,71 @@ class MarketFetcher(DataProvider):
             raise MarketDataError(
                 f"Unexpected error fetching candles for {symbol} {interval}: {e}"
             ) from e
+
+    def list_pairs(
+        self,
+        quote: str | None = None,
+        active_only: bool = True,
+    ) -> list[dict[str, Any]]:
+        """List available trading pairs from the exchange.
+
+        Returns a list of dicts, each containing:
+            - symbol: str          # e.g., "BTC/USDT"
+            - base: str            # e.g., "BTC"
+            - quote: str           # e.g., "USDT"
+            - active: bool         # whether the market is active
+            - price_precision: int # decimal places for price
+            - min_order_size: float | None  # minimum order quantity
+
+        Args:
+            quote: Filter by quote currency (e.g., "USDT", "USDC").
+                   Case-insensitive. None = no filter.
+            active_only: If True (default), exclude delisted/inactive pairs.
+
+        Raises:
+            MarketDataError: If the exchange API call fails after retries.
+        """
+        try:
+            # Load markets from exchange
+            markets = self._exchange.load_markets()
+
+            # Convert to list of dicts and filter
+            result = []
+            for market_id, market in markets.items():
+                # Filter by active status
+                if active_only and not market.get("active", True):
+                    continue
+
+                # Filter by quote currency (case-insensitive)
+                if quote is not None:
+                    market_quote = market.get("quote", "")
+                    if market_quote.upper() != quote.upper():
+                        continue
+
+                # Extract relevant fields
+                pair_info = {
+                    "symbol": market.get("symbol", market_id),
+                    "base": market.get("base", ""),
+                    "quote": market.get("quote", ""),
+                    "active": market.get("active", True),
+                    "price_precision": market.get("precision", {}).get("price", 8),
+                    "min_order_size": market.get("limits", {}).get("amount", {}).get("min"),
+                }
+                result.append(pair_info)
+
+            # Sort alphabetically by symbol
+            result.sort(key=lambda x: x["symbol"])
+
+            logger.debug(
+                "list_pairs_result",
+                count=len(result),
+                quote=quote,
+                active_only=active_only,
+            )
+
+            return result
+
+        except ccxt.NetworkError as e:
+            raise MarketDataError(f"Network error loading markets: {e}") from e
+        except Exception as e:
+            raise MarketDataError(f"Error loading markets from exchange: {e}") from e

@@ -192,6 +192,63 @@ def strategies(
 
 
 @app.command()
+def pairs(
+    quote: str = typer.Option(None, help="Filter by quote currency (e.g., USDT, USDC)"),
+    active_only: bool = typer.Option(True, help="Exclude delisted/inactive pairs"),
+) -> None:
+    """List available trading pairs on the exchange.
+
+    Displays a table of trading pairs with their base/quote currencies
+    and trading constraints.
+
+    Examples:
+        cryplative pairs                     # All active pairs
+        cryplative pairs --quote USDT        # Only USDT pairs
+        cryplative pairs --quote USDC        # Only USDC pairs
+        cryplative pairs --no-active-only    # Include delisted pairs
+    """
+    config = CryplativeConfig()
+    setup_logging(config)
+
+    from cryplative.market_fetcher.fetcher import MarketFetcher
+
+    try:
+        fetcher = MarketFetcher(config)
+        pairs_list = fetcher.list_pairs(quote=quote, active_only=active_only)
+
+        if not pairs_list:
+            console.print("[yellow]No pairs found matching your criteria.[/yellow]")
+            return
+
+        # Build table
+        table = Table(title="Available Trading Pairs")
+        table.add_column("Symbol", style="cyan", no_wrap=True)
+        table.add_column("Base", style="green")
+        table.add_column("Quote", style="green")
+        table.add_column("Min Order Size", justify="right", style="dim")
+
+        for pair in pairs_list:
+            min_size = pair["min_order_size"]
+            if min_size is not None:
+                min_size_str = f"{min_size:.8f}".rstrip("0").rstrip(".")
+            else:
+                min_size_str = "N/A"
+            table.add_row(
+                pair["symbol"],
+                pair["base"],
+                pair["quote"],
+                min_size_str,
+            )
+
+        console.print(table)
+        console.print(f"\n[dim]Total: {len(pairs_list)} pairs[/dim]")
+
+    except Exception as e:
+        console.print(f"[red]Error fetching pairs: {e}[/red]")
+        raise typer.Exit(1) from None
+
+
+@app.command()
 def fetch(
     symbol: Annotated[str, typer.Option("--symbol", help="Trading pair (e.g., BTC/USDT)")],
     interval: Annotated[str, typer.Option("--interval", help="Candle interval (e.g., 1h, 4h, 1d)")],

@@ -318,6 +318,262 @@ class TestMarketFetcher:
             fetcher.get_candles("BTC/USDT", "1h", start_time=1, end_time=2)
 
 
+class TestListPairs:
+    """Tests for list_pairs() method."""
+
+    def test_list_pairs_returns_non_empty_list(self, tmp_path: Path) -> None:
+        """list_pairs() should return a non-empty list when called without filters."""
+        from unittest.mock import MagicMock
+
+        from cryplative.config import CryplativeConfig
+        from cryplative.market_fetcher.fetcher import MarketFetcher
+
+        config = CryplativeConfig(market_cache_dir=str(tmp_path / "cache"))
+        fetcher = MarketFetcher(config)
+
+        # Mock the exchange
+        mock_exchange = MagicMock()
+        mock_exchange.load_markets.return_value = {
+            "BTC/USDT": {
+                "symbol": "BTC/USDT",
+                "base": "BTC",
+                "quote": "USDT",
+                "active": True,
+                "precision": {"price": 2},
+                "limits": {"amount": {"min": 0.00001}},
+            },
+            "ETH/USDT": {
+                "symbol": "ETH/USDT",
+                "base": "ETH",
+                "quote": "USDT",
+                "active": True,
+                "precision": {"price": 2},
+                "limits": {"amount": {"min": 0.0001}},
+            },
+        }
+        fetcher._exchange = mock_exchange
+
+        result = fetcher.list_pairs()
+
+        assert len(result) == 2
+        assert result[0]["symbol"] == "BTC/USDT"
+        assert result[1]["symbol"] == "ETH/USDT"
+
+    def test_list_pairs_filters_by_quote(self, tmp_path: Path) -> None:
+        """list_pairs(quote='USDT') should return only USDT pairs."""
+        from unittest.mock import MagicMock
+
+        from cryplative.config import CryplativeConfig
+        from cryplative.market_fetcher.fetcher import MarketFetcher
+
+        config = CryplativeConfig(market_cache_dir=str(tmp_path / "cache"))
+        fetcher = MarketFetcher(config)
+
+        # Mock the exchange with mixed quote currencies
+        mock_exchange = MagicMock()
+        mock_exchange.load_markets.return_value = {
+            "BTC/USDT": {
+                "symbol": "BTC/USDT",
+                "base": "BTC",
+                "quote": "USDT",
+                "active": True,
+                "precision": {"price": 2},
+                "limits": {"amount": {"min": 0.00001}},
+            },
+            "ETH/USDC": {
+                "symbol": "ETH/USDC",
+                "base": "ETH",
+                "quote": "USDC",
+                "active": True,
+                "precision": {"price": 2},
+                "limits": {"amount": {"min": 0.0001}},
+            },
+        }
+        fetcher._exchange = mock_exchange
+
+        result = fetcher.list_pairs(quote="USDT")
+
+        assert len(result) == 1
+        assert result[0]["symbol"] == "BTC/USDT"
+        assert result[0]["quote"] == "USDT"
+
+    def test_list_pairs_case_insensitive_quote(self, tmp_path: Path) -> None:
+        """list_pairs(quote='usdt') should match 'USDT' (case-insensitive)."""
+        from unittest.mock import MagicMock
+
+        from cryplative.config import CryplativeConfig
+        from cryplative.market_fetcher.fetcher import MarketFetcher
+
+        config = CryplativeConfig(market_cache_dir=str(tmp_path / "cache"))
+        fetcher = MarketFetcher(config)
+
+        mock_exchange = MagicMock()
+        mock_exchange.load_markets.return_value = {
+            "BTC/USDT": {
+                "symbol": "BTC/USDT",
+                "base": "BTC",
+                "quote": "USDT",
+                "active": True,
+                "precision": {"price": 2},
+                "limits": {"amount": {"min": 0.00001}},
+            },
+        }
+        fetcher._exchange = mock_exchange
+
+        result_lower = fetcher.list_pairs(quote="usdt")
+        result_upper = fetcher.list_pairs(quote="USDT")
+        result_mixed = fetcher.list_pairs(quote="UsDt")
+
+        assert len(result_lower) == 1
+        assert len(result_upper) == 1
+        assert len(result_mixed) == 1
+        assert result_lower[0]["symbol"] == "BTC/USDT"
+
+    def test_list_pairs_active_only_filter(self, tmp_path: Path) -> None:
+        """list_pairs(active_only=False) should include more pairs than active_only=True."""
+        from unittest.mock import MagicMock
+
+        from cryplative.config import CryplativeConfig
+        from cryplative.market_fetcher.fetcher import MarketFetcher
+
+        config = CryplativeConfig(market_cache_dir=str(tmp_path / "cache"))
+        fetcher = MarketFetcher(config)
+
+        mock_exchange = MagicMock()
+        mock_exchange.load_markets.return_value = {
+            "BTC/USDT": {
+                "symbol": "BTC/USDT",
+                "base": "BTC",
+                "quote": "USDT",
+                "active": True,
+                "precision": {"price": 2},
+                "limits": {"amount": {"min": 0.00001}},
+            },
+            "ETH/USDT": {
+                "symbol": "ETH/USDT",
+                "base": "ETH",
+                "quote": "USDT",
+                "active": False,
+                "precision": {"price": 2},
+                "limits": {"amount": {"min": 0.0001}},
+            },
+        }
+        fetcher._exchange = mock_exchange
+
+        result_active = fetcher.list_pairs(active_only=True)
+        result_all = fetcher.list_pairs(active_only=False)
+
+        assert len(result_active) == 1
+        assert len(result_all) == 2
+        assert result_active[0]["symbol"] == "BTC/USDT"
+
+    def test_list_pairs_correct_dict_structure(self, tmp_path: Path) -> None:
+        """Return value should have correct dict structure with all required fields."""
+        from unittest.mock import MagicMock
+
+        from cryplative.config import CryplativeConfig
+        from cryplative.market_fetcher.fetcher import MarketFetcher
+
+        config = CryplativeConfig(market_cache_dir=str(tmp_path / "cache"))
+        fetcher = MarketFetcher(config)
+
+        mock_exchange = MagicMock()
+        mock_exchange.load_markets.return_value = {
+            "BTC/USDT": {
+                "symbol": "BTC/USDT",
+                "base": "BTC",
+                "quote": "USDT",
+                "active": True,
+                "precision": {"price": 2},
+                "limits": {"amount": {"min": 0.00001}},
+            },
+        }
+        fetcher._exchange = mock_exchange
+
+        result = fetcher.list_pairs()
+
+        assert len(result) == 1
+        pair = result[0]
+        assert "symbol" in pair
+        assert "base" in pair
+        assert "quote" in pair
+        assert "active" in pair
+        assert "price_precision" in pair
+        assert "min_order_size" in pair
+        assert pair["symbol"] == "BTC/USDT"
+        assert pair["base"] == "BTC"
+        assert pair["quote"] == "USDT"
+        assert pair["active"] is True
+        assert pair["price_precision"] == 2
+        assert pair["min_order_size"] == 0.00001
+
+    def test_list_pairs_sorted_alphabetically(self, tmp_path: Path) -> None:
+        """Results should be sorted alphabetically by symbol."""
+        from unittest.mock import MagicMock
+
+        from cryplative.config import CryplativeConfig
+        from cryplative.market_fetcher.fetcher import MarketFetcher
+
+        config = CryplativeConfig(market_cache_dir=str(tmp_path / "cache"))
+        fetcher = MarketFetcher(config)
+
+        # Add markets in non-alphabetical order
+        mock_exchange = MagicMock()
+        mock_exchange.load_markets.return_value = {
+            "ZEC/USDT": {
+                "symbol": "ZEC/USDT",
+                "base": "ZEC",
+                "quote": "USDT",
+                "active": True,
+                "precision": {"price": 2},
+                "limits": {"amount": {"min": 0.01}},
+            },
+            "BTC/USDT": {
+                "symbol": "BTC/USDT",
+                "base": "BTC",
+                "quote": "USDT",
+                "active": True,
+                "precision": {"price": 2},
+                "limits": {"amount": {"min": 0.00001}},
+            },
+            "ETH/USDT": {
+                "symbol": "ETH/USDT",
+                "base": "ETH",
+                "quote": "USDT",
+                "active": True,
+                "precision": {"price": 2},
+                "limits": {"amount": {"min": 0.0001}},
+            },
+        }
+        fetcher._exchange = mock_exchange
+
+        result = fetcher.list_pairs()
+
+        assert len(result) == 3
+        symbols = [pair["symbol"] for pair in result]
+        assert symbols == ["BTC/USDT", "ETH/USDT", "ZEC/USDT"]
+
+    def test_list_pairs_handles_network_error(self, tmp_path: Path) -> None:
+        """list_pairs() should handle ccxt network errors gracefully."""
+        from unittest.mock import MagicMock
+
+        import ccxt
+
+        from cryplative.config import CryplativeConfig
+        from cryplative.core.exceptions import MarketDataError
+        from cryplative.market_fetcher.fetcher import MarketFetcher
+
+        config = CryplativeConfig(market_cache_dir=str(tmp_path / "cache"))
+        fetcher = MarketFetcher(config)
+
+        mock_exchange = MagicMock()
+        mock_exchange.load_markets.side_effect = ccxt.NetworkError("Connection failed")
+        fetcher._exchange = mock_exchange
+
+        with pytest.raises(MarketDataError, match="Network error"):
+            fetcher.list_pairs()
+
+
 class TestRetryLogic:
     """Tests for network retry logic."""
 
