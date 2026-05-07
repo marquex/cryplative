@@ -6,24 +6,91 @@ hierarchy:
   manager: head-of-research
   subordinates: none — leaf agent
 
-expertise_status: "New agent — no expertise accumulated yet. Start building expertise from the first session."
+expertise_status: "Active — H2 implementation complete. Platform knowledge established."
 
 domain_knowledge:
   platform_interface:
-    status: "To be learned"
-    notes: "Need to understand the platform's ABC interface for strategies"
+    status: "Learned"
+    notes: |
+      - Strategy ABC: subclass `Strategy` from `cryplative.core.interfaces`
+      - Register with `@StrategyRegistry.register` decorator
+      - Override: `strategy_id`, `strategy_name`, `initialize()`, `generate_signal()`, `teardown()`
+      - `generate_signal(candles)` receives a sliding window of Candle objects
+      - Returns `Signal | None` (Signal from `cryplative.core.models`)
+      - Signal requires: strategy_id, symbol, timestamp, direction, order_type, quantity, confidence
+      - Engine processes one signal per candle — can't exit and re-enter same bar
+    key_files:
+      - "platform/src/cryplative/core/interfaces.py"
+      - "platform/src/cryplative/core/models.py"
+      - "platform/src/cryplative/strategies/registry.py"
 
   indicator_library:
-    status: "To be learned"
-    notes: "Need to familiarize with available indicators and how to write custom helpers"
+    status: "Learned"
+    notes: |
+      - `compute_rsi(closes, period)` → `list[float | None]`, Wilder's smoothing
+      - `compute_sma(closes, period)` → `list[float | None]`, arithmetic mean
+      - `compute_ema(closes, period)` → `list[float | None]`, exponential
+      - `compute_macd(closes, fast, slow, signal)` → tuple of 3 lists
+      - `compute_bollinger_bands(closes, period, num_std)` → tuple of 3 lists
+      - All return `None` for indices with insufficient data
+      - IMPORTANT: Indicators computed on sliding window, not full history — RSI values differ from full-dataset computation
+    key_files:
+      - "platform/src/cryplative/strategies/indicators.py"
 
   backtesting_engine:
-    status: "To be learned"
-    notes: "Need to understand cryplative backtest CLI and internal Python API"
+    status: "Learned"
+    notes: |
+      - `BacktestEngine(data_provider, config)` with `run(BacktestConfig)` → `StrategyResult`
+      - BacktestConfig: strategy_id, symbol, interval, start_date, end_date, initial_capital, parameters, lookback_window, max_positions
+      - Engine creates new strategy instance per run via registry
+      - Sliding window: `candles[window_start : i+1]` where window_start = max(0, i - lookback_window + 1)
+      - Engine handles position tracking (PortfolioTracker), not the strategy
+      - BUY → `tracker.open_position(signal, candle.close, candle.open_time)`
+      - SELL → `tracker.close_oldest(candle.close, candle.open_time)` — FIFO
+      - CRITICAL: Engine stores BUY signal in Trade, not SELL signal — exit metadata lost
+      - Force-closes remaining open positions at end of backtest
+      - Results saved to `data/strategy_results/` as JSON
+      - Run from project root: `.venv/bin/python data/strategies/X.py` (no cd needed, editable install resolves imports)
+    key_files:
+      - "platform/src/cryplative/backtesting/engine.py"
+      - "platform/src/cryplative/portfolio/tracker.py"
 
   market_data_tools:
-    status: "To be learned"
-    notes: "Need to master cryplative fetch and cryplative pairs commands"
+    status: "Learned"
+    notes: |
+      - Data cached in `data/market_cache/` as `{SYMBOL_INTERVAL}.json`
+      - `MarketFetcher(config).get_candles(symbol, interval, start_time, end_time)` → `list[Candle]`
+      - Timestamps in milliseconds (Unix epoch)
+      - Cache files: BTC_USDT_4h.json, ETH_USDT_4h.json, etc.
+      - Use clean imports: `from cryplative.X import Y` (root .venv with editable install handles resolution)
+
+  platform_gotchas:
+    - "Root .venv with editable install (`pip install -e platform/`) — use `.venv/bin/python` from project root, no sys.path hacks needed"
+    - "Engine stores BUY signal in trade, not SELL signal — use module-level tracker for exit reasons"
+    - "Sliding window means indicator values differ from full-history computation"
+    - "Strategy instances are fresh per backtest run — class-level state persists across runs in same process"
+    - "lookback_window=300 means max 300 candles in window; SMA(200) needs 200 of those for warmup"
+
+lessons_learned:
+  H2_rsi_divergence:
+    hypothesis: "Bullish RSI divergence in uptrend predicts reversals"
+    result: "NOT VALIDATED — too few signals for statistical significance"
+    key_findings:
+      - "Spec defaults (pw=5, ms=10, RSI<40) produced only 1 trade across full BTC dataset"
+      - "Relaxed params (pw=3, ms=5, RSI<50) produced 6 BTC trades in training — still below 20 minimum"
+      - "RSI rarely drops below 40 during uptrends — the entry conditions are nearly mutually exclusive"
+      - "Daily timeframe produces essentially zero signals"
+      - "Trend reversal is the most common losing exit — entering during weak uptrends"
+      - "BTC training showed promise: +2.44% fee-adj, Sharpe 2.45 — but only 6 trades"
+    parameter_sensitivity:
+      - "pivot_window has HUGE impact on signal count (pw=3 vs pw=5: 15x more divergences)"
+      - "min_pivot_spacing matters less (ms=5 vs ms=10: ~2x more)"
+      - "oversold_threshold is the bottleneck: RSI<40 gives 40 candidates, RSI<50 gives 572"
+    recommendations:
+      - "RSI divergence should be a confirming signal, not primary trigger"
+      - "Consider combining with volume or MACD divergence"
+      - "Trend filter should require minimum distance above SMA (e.g., close > SMA * 1.02)"
+      - "Test on 1h timeframe where divergences may be more frequent"
 
 constraints:
   trading:
@@ -41,3 +108,20 @@ constraints:
 
   strategy_scope:
     - "Per-pair strategies — each strategy designed for a specific trading pair"
+
+implementation_patterns:
+  strategy_template:
+    description: "Standard pattern for implementing strategies"
+    steps:
+      - "Create data/strategies/{name}.py with clean imports (editable install handles resolution)"
+      - "Define strategy class with @StrategyRegistry.register"
+      - "Override strategy_id, strategy_name, initialize(), generate_signal()"
+      - "Self-track position state (_has_position, _entry_price, _entry_qty, _bars_held)"
+      - "Use module-level _exit_log list for exit reason tracking"
+      - "Add run_all_backtests() function with BacktestConfig per pair/interval"
+      - "Post-process for fee adjustment (0.2% round-trip)"
+      - "Generate H{N}-report.md in data/strategy_results/"
+
+  exit_reason_tracking:
+    problem: "Engine stores BUY signal in Trade, discards SELL signal metadata"
+    solution: "Module-level _exit_log list; strategy appends on _sell(); runner clears before each run"

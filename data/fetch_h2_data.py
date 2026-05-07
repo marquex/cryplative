@@ -1,10 +1,5 @@
 """Fetch all data needed for H2 strategy backtesting."""
 
-import sys
-import os
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "platform", "src"))
-
 from cryplative.config import CryplativeConfig, setup_logging
 from cryplative.market_fetcher.fetcher import MarketFetcher
 
