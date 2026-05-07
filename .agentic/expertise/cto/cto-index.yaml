@@ -7,8 +7,8 @@ hierarchy:
   subordinates:
     - agent: platform-developer
       role: "Python trading platform engineer"
-      status: "ACTIVE — Phase 2 implemented, pending human verification"
-      capabilities: "Full-stack Python: Pydantic models, ccxt integration, strategy pattern, backtesting, CLI, testing, indicators library, multi-position support, auto-discovery"
+      status: "ACTIVE — Phase 2.5 Step 1 (list-pairs) complete, Steps 2-8 pending"
+      capabilities: "Full-stack Python: Pydantic models, ccxt integration, strategy pattern, backtesting, CLI, testing, indicators library, multi-position support, auto-discovery, list-pairs"
       quality: "High — 93% coverage Phase 1, follows spec precisely, adds polish commits"
       communication: "Returns structured summary of work done via delegation output"
     - agent: backend-developer
@@ -38,8 +38,12 @@ external_agents:
     role: "Strategy research, development & analysis"
     notes: "Will use the platform to develop and test strategies. NOT a CTO subordinate. Different reporting line. Phase 2 docs are written for this persona."
     trigger: "READY — Phase 2 implementation complete, pending human verification"
+  - agent: head-of-research
+    role: "Research team leadership, workflow design"
+    notes: "External agent with questions about platform capabilities. NOT a CTO subordinate. Answered 5 questions in cto-platform-answers.md + 7 follow-ups in cto-platform-answers-2.md."
+    trigger: "ACTIVE — onboarding, designing research workflow, unblocked for immediate research"
 
-expertise_status: "Active — SPEC-001 implementation complete, pending human verification"
+expertise_status: "Active — SPEC-002 written and validated; Step 1 (list-pairs) implemented; Steps 2-8 pending delegation"
 
 expertise_entries:
   - file: architecture-rationale.md
@@ -62,6 +66,23 @@ specs_authored:
     status: COMPLETE — all 12 steps + 3 polish commits, pending human verification
     commits: 15 total (1cbe49e through d8ce3ee)
 
+communications_authored:
+  - file: managers/cto-platform-answers.md
+    description: "Detailed answers to head-of-research's 5 platform capability questions: data pipeline, paper trading timeline, backtesting limitations, strategy interface gotchas, data storage"
+    date: 2026-05-06
+    audience: head-of-research (via CEO/managers channel)
+    purpose: "Enable research team to design their workflow with accurate understanding of current capabilities and limitations"
+  - file: managers/cto-platform-answers-2.md
+    description: "Answers to 7 follow-up questions: fee modeling (Phase 2.5 ETA 2-3 days), custom indicators (YES in strategy files), multi-TF workaround, SL/TP, position sizing, lookback CLI, programmatic API"
+    date: 2026-05-06
+    audience: head-of-research (via CEO/managers channel)
+    purpose: "Close remaining gaps — research team unblocked for immediate work (H1-H5 except H3), Phase 2.5 planned for fee modeling + indicators"
+  - file: managers/cto-feature-request-response.md
+    description: "Response to CEO feature request: (1) list-pairs does NOT exist, adding to Phase 2.5 as trivial ccxt wrapper + CLI command; (2) cache layer EXISTS and works transparently"
+    date: 2026-05-07
+    audience: CEO (via managers channel)
+    purpose: "Confirm data fetching capabilities, unblock first research team hire"
+
 key_decisions:
   - "Python for platform (ecosystem > raw performance for strategy research)"
   - "Bun.js for API (thin, fast, file-system native)"
@@ -74,11 +95,17 @@ key_decisions:
   - "Documentation is a first-class deliverable — the platform is only useful if researchers can use it"
   - "Platform docs moved to platform_docs/ at project root (2026-05-06) — accessible to all agents, not just platform-developer"
   - "Added platform_docs/architecture.md as cross-agent architecture overview"
+  - "Phase 2.5 planned based on research team needs — fee modeling + lookback CLI + ATR/ADX/Keltner indicators (2026-05-06)"
+  - "Research team can write custom indicators as local helpers in strategy files — no restriction, Python modules are not sandboxed"
+  - "Post-processing fee adjustment is an adequate interim workaround for strategy comparison"
+  - "List-pairs feature (MarketFetcher.list_pairs() + cryplative pairs CLI) added to Phase 2.5 scope — blocks first research hire (2026-05-07)"
+  - "Data cache layer confirmed working transparently — no action needed"
 
 development_roadmap:
   phase_1: "Foundation — COMPLETE (SPEC-000 delivered 2026-05-04)"
   phase_2: "Researcher-Ready — IMPLEMENTED 2026-05-05 (15 commits, pending human verification)"
-  phase_3: "Live Simulation — paper trading, async data feeds, strategy state persistence, real execution preparation"
+  phase_2_5: "Research Enhancements — fee modeling, lookback CLI flag, ATR/ADX/Keltner indicators, list-pairs CLI command (planned 2026-05-06, ETA 3-4 days)"
+  phase_3: "Live Simulation — paper trading, async data feeds, strategy state persistence, multi-TF support, SL/TP auto-triggering"
   phase_4: "Monitoring & Control — Bun.js API, React webapp, interactive management"
   phase_5: "Optimization — parameter tuning, strategy ensembles, advanced analytics"
 

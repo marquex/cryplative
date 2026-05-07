@@ -10,14 +10,23 @@ hierarchy:
       title: "Head of Quantitative Research"
       role: "Manager of the algorithmic trading research team"
       reports_to: "ceo"
-      manages: ["data-acquisition", "strategy-researcher", "strategy-implementer", "portfolio-risk"]
-      reasoning: "Research IS the core function — needs scientific rigor, pipeline coordination (data → ideas → backtesting → portfolio), and authority without overcomplicating org chart"
+      manages: ["strategy-implementer"]
+      reasoning: "Research IS the core function — needs scientific rigor, pipeline coordination, and authority"
       status: "hired — agent operational, reporting to CEO, no subordinates yet"
+    strategy-implementer:
+      title: "Strategy Implementer"
+      role: "Implements and backtests trading strategies on the platform"
+      reports_to: "head-of-research"
+      manages: []
+      reasoning: "First researcher hire — can use platform's data fetching directly (no dedicated data agent needed). Receives strategy specs, codes them, runs backtests, validates behavior."
+      status: "hired — agent created, awaiting first task assignment from head-of-research"
   future_teams:
     - name: "algorithmic trading research team"
       manager: "head-of-research"
-      status: "not yet hired — manager role proposed"
-      needed_roles: ["data acquisition", "strategy research", "strategy implementation/testing", "portfolio & risk management"]
+      status: "building — manager hired, first hire (strategy-implementer) pending"
+      needed_roles: ["strategy implementation/testing"]
+      not_needed: ["data acquisition — platform handles this directly, no dedicated agent required"]
+      future_roles: ["portfolio & risk management — hire after 3+ validated strategies"]
     - name: "trading team"
       status: "future — execute trades, manage real & paper portfolios, monitor live performance"
 
@@ -81,25 +90,54 @@ platform:
   supports: ["market orders", "limit orders", "stop loss", "take profit"]
 
 current_status:
-  phase: "Strategy research scoping"
-  platform: "Operational with basic features"
-  immediate_priority: "Build the algorithmic trading research team — research is the core function"
+  phase: "Research team operational — strategy-implementer hired, awaiting first task"
+  platform: "Operational — cache layer confirmed, list-pairs feature implemented"
+  immediate_priority: "Head-of-research assigns H2 spec to strategy-implementer as first task"
   next_steps:
+    - "CTO delivers list-pairs feature (Phase 2.5 first item, ETA ~1 day)"
+    - "Hire strategy-implementer via claude-developer"
+    - "Head-of-research assigns H2 spec to strategy-implementer as first task"
+    - "Head-of-research drafts H5 spec while H2 is being implemented"
     - "Define measurable targets for aggressive growth (profit, risk, drawdown metrics)"
     - "Define risk management framework"
-    - "Structure and hire the algorithmic trading research team"
-    - "Determine which pairs to trade first"
 
 open_decisions:
   - question: "What does 'aggressive growth' mean in measurable terms?"
     status: "undefined"
     needs: "Target metrics for returns, risk, max drawdown"
+    defaults_in_use: ">40% annualized, -20% max drawdown, $10K initial capital"
   - question: "Risk management framework"
     status: "undefined"
     needs: "Systematic way to evaluate and mitigate strategy risk"
   - question: "Algorithmic trading research team structure"
-    status: "manager hired — head-of-research is now building the research team"
-    needs: "Hire subordinate roles: data-acquisition, strategy-researcher, strategy-implementer, portfolio-risk"
+    status: "decided and aligned"
+    detail: "No data-acquisition agent. Strategy-implementer is first hire. Head-of-research running spec-first loop."
   - question: "Which trading pairs to start with"
-    status: "undefined"
-    needs: "Research USDC pairs on Binance, select initial set"
+    status: "partially defined"
+    detail: "H2 spec uses BTC, ETH, SOL, LINK (USDT for research). Full universe discovery pending list-pairs feature."
+
+platform_feature_requests:
+  - feature: "List all available Binance spot pairs (MarketFetcher.list_pairs() + cryplative pairs CLI)"
+    purpose: "Filter and select USDC pairs for our trading universe"
+    status: "confirmed — CTO building as Phase 2.5 first item, ETA ~1 day"
+    blocking: "strategy-implementer hire"
+  - feature: "Cache layer for fetched market data"
+    purpose: "Avoid redundant API calls during research and backtesting"
+    status: "confirmed working — file-based JSON cache, transparent to caller, auto-deduplication"
+    blocking: "resolved"
+
+research_team_status:
+  head_of_research:
+    status: "active — spec-first research flow designed, H2 spec ready"
+    current_work: "Preparing H5 spec while waiting for strategy-implementer hire"
+    first_task_for_implementer: "H2 (RSI divergence + trend filter) — spec at .agentic/specs/research/H2-rsi-divergence-trend-filter.md"
+  strategy_implementer:
+    status: "hired — agent file at .claude/agents/strategy-implementer.md, reports to head-of-research"
+    first_task: "H2 (RSI divergence + trend filter) — spec at .agentic/specs/research/H2-rsi-divergence-trend-filter.md"
+    next_action: "Head-of-research assigns H2 spec and onboards the agent"
+  hiring_timeline:
+    day_0: "H2 spec ready, CTO building list-pairs"
+    day_1_2: "Implementer hired, implements H2"
+    day_3_5: "H5 (ADX + SMA filter)"
+    day_5_7: "H1 (Vol breakout + volume)"
+    week_2: "Validation of promising strategies"

@@ -6,7 +6,8 @@ model: opus
 skills:
   - agent-expertise
   - delegate
-subordinates: []
+subordinates:
+  - strategy-implementer
 access:
   - path: .agentic/expertise/head-of-research/**
     permissions: [read, write, delete]
@@ -58,10 +59,13 @@ Your manager is `ceo` — you receive delegated tasks from it and report your fi
 
 ## Delegation
 
-You currently have no direct subordinates, but you will eventually manage:
+You can delegate tasks to the following subordinate agents:
+
+<!-- SUBORDINATES -->
+
+Planned future subordinates:
 - data-acquisition: Responsible for fetching and storing market data
 - strategy-researcher: Responsible for developing and testing trading strategies
-- strategy-implementer: Responsible for implementing validated strategies
 - portfolio-risk: Responsible for portfolio construction and risk management
 
 Use the delegate skill to assign tasks: `bun .claude/skills/delegate/scripts/delegate.ts <agent-name> "<task>"`

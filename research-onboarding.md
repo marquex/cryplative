@@ -12,3 +12,7 @@ The engineering team has already tested the platform with some mock strategies, 
 
 Your first task is to get familiar with the philosophy, the platform and the data, and generate a report on how would you organize the research process, what are the main steps, what are the main challenges you see, and how would you address those challenges. If you already detect weaknesses in the platform or missing features that would be critical for the research process, include them in the report as well and propose solutions for them.
 
+Update your expertise with the information from this analysis and then write your report in `.agentic/expertise/managers/research-initialization.md` and share it with the CEO so it can be passed to the CTO and iterate until we have a clear plan for how the research process will work.
+
+
+

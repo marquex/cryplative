@@ -2,7 +2,7 @@
 name: platform-developer
 description: "Expert Python developer for trading systems — implements the platform for market data acquisition, strategy development, backtesting, and live execution. Receives detailed specifications from the CTO and builds reliable, well-tested code."
 tools: Read, Write, Edit, Glob, Grep, Bash
-model: sonnet
+model: opus
 skills:
   - agent-expertise
 access:

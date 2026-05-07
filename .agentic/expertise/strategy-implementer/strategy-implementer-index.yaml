@@ -1,0 +1,43 @@
+# Strategy Implementer Expertise Index
+# Agent: strategy-implementer
+# Domain: Trading strategy implementation and backtesting on the Cryplative platform
+
+hierarchy:
+  manager: head-of-research
+  subordinates: none — leaf agent
+
+expertise_status: "New agent — no expertise accumulated yet. Start building expertise from the first session."
+
+domain_knowledge:
+  platform_interface:
+    status: "To be learned"
+    notes: "Need to understand the platform's ABC interface for strategies"
+
+  indicator_library:
+    status: "To be learned"
+    notes: "Need to familiarize with available indicators and how to write custom helpers"
+
+  backtesting_engine:
+    status: "To be learned"
+    notes: "Need to understand cryplative backtest CLI and internal Python API"
+
+  market_data_tools:
+    status: "To be learned"
+    notes: "Need to master cryplative fetch and cryplative pairs commands"
+
+constraints:
+  trading:
+    - "Spot only — no margin or futures"
+    - "Long only — no short selling"
+    - "No leverage — 1x position sizes only"
+    - "USDC pairs on Binance only — for production"
+    - "Can use USDT pairs for research"
+
+  intervals:
+    - "1h"
+    - "4h"
+    - "1d"
+    - "1w"
+
+  strategy_scope:
+    - "Per-pair strategies — each strategy designed for a specific trading pair"

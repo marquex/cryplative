@@ -142,6 +142,14 @@ gotchas:
     PortfolioTracker.open_position() allows capital to go negative. Logs warning
     but doesn't prevent trade. Intentional for Phase 1 simplicity.
 
+  phase2.5_spec002_validation: |
+    Validated SPEC-002 against codebase before implementation. Key findings:
+    - ccxt market dict uses bracket access: market['precision']['price'], not market.precision.price
+    - PortfolioTracker uses 'cost' (open) and 'proceeds' (close), not 'trade_value'
+    - BacktestConfig is plain class, StrategyMetrics is Pydantic BaseModel
+    - All indicator signatures use list[float] input, list[float | None] output
+    - ATR signature exception: takes (highs, lows, closes) not just closes
+
 # =============================================================================
 # DECISIONS & TRADEOFFS
 # =============================================================================

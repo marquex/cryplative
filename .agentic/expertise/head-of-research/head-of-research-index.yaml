@@ -6,26 +6,25 @@ hierarchy:
   manager: ceo
   subordinates: []
   planned_hires:
-    data-acquisition:
-      title: "Data Acquisition Specialist"
-      role: "Responsible for fetching, cleaning, and storing market data"
-      reports_to: "head-of-research"
-      status: "planned"
-    strategy-researcher:
-      title: "Strategy Researcher"
-      role: "Responsible for developing and testing trading strategies"
-      reports_to: "head-of-research"
-      status: "planned"
     strategy-implementer:
       title: "Strategy Implementer"
-      role: "Responsible for implementing validated strategies in the platform"
+      role: "Receives strategy specs from me, implements them, fetches data, runs backtests, reports results"
       reports_to: "head-of-research"
-      status: "planned"
+      status: "FIRST HIRE — awaiting CTO pairs command, then CEO activates"
+      note: "Data fetching is done on-demand by implementer. No separate data-acquisition agent."
+    strategy-researcher:
+      title: "Strategy Researcher"
+      role: "Future — when research volume justifies dedicated researcher"
+      reports_to: "head-of-research"
+      status: "future consideration"
     portfolio-risk:
       title: "Portfolio & Risk Manager"
       role: "Responsible for portfolio construction and risk management"
       reports_to: "head-of-research"
-      status: "planned"
+      status: "future — after 3+ validated strategies"
+  eliminated:
+    data-acquisition:
+      reason: "CEO decided data fetching is simple enough (one CLI command) to be done on-demand by whoever needs it"
 
 research_context:
   company:
@@ -85,20 +84,113 @@ data_management:
     - "Fundamental data when relevant"
 
 current_priorities:
-  phase: "Research team setup"
+  phase: "H2 DELEGATED — strategy-implementer executing first task"
+  onboarding_report: ".agentic/specs/research/onboarding-report.md"
+  research_readiness_assessment: ".agentic/specs/managers/research-readiness-assessment.md"
+  team_structure_response: ".agentic/specs/managers/research-team-update-response.md"
+  cto_answers_received: ".agentic/specs/managers/cto-platform-answers.md"
+  cto_answers_round2: ".agentic/specs/managers/cto-platform-answers-2.md"
+  research_flow_questions: ".agentic/specs/managers/research-flow-questions.md"
+  strategy_specs:
+    H2: ".agentic/specs/research/H2-rsi-divergence-trend-filter.md"  # DELEGATED to strategy-implementer 2026-05-07
+    H5: "NOT YET WRITTEN — next after H2 is delegated"
+    H1: "NOT YET WRITTEN — requires ATR/ADX helpers"
+    H4: "NOT YET WRITTEN — requires ATR/Keltner helpers"
   immediate_tasks:
-    - "Understand current platform capabilities and limitations"
-    - "Review existing market data availability"
-    - "Define research roadmap and initial hypotheses to test"
-    - "Plan the research team structure and hiring priorities"
+    - "ACTIVE: H2 backtest execution by strategy-implementer (delegated 2026-05-07)"
+    - "EVALUATE: H2 results when implementer reports back"
+    - "PREPARE: H5 spec (ADX + SMA filter) — draft while waiting for H2 results"
+    - "ALIGN: CEO decisions on target returns, drawdown tolerance, capital allocation (defaults set)"
+
+platform_assessment:
+  status: "FULLY ASSESSED — Onboarding complete. All technical questions resolved."
+  strategies_available: ["sma_crossover", "rsi", "macd", "bollinger_bands"]
+  indicators_available: ["compute_sma", "compute_ema", "compute_rsi", "compute_macd", "compute_bollinger_bands"]
+  custom_indicators_implementable: ["compute_atr", "compute_adx", "compute_keltner_channels", "volume_ratio"]
+  data_status: "CRITICAL — only 1000 hourly candles of BTC/USDT. BUT data pipeline is fully capable, can fetch any pair/timeframe immediately"
+  data_pipeline: "READY — any Binance pair, 8 timeframes, years of history, auto pagination+cache. No platform changes needed."
+  programmatic_api: "AVAILABLE — internal Python API exists. cryplative.backtesting.engine.BacktestEngine + BacktestConfig"
+  backtest_results: "1 result — SMA crossover BTC 1h Jan 2025: +12.58% return, -61.1% max DD, 0.22 Sharpe. NOT suitable for live trading."
+  key_limitations:
+    - "No transaction cost modeling YET — Phase 2.5 in 2-3 days. Post-processing workaround today."
+    - "No slippage modeling"
+    - "No multi-timeframe data access in strategies — H3 deferred to Phase 3"
+    - "No short positions (long-only, matches our constraint)"
+    - "SL/TP recorded but NOT auto-triggered — manual candle-close workaround. Phase 3 will fix."
+    - "Fixed quantity sizing — no capital visibility. Phase 3 will expose portfolio state."
+    - "FIFO closing only"
+    - "200-candle lookback default — Phase 2.5 will add CLI flag"
+  paper_trading: "NOT built — Phase 3, 5-7 days after Phase 2.5."
+  phase_25_upcoming: "--fee-rate flag, --lookback-window flag, ATR/ADX/Keltner in official library"
+  workarounds_active:
+    fee_adjustment: "Post-processing: deduct 0.2% round-trip per trade"
+    custom_indicators: "Local helper functions in strategy files"
+    sl_tp: "Self-tracked position state with candle-close checks"
+    position_sizing: "Hard-coded initial capital approximation"
+
+proposed_hypotheses:
+  H1: "Volatility breakout with volume confirmation (BB squeeze + volume)"
+  H2: "RSI divergence with trend filter (only in uptrends)"
+  H3: "Multi-timeframe momentum alignment (1h + 4h + 1d)"
+  H4: "Mean-reversion with dynamic Keltner Channels"
+  H5: "ADX trend filter to improve existing SMA crossover"
+
+hiring_priority_order:
+  1: "strategy-implementer (FIRST HIRE — implements specs, fetches data, runs backtests)"
+  2: "strategy-researcher (future — when research volume justifies)"
+  3: "portfolio-risk (future — after 3+ validated strategies)"
+  eliminated: "data-acquisition — CEO decided not needed, data fetching done on-demand"
 
 open_questions:
+  # Resolved — Team
+  - question: "Team structure — who is hired and when?"
+    status: "resolved"
+    answer: "CEO decided: no data-acquisition agent, strategy-implementer is first hire. See research-team-update-response.md"
+
+  # Resolved — Research
   - question: "What initial research hypotheses should we prioritize?"
-    status: "open"
-    next_steps: "Review market conditions, platform capabilities, and company goals"
+    status: "resolved"
+    answer: "H1 (vol breakout), H2 (RSI divergence + trend), H5 (ADX filter) — see onboarding report"
   - question: "What data do we currently have vs. need?"
-    status: "open"
-    next_steps: "Audit data/market_cache/ and identify gaps"
+    status: "resolved"
+    answer: "Have: 1000 BTC/USDT 1h candles. Need: 15+ pairs, 4 intervals, 2+ years each."
+  - question: "When will Phase 3 (paper trading) and platform enhancements be available?"
+    status: "resolved"
+    answer: "Paper trading: Phase 3, 5-7 days from decision. Data pipeline: ready now. See cto-platform-answers.md"
+
+  # Platform questions — ALL RESOLVED via CTO Round 2 (cto-platform-answers-2.md)
+  - question: "Can I write custom indicators inside strategy files?"
+    status: "resolved"
+    answer: "YES — no restrictions. Write any helpers in strategy files. ATR, ADX, Keltner all implementable locally."
+  - question: "When will transaction cost modeling be available?"
+    status: "resolved"
+    answer: "Phase 2.5, ETA 2-3 days. Post-processing workaround (0.2% round-trip deduction) works today."
+  - question: "Multi-TF data access workaround?"
+    status: "resolved"
+    answer: "Fragile cache-reading workaround exists but not recommended. Phase 3 will provide proper support. H3 deferred."
+  - question: "SL/TP auto-triggering?"
+    status: "resolved"
+    answer: "Phase 3. Manual candle-close workaround available today via self-tracked state."
+  - question: "Can strategies access portfolio state?"
+    status: "resolved"
+    answer: "No — fixed sizing only. Phase 3 will expose capital/positions. Use initial-capital approximation for now."
+  - question: "Lookback window CLI flag?"
+    status: "resolved"
+    answer: "Phase 2.5. Can work around in code today."
+  - question: "Programmatic Python API for backtesting?"
+    status: "resolved"
+    answer: "YES — internal API exists. Import from cryplative.backtesting.engine. Enables parameter sweeps."
+
+  # CEO strategic questions — to be addressed separately
   - question: "How should we measure 'aggressive growth' for strategy targets?"
     status: "open"
-    next_steps: "Coordinate with CEO to define target metrics"
+    next_steps: "Need CEO input — proposed: >40% annual return, <20% max DD, Sharpe >1.0"
+  - question: "What is the initial capital for deployment?"
+    status: "open"
+    next_steps: "Need CEO input — affects position sizing and strategy design"
+  - question: "What is the absolute max drawdown tolerance?"
+    status: "open"
+    next_steps: "Need CEO input — most important risk parameter"
+  - question: "Which USDC pairs are available on Binance EU?"
+    status: "open"
+    next_steps: "Need CEO confirmation — defines our trading universe"

@@ -2,7 +2,7 @@
 name: claude-developer
 description: Expert agent for developing Claude Code extensions — agents, skills, hooks, and configuration. Use when creating, modifying, or debugging any .claude directory content, or when working on Claude Code agents and skills.
 tools: Read, Write, Edit, MultiEdit, Glob, Grep, Bash
-model: sonnet
+model: opus
 skills:
   - claude-developing
   - agent-expertise
