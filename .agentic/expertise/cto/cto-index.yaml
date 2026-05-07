@@ -112,6 +112,9 @@ key_decisions:
   - "Data cache layer confirmed working transparently — no action needed"
   - "Root-level venv with editable install needed — platform is NOT importable from data/ without sys.path hack (2026-05-07)"
   - "Directory ownership boundary: platform/ = toolkit owned by engineering, data/ = research artifacts owned by research team (CEO directive 2026-05-07)"
+  - "Root venv setup COMPLETE (2026-05-07) — uv-provided Python 3.12.13, editable install, all 22 modules importable. Homebrew Python broken (libexpat/system libexpat mismatch), uv is the working solution."
+  - "Platform-developer CANNOT execute tasks outside platform/ — cross-domain infra tasks (root .venv, root .gitignore) must be executed directly, not delegated (2026-05-07)"
+  - "Environment: macOS system Python 3.9.6 too old; Homebrew Python 3.12/3.13 broken (pyexpat _XML_SetAllocTrackerActivationThreshold); uv-managed Python 3.12.13 works perfectly"
   - "Platform-developer CANNOT execute tasks outside platform/ — cross-domain infra tasks (root .venv, root .gitignore) must be executed directly, not delegated (2026-05-07)"
 
 development_roadmap:
