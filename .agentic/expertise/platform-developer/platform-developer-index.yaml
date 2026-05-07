@@ -1,7 +1,7 @@
 # Platform Developer Expertise Index
 # Agent: platform-developer
 # Domain: Python trading platform — market data, strategies, backtesting, live execution
-# Last updated: 2026-05-06 (Documentation reorganization)
+# Last updated: 2026-05-07 (Root venv setup documentation)
 
 hierarchy:
   manager: cto
@@ -138,6 +138,25 @@ gotchas:
     Uses sqrt(N) where N = number of trades. Common but debatable approach.
     More accurate: use periodic returns (daily/hourly) but requires more data.
 
+  domain_restriction_scope: |
+    platform-developer is restricted to platform/ folder only. Root-level operations
+    blocked by access control hook. Tasks requiring root access include:
+    - Creating .venv at project root
+    - Modifying root .gitignore
+    - Running pip install referencing root-level paths
+    - Any bash command touching paths outside platform/
+    Workaround: Write execution specs to .agentic/specs/ for CTO or ops agent.
+
+  root_venv_setup: |
+    Research team needs root-level .venv with editable install of platform/ package.
+    Steps (must be done by agent with root access):
+    1. Add '.venv/' to root .gitignore (Python section)
+    2. python3 -m venv .venv at project root
+    3. pip install -e platform/ (installs cryplative package in editable mode)
+    4. Verify imports work: cryplative.config, cryplative.core.models, cryplative.market_fetcher.fetcher,
+       cryplative.strategies.indicators, cryplative.backtesting.engine
+    Tracked in beads issue cryplative-axc. Package pyproject.toml confirmed ready for editable install.
+
   negative_capital_allowed: |
     PortfolioTracker.open_position() allows capital to go negative. Logs warning
     but doesn't prevent trade. Intentional for Phase 1 simplicity.
@@ -222,6 +241,7 @@ debt:
     - No .env.example file
     - StrategyRegistry not thread-safe
     - No async I/O (all synchronous)
+    - No root-level .venv for cross-team imports (blocked by domain restriction)
 
 # =============================================================================
 # DEPENDENCIES (POST-PHASE 2)

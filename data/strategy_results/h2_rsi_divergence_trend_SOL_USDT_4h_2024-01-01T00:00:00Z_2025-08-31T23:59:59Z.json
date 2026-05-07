@@ -1,0 +1,219 @@
+{
+  "strategy_id": "h2_rsi_divergence_trend",
+  "run_type": "BACKTEST",
+  "start_date": "2024-01-01T00:00:00Z",
+  "end_date": "2025-08-31T23:59:59Z",
+  "parameters": {
+    "sma_period": 200,
+    "rsi_period": 14,
+    "oversold_threshold": 50,
+    "overbought_exit": 70,
+    "stop_loss_pct": 0.05,
+    "take_profit_pct": 0.1,
+    "pivot_window": 3,
+    "min_pivot_spacing": 5,
+    "assumed_capital": 10000.0,
+    "risk_per_trade": 0.1,
+    "max_holding_candles": 50
+  },
+  "trades": [
+    {
+      "trade_id": "a6218e2e-5dba-4318-a9e7-0b6fb02e33fe",
+      "signal": {
+        "strategy_id": "h2_rsi_divergence_trend",
+        "symbol": "SOL/USDT",
+        "timestamp": 1708776000000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 9.80872976949485,
+        "stop_loss": 96.85249999999999,
+        "take_profit": 112.14500000000001,
+        "confidence": 0.7,
+        "metadata": {
+          "reason": "bullish_rsi_divergence"
+        }
+      },
+      "entry_price": 101.95,
+      "exit_price": 100.95,
+      "quantity": 9.80872976949485,
+      "pnl": -9.80872976949485,
+      "pnl_percentage": -0.9808729769494873,
+      "status": "CLOSED",
+      "opened_at": 1708776000000,
+      "closed_at": 1708934400000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "1b0a83ac-9703-4f0d-b3f5-23c4eb830cae",
+      "signal": {
+        "strategy_id": "h2_rsi_divergence_trend",
+        "symbol": "SOL/USDT",
+        "timestamp": 1715760000000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 6.935293709688605,
+        "stop_loss": 136.98049999999998,
+        "take_profit": 158.609,
+        "confidence": 0.7,
+        "metadata": {
+          "reason": "bullish_rsi_divergence"
+        }
+      },
+      "entry_price": 144.19,
+      "exit_price": 158.52,
+      "quantity": 6.935293709688605,
+      "pnl": 99.38275885983781,
+      "pnl_percentage": 9.93827588598377,
+      "status": "CLOSED",
+      "opened_at": 1715760000000,
+      "closed_at": 1715803200000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "70b413b8-7d7c-48ca-a72a-b63f53f3d5d9",
+      "signal": {
+        "strategy_id": "h2_rsi_divergence_trend",
+        "symbol": "SOL/USDT",
+        "timestamp": 1730678400000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 6.141751627564181,
+        "stop_loss": 154.67899999999997,
+        "take_profit": 179.102,
+        "confidence": 0.7,
+        "metadata": {
+          "reason": "bullish_rsi_divergence"
+        }
+      },
+      "entry_price": 162.82,
+      "exit_price": 184.94,
+      "quantity": 6.141751627564181,
+      "pnl": 135.85554600171972,
+      "pnl_percentage": 13.585554600171967,
+      "status": "CLOSED",
+      "opened_at": 1730678400000,
+      "closed_at": 1730851200000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "fb7e6cff-36b3-43ae-a8fc-e2c56a270885",
+      "signal": {
+        "strategy_id": "h2_rsi_divergence_trend",
+        "symbol": "SOL/USDT",
+        "timestamp": 1733328000000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 4.297932694374007,
+        "stop_loss": 221.0365,
+        "take_profit": 255.937,
+        "confidence": 0.7,
+        "metadata": {
+          "reason": "bullish_rsi_divergence"
+        }
+      },
+      "entry_price": 232.67,
+      "exit_price": 225.99,
+      "quantity": 4.297932694374007,
+      "pnl": -28.71019039841827,
+      "pnl_percentage": -2.8710190398418267,
+      "status": "CLOSED",
+      "opened_at": 1733328000000,
+      "closed_at": 1733731200000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "d5bf9a15-a8d5-4b61-83a1-9549942f2fcc",
+      "signal": {
+        "strategy_id": "h2_rsi_divergence_trend",
+        "symbol": "SOL/USDT",
+        "timestamp": 1738267200000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 4.19621501405732,
+        "stop_loss": 226.3945,
+        "take_profit": 262.141,
+        "confidence": 0.7,
+        "metadata": {
+          "reason": "bullish_rsi_divergence"
+        }
+      },
+      "entry_price": 238.31,
+      "exit_price": 226.38,
+      "quantity": 4.19621501405732,
+      "pnl": -50.060845117703856,
+      "pnl_percentage": -5.006084511770381,
+      "status": "CLOSED",
+      "opened_at": 1738267200000,
+      "closed_at": 1738411200000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "faf035a7-1696-4b17-9b05-731c22730898",
+      "signal": {
+        "strategy_id": "h2_rsi_divergence_trend",
+        "symbol": "SOL/USDT",
+        "timestamp": 1738425600000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 4.509582863585118,
+        "stop_loss": 210.6625,
+        "take_profit": 243.925,
+        "confidence": 0.7,
+        "metadata": {
+          "reason": "bullish_rsi_divergence"
+        }
+      },
+      "entry_price": 221.75,
+      "exit_price": 213.03,
+      "quantity": 4.509582863585118,
+      "pnl": -39.32356257046222,
+      "pnl_percentage": -3.932356257046221,
+      "status": "CLOSED",
+      "opened_at": 1738425600000,
+      "closed_at": 1738440000000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "79a35123-db71-4ee1-a26f-40f5d8901ff2",
+      "signal": {
+        "strategy_id": "h2_rsi_divergence_trend",
+        "symbol": "SOL/USDT",
+        "timestamp": 1745841600000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 6.833401667350007,
+        "stop_loss": 139.023,
+        "take_profit": 160.97400000000002,
+        "confidence": 0.7,
+        "metadata": {
+          "reason": "bullish_rsi_divergence"
+        }
+      },
+      "entry_price": 146.34,
+      "exit_price": 146.88,
+      "quantity": 6.833401667350007,
+      "pnl": 3.6900369003689493,
+      "pnl_percentage": 0.36900369003689537,
+      "status": "CLOSED",
+      "opened_at": 1745841600000,
+      "closed_at": 1746561600000,
+      "context": "BACKTEST"
+    }
+  ],
+  "metrics": {
+    "total_return": 1.11,
+    "sharpe_ratio": 0.58,
+    "max_drawdown": -1.81,
+    "win_rate": 42.86,
+    "total_trades": 7,
+    "profit_factor": 1.87
+  },
+  "created_at": "2026-05-07T16:16:01.866522+00:00"
+}

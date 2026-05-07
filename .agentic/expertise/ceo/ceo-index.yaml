@@ -19,11 +19,11 @@ hierarchy:
       reports_to: "head-of-research"
       manages: []
       reasoning: "First researcher hire — can use platform's data fetching directly (no dedicated data agent needed). Receives strategy specs, codes them, runs backtests, validates behavior."
-      status: "hired — agent created, awaiting first task assignment from head-of-research"
+      status: "hired — agent operational at .claude/agents/strategy-implementer.md, reports to head-of-research"
   future_teams:
     - name: "algorithmic trading research team"
       manager: "head-of-research"
-      status: "building — manager hired, first hire (strategy-implementer) pending"
+      status: "operational — manager active, strategy-implementer hired and active"
       needed_roles: ["strategy implementation/testing"]
       not_needed: ["data acquisition — platform handles this directly, no dedicated agent required"]
       future_roles: ["portfolio & risk management — hire after 3+ validated strategies"]
@@ -82,22 +82,53 @@ communication:
       access: [head-of-research, "research team members"]
   direct_communication: "claude-developer — communicate directly via delegation, no need for spec files"
 
+architectural_boundaries:
+  engineering_team:
+    owns: "platform/"
+    produces: "Tools, libraries, APIs — an importable toolkit for strategy implementation and backtesting"
+    principle: "Platform should never limit research — dev team can be asked to improve it"
+    rule: "No strategies, data, or research output lives in platform/ — it is purely a toolkit"
+  research_team:
+    owns: "data/"
+    produces: "Strategies, downloaded market data, historical indicators, backtesting results, performance metrics"
+    uses: "Imports platform tools (from platform/) as a library, but ALL output stored in data/"
+    rule: "All research artifacts live in data/ — strategies, results, data, everything"
+  dependency: "Research team depends on platform as importable toolkit. If platform doesn't support this workflow, CTO must update it."
+
 platform:
   language: "Python"
   modules: ["MarketFetcher", "Strategies", "Backtesting", "Portfolio Mgmt", "Real Execution", "Paper Trading", "Routines"]
   monitoring: "React/chadcn-ui webapp + bun.js API serving filesystem data"
-  principle: "Platform should never limit research — dev team can be asked to improve it"
   supports: ["market orders", "limit orders", "stop loss", "take profit"]
 
 current_status:
-  phase: "Research team operational — strategy-implementer hired, awaiting first task"
-  platform: "Operational — cache layer confirmed, list-pairs feature implemented"
-  immediate_priority: "Head-of-research assigns H2 spec to strategy-implementer as first task"
+  phase: "Platform cleanup complete — ready for H5 strategy implementation"
+  platform: "Operational — root .venv with editable install, clean imports working, docs updated"
+  immediate_priority: "H5 (ADX + SMA filter) — assign to strategy-implementer"
+  execution_sequence:
+    step_1:
+      what: "H2 implementation (RSI divergence + trend filter)"
+      result: "REJECTED — too few signals (3 test trades, needed 20+)"
+      commit: "strategy in data/strategies/rsi_divergence_trend.py"
+      status: "DONE"
+    step_2:
+      what: "Root .venv with pip install -e ./platform"
+      result: "All 22 modules importable cleanly, uv-provided Python 3.12.13"
+      commit: "8368556"
+      status: "DONE"
+    step_3:
+      what: "Platform docs update at /platform_docs"
+      result: "8 files updated, new public-api.md created"
+      commit: "b4c646b"
+      status: "DONE"
+    step_4:
+      what: "Remove sys.path hacks from data/"
+      result: "Both files cleaned, zero sys.path references remain"
+      commit: "b5c8949"
+      status: "DONE"
   next_steps:
-    - "CTO delivers list-pairs feature (Phase 2.5 first item, ETA ~1 day)"
-    - "Hire strategy-implementer via claude-developer"
-    - "Head-of-research assigns H2 spec to strategy-implementer as first task"
-    - "Head-of-research drafts H5 spec while H2 is being implemented"
+    - "H5 (ADX + SMA filter) — Head of Research to assign to strategy-implementer"
+    - "After H2: root venv fix, platform docs, clean imports"
     - "Define measurable targets for aggressive growth (profit, risk, drawdown metrics)"
     - "Define risk management framework"
 
@@ -114,13 +145,13 @@ open_decisions:
     detail: "No data-acquisition agent. Strategy-implementer is first hire. Head-of-research running spec-first loop."
   - question: "Which trading pairs to start with"
     status: "partially defined"
-    detail: "H2 spec uses BTC, ETH, SOL, LINK (USDT for research). Full universe discovery pending list-pairs feature."
+    detail: "H2 spec uses BTC, ETH, SOL, LINK (USDT for research). List-pairs feature now available — full universe discovery can proceed."
 
 platform_feature_requests:
   - feature: "List all available Binance spot pairs (MarketFetcher.list_pairs() + cryplative pairs CLI)"
     purpose: "Filter and select USDC pairs for our trading universe"
-    status: "confirmed — CTO building as Phase 2.5 first item, ETA ~1 day"
-    blocking: "strategy-implementer hire"
+    status: "shipped — commit 8fe4034, includes --quote USDC filtering and --sort-by volume"
+    blocking: "resolved"
   - feature: "Cache layer for fetched market data"
     purpose: "Avoid redundant API calls during research and backtesting"
     status: "confirmed working — file-based JSON cache, transparent to caller, auto-deduplication"
@@ -128,16 +159,14 @@ platform_feature_requests:
 
 research_team_status:
   head_of_research:
-    status: "active — spec-first research flow designed, H2 spec ready"
-    current_work: "Preparing H5 spec while waiting for strategy-implementer hire"
-    first_task_for_implementer: "H2 (RSI divergence + trend filter) — spec at .agentic/specs/research/H2-rsi-divergence-trend-filter.md"
+    status: "active — assigning H2 to strategy-implementer now"
+    current_work: "Onboarding strategy-implementer and assigning H2; preparing H5 spec in parallel"
   strategy_implementer:
-    status: "hired — agent file at .claude/agents/strategy-implementer.md, reports to head-of-research"
-    first_task: "H2 (RSI divergence + trend filter) — spec at .agentic/specs/research/H2-rsi-divergence-trend-filter.md"
-    next_action: "Head-of-research assigns H2 spec and onboards the agent"
-  hiring_timeline:
-    day_0: "H2 spec ready, CTO building list-pairs"
-    day_1_2: "Implementer hired, implements H2"
-    day_3_5: "H5 (ADX + SMA filter)"
-    day_5_7: "H1 (Vol breakout + volume)"
-    week_2: "Validation of promising strategies"
+    status: "active — receiving H2 assignment from head-of-research"
+    current_task: "H2 (RSI divergence + trend filter) — spec at .agentic/specs/research/H2-rsi-divergence-trend-filter.md"
+    workspace: "data/ — all implementation and results stored here"
+  pipeline:
+    current: "H2 (RSI divergence + trend filter) — IN PROGRESS"
+    next: "H5 (ADX + SMA filter)"
+    later: "H1 (Vol breakout + volume)"
+    validation: "Week 2 — validate promising strategies"

@@ -312,7 +312,19 @@ For 200-period SMA, the engine needs a lookback window > 200. Use `--lookback-wi
 
 ## 12. Deliverables Expected from Strategy-Implementer
 
-1. **Strategy file**: `platform/src/cryplative/strategies/rsi_divergence_trend.py` (or similar name)
+### Directory Ownership Boundary (CEO Directive 2026-05-07)
+
+**ALL research work lives in `data/`.** The strategy-implementer works entirely within `data/` and imports platform tools as a library. No strategy code or research output goes into `platform/`.
+
+**Current workaround**: Until the root-level `.venv` with editable `pip install -e ./platform` is set up (Phase 2.5), use the `sys.path` import hack as done in `data/fetch_h2_data.py`. Once the root venv is ready, switch to clean imports.
+
+### Deliverables
+
+1. **Strategy file**: `data/strategies/rsi_divergence_trend.py` — a standalone Python script that:
+   - Imports platform modules (`BacktestEngine`, indicators, models) as a library
+   - Contains the strategy logic (subclassing `Strategy` from platform, or using `BacktestEngine` programmatically)
+   - All helper functions (pivot detection, divergence check) live in this file
+   - Can be run directly to execute backtests and write results
 2. **Backtest results**: JSON result files in `data/strategy_results/` for:
    - BTC/USDT 4h (training period)
    - BTC/USDT 4h (test period)
@@ -321,7 +333,7 @@ For 200-period SMA, the engine needs a lookback window > 200. Use `--lookback-wi
    - BTC/USDT 1d (training period)
    - BTC/USDT 1d (test period)
 3. **Fee-adjusted analysis**: Post-processing showing impact of 0.2% round-trip fees
-4. **Summary report**: Brief write-up of:
+4. **Summary report**: Brief write-up in `data/strategy_results/H2-report.md`:
    - Number of signals generated
    - Trade distribution (how many divergence entries, how exited)
    - Any implementation issues or edge cases encountered
@@ -331,9 +343,53 @@ For 200-period SMA, the engine needs a lookback window > 200. Use `--lookback-wi
 
 ## 13. Implementation Notes
 
-- Use `uv run cryplative new-strategy rsi_divergence_trend` to generate the scaffold
-- All helper functions (pivot detection, divergence check) go in the strategy file — this is fully supported
+### Working in data/ (CEO Directive)
+
+The strategy-implementer works exclusively in `data/`:
+- Create `data/strategies/` directory for strategy implementations
+- Import platform tools as a library (see import pattern below)
+- All output (results, reports, metrics) goes into `data/strategy_results/`
+- **Do NOT write any files into `platform/`**
+
+### Import Pattern
+
+Until root venv is available (Phase 2.5):
+```python
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "platform", "src"))
+
+from cryplative.strategies.base import Strategy
+from cryplative.strategies.indicators import compute_rsi, compute_sma
+from cryplative.backtesting.engine import BacktestEngine
+from cryplative.core.models import Signal, SignalDirection
+```
+
+After root venv is available (Phase 2.5), remove the `sys.path` hack:
+```python
+from cryplative.strategies.base import Strategy
+from cryplative.strategies.indicators import compute_rsi, compute_sma
+from cryplative.backtesting.engine import BacktestEngine
+from cryplative.core.models import Signal, SignalDirection
+```
+
+### Strategy Implementation Approach
+
+Two valid approaches (choose based on what works with the programmatic API):
+
+**Approach A: Strategy subclass (preferred)**
+- Subclass `Strategy` from platform
 - Register with `@StrategyRegistry.register`
+- Run via `BacktestEngine` programmatic API
+- This is the cleanest approach if the engine can discover strategies from `data/`
+
+**Approach B: Direct engine usage**
+- Use `BacktestEngine` + `BacktestConfig` directly
+- Implement signal logic as a function that processes candles
+- Feed results to the engine
+- Use this if registry-based discovery doesn't work from `data/`
+
+### General Notes
+
 - Handle warmup period: return None until enough candles for SMA(200) + pivot detection
 - Remember: `compute_rsi` and `compute_sma` return `list[float | None]` — always check for None before using values
 

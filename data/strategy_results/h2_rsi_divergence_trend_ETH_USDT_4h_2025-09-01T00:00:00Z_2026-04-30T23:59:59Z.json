@@ -1,0 +1,111 @@
+{
+  "strategy_id": "h2_rsi_divergence_trend",
+  "run_type": "BACKTEST",
+  "start_date": "2025-09-01T00:00:00Z",
+  "end_date": "2026-04-30T23:59:59Z",
+  "parameters": {
+    "sma_period": 200,
+    "rsi_period": 14,
+    "oversold_threshold": 50,
+    "overbought_exit": 70,
+    "stop_loss_pct": 0.05,
+    "take_profit_pct": 0.1,
+    "pivot_window": 3,
+    "min_pivot_spacing": 5,
+    "assumed_capital": 10000.0,
+    "risk_per_trade": 0.1,
+    "max_holding_candles": 50
+  },
+  "trades": [
+    {
+      "trade_id": "42535b53-fd74-4397-9b01-fab23ea9d35b",
+      "signal": {
+        "strategy_id": "h2_rsi_divergence_trend",
+        "symbol": "ETH/USDT",
+        "timestamp": 1768262400000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 0.32090984358854224,
+        "stop_loss": 2960.3329999999996,
+        "take_profit": 3427.7540000000004,
+        "confidence": 0.7,
+        "metadata": {
+          "reason": "bullish_rsi_divergence"
+        }
+      },
+      "entry_price": 3116.14,
+      "exit_price": 3325.82,
+      "quantity": 0.32090984358854224,
+      "pnl": 67.28837600364564,
+      "pnl_percentage": 6.728837600364557,
+      "status": "CLOSED",
+      "opened_at": 1768262400000,
+      "closed_at": 1768334400000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "c8e6cea2-6bd6-48a8-8b25-7f9be2c6040e",
+      "signal": {
+        "strategy_id": "h2_rsi_divergence_trend",
+        "symbol": "ETH/USDT",
+        "timestamp": 1774180800000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 0.48005376602179445,
+        "stop_loss": 1978.9449999999997,
+        "take_profit": 2291.4100000000003,
+        "confidence": 0.7,
+        "metadata": {
+          "reason": "bullish_rsi_divergence"
+        }
+      },
+      "entry_price": 2083.1,
+      "exit_price": 2049.12,
+      "quantity": 0.48005376602179445,
+      "pnl": -16.312226969420585,
+      "pnl_percentage": -1.6312226969420585,
+      "status": "CLOSED",
+      "opened_at": 1774180800000,
+      "closed_at": 1774540800000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "436810c2-8ed0-47f3-928f-edb4aa4b3b0f",
+      "signal": {
+        "strategy_id": "h2_rsi_divergence_trend",
+        "symbol": "ETH/USDT",
+        "timestamp": 1777420800000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 0.43261576797951135,
+        "stop_loss": 2195.944,
+        "take_profit": 2542.672,
+        "confidence": 0.7,
+        "metadata": {
+          "reason": "bullish_rsi_divergence"
+        }
+      },
+      "entry_price": 2311.52,
+      "exit_price": 2257.51,
+      "quantity": 0.43261576797951135,
+      "pnl": -23.365577628573305,
+      "pnl_percentage": -2.3365577628573275,
+      "status": "CLOSED",
+      "opened_at": 1777420800000,
+      "closed_at": 1777579200000,
+      "context": "BACKTEST"
+    }
+  ],
+  "metrics": {
+    "total_return": 0.28,
+    "sharpe_ratio": 0.32,
+    "max_drawdown": -0.98,
+    "win_rate": 33.33,
+    "total_trades": 3,
+    "profit_factor": 1.7
+  },
+  "created_at": "2026-05-07T16:16:01.470370+00:00"
+}

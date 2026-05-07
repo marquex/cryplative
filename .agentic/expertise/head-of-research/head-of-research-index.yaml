@@ -4,14 +4,12 @@
 
 hierarchy:
   manager: ceo
-  subordinates: []
-  planned_hires:
+  subordinates:
     strategy-implementer:
       title: "Strategy Implementer"
-      role: "Receives strategy specs from me, implements them, fetches data, runs backtests, reports results"
-      reports_to: "head-of-research"
-      status: "FIRST HIRE — awaiting CTO pairs command, then CEO activates"
-      note: "Data fetching is done on-demand by implementer. No separate data-acquisition agent."
+      status: "ACTIVE — onboarded and assigned H2 on 2026-05-07"
+      current_task: "H2 RSI Divergence with Trend Filter — implementing in data/strategies/"
+  planned_hires:
     strategy-researcher:
       title: "Strategy Researcher"
       role: "Future — when research volume justifies dedicated researcher"
@@ -72,9 +70,19 @@ research_methodology:
       - "Store results in data/strategy_results/ for future reference"
       - "Report both successes and failures — negative results are valuable"
 
+directory_ownership:
+  directive: "CEO Directive 2026-05-07 — Directory Ownership Boundary"
+  research_owns: "data/ — ALL strategy implementations, market data, indicators, backtest results, performance metrics"
+  engineering_owns: "platform/ — toolkit/libraries only, no research artifacts"
+  boundary_rule: "Research imports platform as library. All output stays in data/."
+  strategy_implementer_workspace: "data/strategies/ — implementer works here, imports from platform/"
+  import_workaround: "sys.path hack until root venv with pip install -e ./platform is ready (Phase 2.5)"
+  cto_assessment: ".agentic/specs/managers/cto-platform-importability-assessment.md"
+
 data_management:
   locations:
     market_data: "data/market_cache/"
+    strategy_implementations: "data/strategies/"
     strategy_results: "data/strategy_results/"
 
   data_requirements:
@@ -84,7 +92,7 @@ data_management:
     - "Fundamental data when relevant"
 
 current_priorities:
-  phase: "H2 DELEGATED — strategy-implementer executing first task"
+  phase: "H2 COMPLETED/REJECTED — Drafting H5 spec next"
   onboarding_report: ".agentic/specs/research/onboarding-report.md"
   research_readiness_assessment: ".agentic/specs/managers/research-readiness-assessment.md"
   team_structure_response: ".agentic/specs/managers/research-team-update-response.md"
@@ -92,15 +100,24 @@ current_priorities:
   cto_answers_round2: ".agentic/specs/managers/cto-platform-answers-2.md"
   research_flow_questions: ".agentic/specs/managers/research-flow-questions.md"
   strategy_specs:
-    H2: ".agentic/specs/research/H2-rsi-divergence-trend-filter.md"  # DELEGATED to strategy-implementer 2026-05-07
-    H5: "NOT YET WRITTEN — next after H2 is delegated"
+    H2: ".agentic/specs/research/H2-rsi-divergence-trend-filter.md"  # TESTED+REJECTED 2026-05-07 — too few signals
+    H2_evaluation: ".agentic/specs/research/H2-evaluation.md"
+    H2_results: "data/strategy_results/H2-report.md"
+    H5: "NOT YET WRITTEN — PRIORITY, draft next"
     H1: "NOT YET WRITTEN — requires ATR/ADX helpers"
     H4: "NOT YET WRITTEN — requires ATR/Keltner helpers"
   immediate_tasks:
-    - "ACTIVE: H2 backtest execution by strategy-implementer (delegated 2026-05-07)"
-    - "EVALUATE: H2 results when implementer reports back"
-    - "PREPARE: H5 spec (ADX + SMA filter) — draft while waiting for H2 results"
+    - "DONE: H2 evaluated — REJECTED (too few signals, 3/7 criteria met)"
+    - "PRIORITY: Draft H5 spec (ADX + SMA filter) for immediate delegation"
     - "ALIGN: CEO decisions on target returns, drawdown tolerance, capital allocation (defaults set)"
+  lessons_learned:
+    H2:
+      - "RSI divergence is too rare for systematic trading with trend filter — 4-constraint filter on scarce pattern"
+      - "Divergence strategies need higher-freq data or larger asset universe to generate enough signals"
+      - "Relaxing parameters (oversold_threshold 40->50) changes the hypothesis fundamentally"
+      - "1d timeframe too few candles for divergence detection with SMA(200) filter"
+      - "Negative result valuable — won't revisit divergence without significant changes"
+      - "Implementer performed well — competent execution, proper edge case handling, good deliverables"
 
 platform_assessment:
   status: "FULLY ASSESSED — Onboarding complete. All technical questions resolved."

@@ -1,0 +1,84 @@
+{
+  "strategy_id": "h2_rsi_divergence_trend",
+  "run_type": "BACKTEST",
+  "start_date": "2025-09-01T00:00:00Z",
+  "end_date": "2026-04-30T23:59:59Z",
+  "parameters": {
+    "sma_period": 200,
+    "rsi_period": 14,
+    "oversold_threshold": 50,
+    "overbought_exit": 70,
+    "stop_loss_pct": 0.05,
+    "take_profit_pct": 0.1,
+    "pivot_window": 3,
+    "min_pivot_spacing": 5,
+    "assumed_capital": 10000.0,
+    "risk_per_trade": 0.1,
+    "max_holding_candles": 50
+  },
+  "trades": [
+    {
+      "trade_id": "2f2f115c-789b-48ef-a523-2fda70298242",
+      "signal": {
+        "strategy_id": "h2_rsi_divergence_trend",
+        "symbol": "LINK/USDT",
+        "timestamp": 1768204800000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 75.98784194528875,
+        "stop_loss": 12.501999999999999,
+        "take_profit": 14.476,
+        "confidence": 0.7,
+        "metadata": {
+          "reason": "bullish_rsi_divergence"
+        }
+      },
+      "entry_price": 13.16,
+      "exit_price": 14.06,
+      "quantity": 75.98784194528875,
+      "pnl": 68.3890577507599,
+      "pnl_percentage": 6.8389057750759985,
+      "status": "CLOSED",
+      "opened_at": 1768204800000,
+      "closed_at": 1768334400000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "eacbe008-dbc8-4331-bf4d-fbda07cb324a",
+      "signal": {
+        "strategy_id": "h2_rsi_divergence_trend",
+        "symbol": "LINK/USDT",
+        "timestamp": 1768492800000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 73.04601899196494,
+        "stop_loss": 13.0055,
+        "take_profit": 15.059000000000001,
+        "confidence": 0.7,
+        "metadata": {
+          "reason": "bullish_rsi_divergence"
+        }
+      },
+      "entry_price": 13.69,
+      "exit_price": 12.86,
+      "quantity": 73.04601899196494,
+      "pnl": -60.62819576333091,
+      "pnl_percentage": -6.062819576333089,
+      "status": "CLOSED",
+      "opened_at": 1768492800000,
+      "closed_at": 1768780800000,
+      "context": "BACKTEST"
+    }
+  ],
+  "metrics": {
+    "total_return": 0.08,
+    "sharpe_ratio": 0.06,
+    "max_drawdown": -0.75,
+    "win_rate": 50.0,
+    "total_trades": 2,
+    "profit_factor": 1.13
+  },
+  "created_at": "2026-05-07T16:16:02.483172+00:00"
+}

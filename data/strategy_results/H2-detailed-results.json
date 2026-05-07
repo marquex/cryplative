@@ -1,0 +1,987 @@
+{
+  "BTC_4h_train": {
+    "symbol": "BTC/USDT",
+    "interval": "4h",
+    "period": "2024-01-01T00:00:00Z  ->  2025-08-31T23:59:59Z",
+    "parameters": {
+      "sma_period": 200,
+      "rsi_period": 14,
+      "oversold_threshold": 50,
+      "overbought_exit": 70,
+      "stop_loss_pct": 0.05,
+      "take_profit_pct": 0.1,
+      "pivot_window": 3,
+      "min_pivot_spacing": 5,
+      "assumed_capital": 10000.0,
+      "risk_per_trade": 0.1,
+      "max_holding_candles": 50
+    },
+    "raw_metrics": {
+      "total_return_pct": 2.56,
+      "sharpe_ratio": 2.57,
+      "max_drawdown_pct": -0.42,
+      "win_rate_pct": 83.33,
+      "total_trades": 6,
+      "profit_factor": 17.79
+    },
+    "fee_adjusted_metrics": {
+      "total_return_pct": 2.4402,
+      "sharpe_ratio": 2.4527,
+      "max_drawdown_pct": -0.1681,
+      "win_rate_pct": 66.67,
+      "total_trades": 6,
+      "profit_factor": 14.9331,
+      "avg_trade_return_pct": 0.4067
+    },
+    "total_signals": 6,
+    "closed_trades": 6,
+    "exit_reasons": {
+      "rsi_overbought": 4,
+      "trend_reversal": 2
+    },
+    "trades": [
+      {
+        "trade_id": "f4f5ac02-9a74-46cd-844e-587552ee1f97",
+        "entry_price": 65223.74,
+        "exit_price": 69792.05,
+        "quantity": 0.015331840829734695,
+        "pnl": 70.04060178088538,
+        "pnl_percentage": 7.004060178088545,
+        "status": "CLOSED",
+        "opened_at": 1711036800000,
+        "closed_at": 1711368000000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "rsi_overbought",
+        "fee_adjusted_pnl": 67.970561
+      },
+      {
+        "trade_id": "0f8c910f-b6b4-4a40-992f-5ebd865e5fac",
+        "entry_price": 67946.9,
+        "exit_price": 70947.58,
+        "quantity": 0.014717374891275394,
+        "pnl": 44.16213248875236,
+        "pnl_percentage": 4.416213248875245,
+        "status": "CLOSED",
+        "opened_at": 1716955200000,
+        "closed_at": 1717545600000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "rsi_overbought",
+        "fee_adjusted_pnl": 42.11797
+      },
+      {
+        "trade_id": "83d96189-9a06-4af9-b5b4-fd3a389f0474",
+        "entry_price": 60926.0,
+        "exit_price": 61031.98,
+        "quantity": 0.016413353904736895,
+        "pnl": 1.7394872468240687,
+        "pnl_percentage": 0.17394872468241562,
+        "status": "CLOSED",
+        "opened_at": 1727928000000,
+        "closed_at": 1728489600000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "trend_reversal",
+        "fee_adjusted_pnl": -0.262252
+      },
+      {
+        "trade_id": "f12d3a2b-d35b-4623-bedc-8179c302fe9a",
+        "entry_price": 68810.03,
+        "exit_price": 74348.53,
+        "quantity": 0.014532765063465312,
+        "pnl": 80.48971930400263,
+        "pnl_percentage": 8.048971930400262,
+        "status": "CLOSED",
+        "opened_at": 1730793600000,
+        "closed_at": 1730851200000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "rsi_overbought",
+        "fee_adjusted_pnl": 78.40923
+      },
+      {
+        "trade_id": "072d2a3d-a05e-4444-880b-823e5dcc2b5e",
+        "entry_price": 95770.32,
+        "exit_price": 102964.0,
+        "quantity": 0.010441648310248937,
+        "pnl": 75.1138766164715,
+        "pnl_percentage": 7.51138766164714,
+        "status": "CLOSED",
+        "opened_at": 1733270400000,
+        "closed_at": 1733356800000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "rsi_overbought",
+        "fee_adjusted_pnl": 73.038763
+      },
+      {
+        "trade_id": "32702f7f-577c-440c-ae38-97ea72475c02",
+        "entry_price": 99040.0,
+        "exit_price": 97527.97,
+        "quantity": 0.010096930533117932,
+        "pnl": -15.266861873990296,
+        "pnl_percentage": -1.526686187399029,
+        "status": "CLOSED",
+        "opened_at": 1734753600000,
+        "closed_at": 1734782400000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "trend_reversal",
+        "fee_adjusted_pnl": -17.251595
+      }
+    ]
+  },
+  "BTC_4h_test": {
+    "symbol": "BTC/USDT",
+    "interval": "4h",
+    "period": "2025-09-01T00:00:00Z  ->  2026-04-30T23:59:59Z",
+    "parameters": {
+      "sma_period": 200,
+      "rsi_period": 14,
+      "oversold_threshold": 50,
+      "overbought_exit": 70,
+      "stop_loss_pct": 0.05,
+      "take_profit_pct": 0.1,
+      "pivot_window": 3,
+      "min_pivot_spacing": 5,
+      "assumed_capital": 10000.0,
+      "risk_per_trade": 0.1,
+      "max_holding_candles": 50
+    },
+    "raw_metrics": {
+      "total_return_pct": 0.09,
+      "sharpe_ratio": 0.11,
+      "max_drawdown_pct": -0.81,
+      "win_rate_pct": 66.67,
+      "total_trades": 3,
+      "profit_factor": 1.17
+    },
+    "fee_adjusted_metrics": {
+      "total_return_pct": 0.0287,
+      "sharpe_ratio": 0.0346,
+      "max_drawdown_pct": -0.5313,
+      "win_rate_pct": 66.67,
+      "total_trades": 3,
+      "profit_factor": 1.0539,
+      "avg_trade_return_pct": 0.0096
+    },
+    "total_signals": 3,
+    "closed_trades": 3,
+    "exit_reasons": {
+      "rsi_overbought": 1,
+      "stop_loss": 1,
+      "max_holding": 1
+    },
+    "trades": [
+      {
+        "trade_id": "d05bb03e-a81f-4e9b-8df7-522690727407",
+        "entry_price": 90620.96,
+        "exit_price": 94226.84,
+        "quantity": 0.01103497469018205,
+        "pnl": 39.79079453583354,
+        "pnl_percentage": 3.9790794535833562,
+        "status": "CLOSED",
+        "opened_at": 1768204800000,
+        "closed_at": 1768320000000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "rsi_overbought",
+        "fee_adjusted_pnl": 37.751004
+      },
+      {
+        "trade_id": "62133593-a92c-4cf2-91e1-10d59733352c",
+        "entry_price": 94585.98,
+        "exit_price": 89725.76,
+        "quantity": 0.010572391384008497,
+        "pnl": -51.38414805238579,
+        "pnl_percentage": -5.138414805238578,
+        "status": "CLOSED",
+        "opened_at": 1768564800000,
+        "closed_at": 1768924800000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "stop_loss",
+        "fee_adjusted_pnl": -53.332764
+      },
+      {
+        "trade_id": "a729b644-3fda-45d8-aec1-9f0249ca36b1",
+        "entry_price": 75252.34,
+        "exit_price": 76793.09,
+        "quantity": 0.013288623317228408,
+        "pnl": 20.47444637601967,
+        "pnl_percentage": 2.0474446376019584,
+        "status": "CLOSED",
+        "opened_at": 1776571200000,
+        "closed_at": 1777291200000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "max_holding",
+        "fee_adjusted_pnl": 18.453972
+      }
+    ]
+  },
+  "ETH_4h_train": {
+    "symbol": "ETH/USDT",
+    "interval": "4h",
+    "period": "2024-01-01T00:00:00Z  ->  2025-08-31T23:59:59Z",
+    "parameters": {
+      "sma_period": 200,
+      "rsi_period": 14,
+      "oversold_threshold": 50,
+      "overbought_exit": 70,
+      "stop_loss_pct": 0.05,
+      "take_profit_pct": 0.1,
+      "pivot_window": 3,
+      "min_pivot_spacing": 5,
+      "assumed_capital": 10000.0,
+      "risk_per_trade": 0.1,
+      "max_holding_candles": 50
+    },
+    "raw_metrics": {
+      "total_return_pct": 0.01,
+      "sharpe_ratio": 0.01,
+      "max_drawdown_pct": -1.06,
+      "win_rate_pct": 50.0,
+      "total_trades": 2,
+      "profit_factor": 1.02
+    },
+    "fee_adjusted_metrics": {
+      "total_return_pct": -0.0253,
+      "sharpe_ratio": -0.0155,
+      "max_drawdown_pct": -0.8269,
+      "win_rate_pct": 50.0,
+      "total_trades": 2,
+      "profit_factor": 0.9694,
+      "avg_trade_return_pct": -0.0126
+    },
+    "total_signals": 2,
+    "closed_trades": 2,
+    "exit_reasons": {
+      "stop_loss": 1,
+      "rsi_overbought": 1
+    },
+    "trades": [
+      {
+        "trade_id": "394fa36c-4670-4b7d-8644-b8f1792b2c36",
+        "entry_price": 3446.69,
+        "exit_price": 3168.3,
+        "quantity": 0.2901334323655449,
+        "pnl": -80.770246236244,
+        "pnl_percentage": -8.077024623624396,
+        "status": "CLOSED",
+        "opened_at": 1721793600000,
+        "closed_at": 1721865600000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "stop_loss",
+        "fee_adjusted_pnl": -82.689476
+      },
+      {
+        "trade_id": "f55a32a3-964e-4f89-9675-46db1a80c6a4",
+        "entry_price": 1808.86,
+        "exit_price": 1957.63,
+        "quantity": 0.5528343818758776,
+        "pnl": 82.24517099167443,
+        "pnl_percentage": 8.22451709916745,
+        "status": "CLOSED",
+        "opened_at": 1746388800000,
+        "closed_at": 1746691200000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "rsi_overbought",
+        "fee_adjusted_pnl": 80.162926
+      }
+    ]
+  },
+  "ETH_4h_test": {
+    "symbol": "ETH/USDT",
+    "interval": "4h",
+    "period": "2025-09-01T00:00:00Z  ->  2026-04-30T23:59:59Z",
+    "parameters": {
+      "sma_period": 200,
+      "rsi_period": 14,
+      "oversold_threshold": 50,
+      "overbought_exit": 70,
+      "stop_loss_pct": 0.05,
+      "take_profit_pct": 0.1,
+      "pivot_window": 3,
+      "min_pivot_spacing": 5,
+      "assumed_capital": 10000.0,
+      "risk_per_trade": 0.1,
+      "max_holding_candles": 50
+    },
+    "raw_metrics": {
+      "total_return_pct": 0.28,
+      "sharpe_ratio": 0.32,
+      "max_drawdown_pct": -0.98,
+      "win_rate_pct": 33.33,
+      "total_trades": 3,
+      "profit_factor": 1.7
+    },
+    "fee_adjusted_metrics": {
+      "total_return_pct": 0.2158,
+      "sharpe_ratio": 0.2474,
+      "max_drawdown_pct": -0.4336,
+      "win_rate_pct": 33.33,
+      "total_trades": 3,
+      "profit_factor": 1.4946,
+      "avg_trade_return_pct": 0.0719
+    },
+    "total_signals": 3,
+    "closed_trades": 3,
+    "exit_reasons": {
+      "rsi_overbought": 1,
+      "trend_reversal": 1
+    },
+    "trades": [
+      {
+        "trade_id": "42535b53-fd74-4397-9b01-fab23ea9d35b",
+        "entry_price": 3116.14,
+        "exit_price": 3325.82,
+        "quantity": 0.32090984358854224,
+        "pnl": 67.28837600364564,
+        "pnl_percentage": 6.728837600364557,
+        "status": "CLOSED",
+        "opened_at": 1768262400000,
+        "closed_at": 1768334400000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "rsi_overbought",
+        "fee_adjusted_pnl": 65.221088
+      },
+      {
+        "trade_id": "c8e6cea2-6bd6-48a8-8b25-7f9be2c6040e",
+        "entry_price": 2083.1,
+        "exit_price": 2049.12,
+        "quantity": 0.48005376602179445,
+        "pnl": -16.312226969420585,
+        "pnl_percentage": -1.6312226969420585,
+        "status": "CLOSED",
+        "opened_at": 1774180800000,
+        "closed_at": 1774540800000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "trend_reversal",
+        "fee_adjusted_pnl": -18.295915
+      },
+      {
+        "trade_id": "436810c2-8ed0-47f3-928f-edb4aa4b3b0f",
+        "entry_price": 2311.52,
+        "exit_price": 2257.51,
+        "quantity": 0.43261576797951135,
+        "pnl": -23.365577628573305,
+        "pnl_percentage": -2.3365577628573275,
+        "status": "CLOSED",
+        "opened_at": 1777420800000,
+        "closed_at": 1777579200000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "force_close",
+        "fee_adjusted_pnl": -25.342212
+      }
+    ]
+  },
+  "BTC_1d_train": {
+    "symbol": "BTC/USDT",
+    "interval": "1d",
+    "period": "2024-01-01T00:00:00Z  ->  2025-08-31T23:59:59Z",
+    "parameters": {
+      "sma_period": 200,
+      "rsi_period": 14,
+      "oversold_threshold": 50,
+      "overbought_exit": 70,
+      "stop_loss_pct": 0.05,
+      "take_profit_pct": 0.1,
+      "pivot_window": 3,
+      "min_pivot_spacing": 5,
+      "assumed_capital": 10000.0,
+      "risk_per_trade": 0.1,
+      "max_holding_candles": 20
+    },
+    "raw_metrics": {
+      "total_return_pct": 1.01,
+      "sharpe_ratio": 0.0,
+      "max_drawdown_pct": -0.05,
+      "win_rate_pct": 100.0,
+      "total_trades": 1,
+      "profit_factor": Infinity
+    },
+    "fee_adjusted_metrics": {
+      "total_return_pct": 0.9872,
+      "sharpe_ratio": 0.0,
+      "max_drawdown_pct": 0.0,
+      "win_rate_pct": 100.0,
+      "total_trades": 1,
+      "profit_factor": "inf",
+      "avg_trade_return_pct": 0.9872
+    },
+    "total_signals": 1,
+    "closed_trades": 1,
+    "exit_reasons": {
+      "take_profit": 1
+    },
+    "trades": [
+      {
+        "trade_id": "c4e1cc76-f849-4028-9cae-f1c3df1a9920",
+        "entry_price": 94545.06,
+        "exit_price": 104077.48,
+        "quantity": 0.01057696721542088,
+        "pnl": 100.82409382362229,
+        "pnl_percentage": 10.082409382362222,
+        "status": "CLOSED",
+        "opened_at": 1736640000000,
+        "closed_at": 1737072000000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "take_profit",
+        "fee_adjusted_pnl": 98.72327
+      }
+    ]
+  },
+  "BTC_1d_test": {
+    "symbol": "BTC/USDT",
+    "interval": "1d",
+    "period": "2025-09-01T00:00:00Z  ->  2026-04-30T23:59:59Z",
+    "parameters": {
+      "sma_period": 200,
+      "rsi_period": 14,
+      "oversold_threshold": 50,
+      "overbought_exit": 70,
+      "stop_loss_pct": 0.05,
+      "take_profit_pct": 0.1,
+      "pivot_window": 3,
+      "min_pivot_spacing": 5,
+      "assumed_capital": 10000.0,
+      "risk_per_trade": 0.1,
+      "max_holding_candles": 20
+    },
+    "raw_metrics": {
+      "total_return_pct": 0.0,
+      "sharpe_ratio": 0.0,
+      "max_drawdown_pct": 0.0,
+      "win_rate_pct": 0.0,
+      "total_trades": 0,
+      "profit_factor": 0.0
+    },
+    "fee_adjusted_metrics": {
+      "total_return_pct": 0.0,
+      "sharpe_ratio": 0.0,
+      "max_drawdown_pct": 0.0,
+      "win_rate_pct": 0.0,
+      "total_trades": 0,
+      "profit_factor": 0.0,
+      "avg_trade_return_pct": 0.0
+    },
+    "total_signals": 0,
+    "closed_trades": 0,
+    "exit_reasons": {},
+    "trades": []
+  },
+  "SOL_4h_train": {
+    "symbol": "SOL/USDT",
+    "interval": "4h",
+    "period": "2024-01-01T00:00:00Z  ->  2025-08-31T23:59:59Z",
+    "parameters": {
+      "sma_period": 200,
+      "rsi_period": 14,
+      "oversold_threshold": 50,
+      "overbought_exit": 70,
+      "stop_loss_pct": 0.05,
+      "take_profit_pct": 0.1,
+      "pivot_window": 3,
+      "min_pivot_spacing": 5,
+      "assumed_capital": 10000.0,
+      "risk_per_trade": 0.1,
+      "max_holding_candles": 50
+    },
+    "raw_metrics": {
+      "total_return_pct": 1.11,
+      "sharpe_ratio": 0.58,
+      "max_drawdown_pct": -1.81,
+      "win_rate_pct": 42.86,
+      "total_trades": 7,
+      "profit_factor": 1.87
+    },
+    "fee_adjusted_metrics": {
+      "total_return_pct": 0.9691,
+      "sharpe_ratio": 0.5056,
+      "max_drawdown_pct": -1.2132,
+      "win_rate_pct": 42.86,
+      "total_trades": 7,
+      "profit_factor": 1.7138,
+      "avg_trade_return_pct": 0.1384
+    },
+    "total_signals": 7,
+    "closed_trades": 7,
+    "exit_reasons": {
+      "trend_reversal": 3,
+      "rsi_overbought": 2,
+      "stop_loss": 1,
+      "max_holding": 1
+    },
+    "trades": [
+      {
+        "trade_id": "a6218e2e-5dba-4318-a9e7-0b6fb02e33fe",
+        "entry_price": 101.95,
+        "exit_price": 100.95,
+        "quantity": 9.80872976949485,
+        "pnl": -9.80872976949485,
+        "pnl_percentage": -0.9808729769494873,
+        "status": "CLOSED",
+        "opened_at": 1708776000000,
+        "closed_at": 1708934400000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "trend_reversal",
+        "fee_adjusted_pnl": -11.798921
+      },
+      {
+        "trade_id": "1b0a83ac-9703-4f0d-b3f5-23c4eb830cae",
+        "entry_price": 144.19,
+        "exit_price": 158.52,
+        "quantity": 6.935293709688605,
+        "pnl": 99.38275885983781,
+        "pnl_percentage": 9.93827588598377,
+        "status": "CLOSED",
+        "opened_at": 1715760000000,
+        "closed_at": 1715803200000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "rsi_overbought",
+        "fee_adjusted_pnl": 97.283376
+      },
+      {
+        "trade_id": "70b413b8-7d7c-48ca-a72a-b63f53f3d5d9",
+        "entry_price": 162.82,
+        "exit_price": 184.94,
+        "quantity": 6.141751627564181,
+        "pnl": 135.85554600171972,
+        "pnl_percentage": 13.585554600171967,
+        "status": "CLOSED",
+        "opened_at": 1730678400000,
+        "closed_at": 1730851200000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "rsi_overbought",
+        "fee_adjusted_pnl": 133.71969
+      },
+      {
+        "trade_id": "fb7e6cff-36b3-43ae-a8fc-e2c56a270885",
+        "entry_price": 232.67,
+        "exit_price": 225.99,
+        "quantity": 4.297932694374007,
+        "pnl": -28.71019039841827,
+        "pnl_percentage": -2.8710190398418267,
+        "status": "CLOSED",
+        "opened_at": 1733328000000,
+        "closed_at": 1733731200000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "trend_reversal",
+        "fee_adjusted_pnl": -30.68148
+      },
+      {
+        "trade_id": "d5bf9a15-a8d5-4b61-83a1-9549942f2fcc",
+        "entry_price": 238.31,
+        "exit_price": 226.38,
+        "quantity": 4.19621501405732,
+        "pnl": -50.060845117703856,
+        "pnl_percentage": -5.006084511770381,
+        "status": "CLOSED",
+        "opened_at": 1738267200000,
+        "closed_at": 1738411200000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "stop_loss",
+        "fee_adjusted_pnl": -52.010784
+      },
+      {
+        "trade_id": "faf035a7-1696-4b17-9b05-731c22730898",
+        "entry_price": 221.75,
+        "exit_price": 213.03,
+        "quantity": 4.509582863585118,
+        "pnl": -39.32356257046222,
+        "pnl_percentage": -3.932356257046221,
+        "status": "CLOSED",
+        "opened_at": 1738425600000,
+        "closed_at": 1738440000000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "trend_reversal",
+        "fee_adjusted_pnl": -41.284239
+      },
+      {
+        "trade_id": "79a35123-db71-4ee1-a26f-40f5d8901ff2",
+        "entry_price": 146.34,
+        "exit_price": 146.88,
+        "quantity": 6.833401667350007,
+        "pnl": 3.6900369003689493,
+        "pnl_percentage": 0.36900369003689537,
+        "status": "CLOSED",
+        "opened_at": 1745841600000,
+        "closed_at": 1746561600000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "max_holding",
+        "fee_adjusted_pnl": 1.686347
+      }
+    ]
+  },
+  "SOL_4h_test": {
+    "symbol": "SOL/USDT",
+    "interval": "4h",
+    "period": "2025-09-01T00:00:00Z  ->  2026-04-30T23:59:59Z",
+    "parameters": {
+      "sma_period": 200,
+      "rsi_period": 14,
+      "oversold_threshold": 50,
+      "overbought_exit": 70,
+      "stop_loss_pct": 0.05,
+      "take_profit_pct": 0.1,
+      "pivot_window": 3,
+      "min_pivot_spacing": 5,
+      "assumed_capital": 10000.0,
+      "risk_per_trade": 0.1,
+      "max_holding_candles": 50
+    },
+    "raw_metrics": {
+      "total_return_pct": -0.4,
+      "sharpe_ratio": -1.31,
+      "max_drawdown_pct": -0.52,
+      "win_rate_pct": 0.0,
+      "total_trades": 2,
+      "profit_factor": 0.0
+    },
+    "fee_adjusted_metrics": {
+      "total_return_pct": -0.4418,
+      "sharpe_ratio": -1.4391,
+      "max_drawdown_pct": -0.4418,
+      "win_rate_pct": 0.0,
+      "total_trades": 2,
+      "profit_factor": 0.0,
+      "avg_trade_return_pct": -0.2209
+    },
+    "total_signals": 2,
+    "closed_trades": 2,
+    "exit_reasons": {
+      "trend_reversal": 2
+    },
+    "trades": [
+      {
+        "trade_id": "3414c7d0-65d6-4e01-8391-86df27dc6d87",
+        "entry_price": 89.37,
+        "exit_price": 86.2,
+        "quantity": 11.189437171310283,
+        "pnl": -35.47051583305362,
+        "pnl_percentage": -3.5470515833053606,
+        "status": "CLOSED",
+        "opened_at": 1773979200000,
+        "closed_at": 1774209600000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "trend_reversal",
+        "fee_adjusted_pnl": -37.435045
+      },
+      {
+        "trade_id": "3d22a1f2-81f4-4336-a332-9b54c8f0b3f4",
+        "entry_price": 86.4,
+        "exit_price": 85.99,
+        "quantity": 11.574074074074073,
+        "pnl": -4.745370370370495,
+        "pnl_percentage": -0.4745370370370483,
+        "status": "CLOSED",
+        "opened_at": 1774224000000,
+        "closed_at": 1774238400000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "trend_reversal",
+        "fee_adjusted_pnl": -6.740625
+      }
+    ]
+  },
+  "LINK_4h_train": {
+    "symbol": "LINK/USDT",
+    "interval": "4h",
+    "period": "2024-01-01T00:00:00Z  ->  2025-08-31T23:59:59Z",
+    "parameters": {
+      "sma_period": 200,
+      "rsi_period": 14,
+      "oversold_threshold": 50,
+      "overbought_exit": 70,
+      "stop_loss_pct": 0.05,
+      "take_profit_pct": 0.1,
+      "pivot_window": 3,
+      "min_pivot_spacing": 5,
+      "assumed_capital": 10000.0,
+      "risk_per_trade": 0.1,
+      "max_holding_candles": 50
+    },
+    "raw_metrics": {
+      "total_return_pct": 0.9,
+      "sharpe_ratio": 0.72,
+      "max_drawdown_pct": -0.54,
+      "win_rate_pct": 16.67,
+      "total_trades": 6,
+      "profit_factor": 4.18
+    },
+    "fee_adjusted_metrics": {
+      "total_return_pct": 0.7808,
+      "sharpe_ratio": 0.6281,
+      "max_drawdown_pct": -0.3792,
+      "win_rate_pct": 16.67,
+      "total_trades": 6,
+      "profit_factor": 3.0356,
+      "avg_trade_return_pct": 0.1301
+    },
+    "total_signals": 6,
+    "closed_trades": 6,
+    "exit_reasons": {
+      "take_profit": 1,
+      "trend_reversal": 5
+    },
+    "trades": [
+      {
+        "trade_id": "b64f7c1a-d267-4e6d-b8ba-8dc0fdc260b3",
+        "entry_price": 18.446,
+        "exit_price": 20.633,
+        "quantity": 54.21229534858505,
+        "pnl": 118.56228992735538,
+        "pnl_percentage": 11.856228992735529,
+        "status": "CLOSED",
+        "opened_at": 1708747200000,
+        "closed_at": 1709337600000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "take_profit",
+        "fee_adjusted_pnl": 116.443728
+      },
+      {
+        "trade_id": "edcb2e55-5b0e-4fdb-bcfb-b79b82114699",
+        "entry_price": 11.15,
+        "exit_price": 11.09,
+        "quantity": 89.68609865470852,
+        "pnl": -5.381165919282555,
+        "pnl_percentage": -0.5381165919282505,
+        "status": "CLOSED",
+        "opened_at": 1725091200000,
+        "closed_at": 1725105600000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "trend_reversal",
+        "fee_adjusted_pnl": -7.375785
+      },
+      {
+        "trade_id": "c778bfc5-bed4-48cc-a14d-8e89eb47b4e6",
+        "entry_price": 11.17,
+        "exit_price": 11.08,
+        "quantity": 89.52551477170994,
+        "pnl": -8.057296329453882,
+        "pnl_percentage": -0.8057296329453845,
+        "status": "CLOSED",
+        "opened_at": 1728043200000,
+        "closed_at": 1728072000000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "trend_reversal",
+        "fee_adjusted_pnl": -10.049239
+      },
+      {
+        "trade_id": "c1d0ce32-a4b5-4e6f-ba90-351eb8aeea18",
+        "entry_price": 11.16,
+        "exit_price": 11.16,
+        "quantity": 89.60573476702508,
+        "pnl": 0.0,
+        "pnl_percentage": 0.0,
+        "status": "CLOSED",
+        "opened_at": 1728144000000,
+        "closed_at": 1728331200000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "trend_reversal",
+        "fee_adjusted_pnl": -2.0
+      },
+      {
+        "trade_id": "e4e88a37-cb03-4c5a-854f-b023c509ee0c",
+        "entry_price": 11.41,
+        "exit_price": 11.32,
+        "quantity": 87.64241893076249,
+        "pnl": -7.8878177037686115,
+        "pnl_percentage": -0.7887817703768563,
+        "status": "CLOSED",
+        "opened_at": 1730390400000,
+        "closed_at": 1730433600000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "trend_reversal",
+        "fee_adjusted_pnl": -9.87993
+      },
+      {
+        "trade_id": "9af72a02-6897-4ce1-adb7-43d2f4c414d7",
+        "entry_price": 11.33,
+        "exit_price": 11.25,
+        "quantity": 88.261253309797,
+        "pnl": -7.060900264783766,
+        "pnl_percentage": -0.7060900264783787,
+        "status": "CLOSED",
+        "opened_at": 1730462400000,
+        "closed_at": 1730491200000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "trend_reversal",
+        "fee_adjusted_pnl": -9.053839
+      }
+    ]
+  },
+  "LINK_4h_test": {
+    "symbol": "LINK/USDT",
+    "interval": "4h",
+    "period": "2025-09-01T00:00:00Z  ->  2026-04-30T23:59:59Z",
+    "parameters": {
+      "sma_period": 200,
+      "rsi_period": 14,
+      "oversold_threshold": 50,
+      "overbought_exit": 70,
+      "stop_loss_pct": 0.05,
+      "take_profit_pct": 0.1,
+      "pivot_window": 3,
+      "min_pivot_spacing": 5,
+      "assumed_capital": 10000.0,
+      "risk_per_trade": 0.1,
+      "max_holding_candles": 50
+    },
+    "raw_metrics": {
+      "total_return_pct": 0.08,
+      "sharpe_ratio": 0.06,
+      "max_drawdown_pct": -0.75,
+      "win_rate_pct": 50.0,
+      "total_trades": 2,
+      "profit_factor": 1.13
+    },
+    "fee_adjusted_metrics": {
+      "total_return_pct": 0.0375,
+      "sharpe_ratio": 0.0292,
+      "max_drawdown_pct": -0.6216,
+      "win_rate_pct": 50.0,
+      "total_trades": 2,
+      "profit_factor": 1.06,
+      "avg_trade_return_pct": 0.0188
+    },
+    "total_signals": 2,
+    "closed_trades": 2,
+    "exit_reasons": {
+      "rsi_overbought": 1,
+      "stop_loss": 1
+    },
+    "trades": [
+      {
+        "trade_id": "2f2f115c-789b-48ef-a523-2fda70298242",
+        "entry_price": 13.16,
+        "exit_price": 14.06,
+        "quantity": 75.98784194528875,
+        "pnl": 68.3890577507599,
+        "pnl_percentage": 6.8389057750759985,
+        "status": "CLOSED",
+        "opened_at": 1768204800000,
+        "closed_at": 1768334400000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "rsi_overbought",
+        "fee_adjusted_pnl": 66.320669
+      },
+      {
+        "trade_id": "eacbe008-dbc8-4331-bf4d-fbda07cb324a",
+        "entry_price": 13.69,
+        "exit_price": 12.86,
+        "quantity": 73.04601899196494,
+        "pnl": -60.62819576333091,
+        "pnl_percentage": -6.062819576333089,
+        "status": "CLOSED",
+        "opened_at": 1768492800000,
+        "closed_at": 1768780800000,
+        "direction": "BUY",
+        "entry_reason": "bullish_rsi_divergence",
+        "exit_reason": "stop_loss",
+        "fee_adjusted_pnl": -62.567568
+      }
+    ]
+  },
+  "ETH_1d_train": {
+    "symbol": "ETH/USDT",
+    "interval": "1d",
+    "period": "2024-01-01T00:00:00Z  ->  2025-08-31T23:59:59Z",
+    "parameters": {
+      "sma_period": 200,
+      "rsi_period": 14,
+      "oversold_threshold": 50,
+      "overbought_exit": 70,
+      "stop_loss_pct": 0.05,
+      "take_profit_pct": 0.1,
+      "pivot_window": 3,
+      "min_pivot_spacing": 5,
+      "assumed_capital": 10000.0,
+      "risk_per_trade": 0.1,
+      "max_holding_candles": 20
+    },
+    "raw_metrics": {
+      "total_return_pct": 0.0,
+      "sharpe_ratio": 0.0,
+      "max_drawdown_pct": 0.0,
+      "win_rate_pct": 0.0,
+      "total_trades": 0,
+      "profit_factor": 0.0
+    },
+    "fee_adjusted_metrics": {
+      "total_return_pct": 0.0,
+      "sharpe_ratio": 0.0,
+      "max_drawdown_pct": 0.0,
+      "win_rate_pct": 0.0,
+      "total_trades": 0,
+      "profit_factor": 0.0,
+      "avg_trade_return_pct": 0.0
+    },
+    "total_signals": 0,
+    "closed_trades": 0,
+    "exit_reasons": {},
+    "trades": []
+  },
+  "ETH_1d_test": {
+    "symbol": "ETH/USDT",
+    "interval": "1d",
+    "period": "2025-09-01T00:00:00Z  ->  2026-04-30T23:59:59Z",
+    "parameters": {
+      "sma_period": 200,
+      "rsi_period": 14,
+      "oversold_threshold": 50,
+      "overbought_exit": 70,
+      "stop_loss_pct": 0.05,
+      "take_profit_pct": 0.1,
+      "pivot_window": 3,
+      "min_pivot_spacing": 5,
+      "assumed_capital": 10000.0,
+      "risk_per_trade": 0.1,
+      "max_holding_candles": 20
+    },
+    "raw_metrics": {
+      "total_return_pct": 0.0,
+      "sharpe_ratio": 0.0,
+      "max_drawdown_pct": 0.0,
+      "win_rate_pct": 0.0,
+      "total_trades": 0,
+      "profit_factor": 0.0
+    },
+    "fee_adjusted_metrics": {
+      "total_return_pct": 0.0,
+      "sharpe_ratio": 0.0,
+      "max_drawdown_pct": 0.0,
+      "win_rate_pct": 0.0,
+      "total_trades": 0,
+      "profit_factor": 0.0,
+      "avg_trade_return_pct": 0.0
+    },
+    "total_signals": 0,
+    "closed_trades": 0,
+    "exit_reasons": {},
+    "trades": []
+  }
+}

@@ -1,0 +1,192 @@
+{
+  "strategy_id": "h2_rsi_divergence_trend",
+  "run_type": "BACKTEST",
+  "start_date": "2024-01-01T00:00:00Z",
+  "end_date": "2025-08-31T23:59:59Z",
+  "parameters": {
+    "sma_period": 200,
+    "rsi_period": 14,
+    "oversold_threshold": 50,
+    "overbought_exit": 70,
+    "stop_loss_pct": 0.05,
+    "take_profit_pct": 0.1,
+    "pivot_window": 3,
+    "min_pivot_spacing": 5,
+    "assumed_capital": 10000.0,
+    "risk_per_trade": 0.1,
+    "max_holding_candles": 50
+  },
+  "trades": [
+    {
+      "trade_id": "f4f5ac02-9a74-46cd-844e-587552ee1f97",
+      "signal": {
+        "strategy_id": "h2_rsi_divergence_trend",
+        "symbol": "BTC/USDT",
+        "timestamp": 1711036800000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 0.015331840829734695,
+        "stop_loss": 61962.55299999999,
+        "take_profit": 71746.114,
+        "confidence": 0.7,
+        "metadata": {
+          "reason": "bullish_rsi_divergence"
+        }
+      },
+      "entry_price": 65223.74,
+      "exit_price": 69792.05,
+      "quantity": 0.015331840829734695,
+      "pnl": 70.04060178088538,
+      "pnl_percentage": 7.004060178088545,
+      "status": "CLOSED",
+      "opened_at": 1711036800000,
+      "closed_at": 1711368000000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "0f8c910f-b6b4-4a40-992f-5ebd865e5fac",
+      "signal": {
+        "strategy_id": "h2_rsi_divergence_trend",
+        "symbol": "BTC/USDT",
+        "timestamp": 1716955200000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 0.014717374891275394,
+        "stop_loss": 64549.55499999999,
+        "take_profit": 74741.59,
+        "confidence": 0.7,
+        "metadata": {
+          "reason": "bullish_rsi_divergence"
+        }
+      },
+      "entry_price": 67946.9,
+      "exit_price": 70947.58,
+      "quantity": 0.014717374891275394,
+      "pnl": 44.16213248875236,
+      "pnl_percentage": 4.416213248875245,
+      "status": "CLOSED",
+      "opened_at": 1716955200000,
+      "closed_at": 1717545600000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "83d96189-9a06-4af9-b5b4-fd3a389f0474",
+      "signal": {
+        "strategy_id": "h2_rsi_divergence_trend",
+        "symbol": "BTC/USDT",
+        "timestamp": 1727928000000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 0.016413353904736895,
+        "stop_loss": 57879.7,
+        "take_profit": 67018.6,
+        "confidence": 0.7,
+        "metadata": {
+          "reason": "bullish_rsi_divergence"
+        }
+      },
+      "entry_price": 60926.0,
+      "exit_price": 61031.98,
+      "quantity": 0.016413353904736895,
+      "pnl": 1.7394872468240687,
+      "pnl_percentage": 0.17394872468241562,
+      "status": "CLOSED",
+      "opened_at": 1727928000000,
+      "closed_at": 1728489600000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "f12d3a2b-d35b-4623-bedc-8179c302fe9a",
+      "signal": {
+        "strategy_id": "h2_rsi_divergence_trend",
+        "symbol": "BTC/USDT",
+        "timestamp": 1730793600000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 0.014532765063465312,
+        "stop_loss": 65369.52849999999,
+        "take_profit": 75691.03300000001,
+        "confidence": 0.7,
+        "metadata": {
+          "reason": "bullish_rsi_divergence"
+        }
+      },
+      "entry_price": 68810.03,
+      "exit_price": 74348.53,
+      "quantity": 0.014532765063465312,
+      "pnl": 80.48971930400263,
+      "pnl_percentage": 8.048971930400262,
+      "status": "CLOSED",
+      "opened_at": 1730793600000,
+      "closed_at": 1730851200000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "072d2a3d-a05e-4444-880b-823e5dcc2b5e",
+      "signal": {
+        "strategy_id": "h2_rsi_divergence_trend",
+        "symbol": "BTC/USDT",
+        "timestamp": 1733270400000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 0.010441648310248937,
+        "stop_loss": 90981.804,
+        "take_profit": 105347.35200000001,
+        "confidence": 0.7,
+        "metadata": {
+          "reason": "bullish_rsi_divergence"
+        }
+      },
+      "entry_price": 95770.32,
+      "exit_price": 102964.0,
+      "quantity": 0.010441648310248937,
+      "pnl": 75.1138766164715,
+      "pnl_percentage": 7.51138766164714,
+      "status": "CLOSED",
+      "opened_at": 1733270400000,
+      "closed_at": 1733356800000,
+      "context": "BACKTEST"
+    },
+    {
+      "trade_id": "32702f7f-577c-440c-ae38-97ea72475c02",
+      "signal": {
+        "strategy_id": "h2_rsi_divergence_trend",
+        "symbol": "BTC/USDT",
+        "timestamp": 1734753600000,
+        "direction": "BUY",
+        "order_type": "MARKET",
+        "price": null,
+        "quantity": 0.010096930533117932,
+        "stop_loss": 94088.0,
+        "take_profit": 108944.00000000001,
+        "confidence": 0.7,
+        "metadata": {
+          "reason": "bullish_rsi_divergence"
+        }
+      },
+      "entry_price": 99040.0,
+      "exit_price": 97527.97,
+      "quantity": 0.010096930533117932,
+      "pnl": -15.266861873990296,
+      "pnl_percentage": -1.526686187399029,
+      "status": "CLOSED",
+      "opened_at": 1734753600000,
+      "closed_at": 1734782400000,
+      "context": "BACKTEST"
+    }
+  ],
+  "metrics": {
+    "total_return": 2.56,
+    "sharpe_ratio": 2.57,
+    "max_drawdown": -0.42,
+    "win_rate": 83.33,
+    "total_trades": 6,
+    "profit_factor": 17.79
+  },
+  "created_at": "2026-05-07T16:16:00.856458+00:00"
+}
