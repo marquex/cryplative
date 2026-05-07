@@ -2,6 +2,8 @@
 
 All indicators are in `cryplative.strategies.indicators` and are **pure functions** — they take data in and return computed values with no side effects.
 
+All import examples work from any directory after `source .venv/bin/activate`.
+
 ## Common Interface
 
 All functions accept `list[float]` (closing prices) and return `list[float | None]`:

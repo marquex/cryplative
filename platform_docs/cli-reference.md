@@ -1,5 +1,16 @@
 # CLI Reference
 
+The `cryplative` CLI is available after activating the root virtual environment:
+
+```bash
+source .venv/bin/activate
+cryplative <command> [options]
+```
+
+Alternatively, from inside `platform/`, use `uv run cryplative <command>`.
+
+---
+
 ## cryplative strategies
 
 List all registered strategies.

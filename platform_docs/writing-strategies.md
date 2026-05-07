@@ -1,5 +1,7 @@
 # How to Write a Trading Strategy
 
+All import examples in this guide work from any directory after activating the root virtual environment (`source .venv/bin/activate`). No `sys.path` manipulation needed.
+
 ## The Strategy Interface
 
 Every strategy must implement the `Strategy` abstract base class from `cryplative.core.interfaces`. You need to implement these methods and properties:
@@ -63,10 +65,18 @@ Called after the run completes. Default is no-op.
 ## Quick Start: Scaffold a Strategy
 
 ```bash
-uv run cryplative new-strategy my_idea
+# From project root with activated venv
+source .venv/bin/activate
+cryplative new-strategy my_idea
 ```
 
-This creates `src/cryplative/strategies/my_idea.py` with boilerplate code. The strategy is automatically registered and appears in `cryplative strategies` immediately.
+Or from inside `platform/`:
+
+```bash
+cd platform && uv run cryplative new-strategy my_idea
+```
+
+This creates `platform/src/cryplative/strategies/my_idea.py` with boilerplate code. The strategy is automatically registered and appears in `cryplative strategies` immediately.
 
 ## Complete Example: Momentum Strategy
 

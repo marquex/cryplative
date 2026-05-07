@@ -1,7 +1,7 @@
 # Cryplative Platform — Architecture Overview
 
 **Audience**: Any agent or developer who needs to understand how the trading platform works.
-**Last updated**: 2026-05-06
+**Last updated**: 2026-05-07
 
 ---
 
@@ -82,42 +82,48 @@ User runs: cryplative backtest --strategy sma_crossover --symbol BTC/USDT ...
 ## File Layout
 
 ```
-platform/
-├── src/cryplative/           # Python package
-│   ├── cli.py                # CLI entry point
-│   ├── config.py             # Pydantic settings
-│   ├── core/
-│   │   ├── models.py         # All Pydantic data models
-│   │   ├── interfaces.py     # Strategy, DataProvider, ExecutionHandler ABCs
-│   │   └── exceptions.py     # Custom exceptions
-│   ├── market_fetcher/
-│   │   ├── fetcher.py        # MarketFetcher (ccxt + Binance)
-│   │   └── cache.py          # JSON file cache
-│   ├── strategies/
-│   │   ├── indicators.py     # Pure indicator functions (SMA, EMA, RSI, MACD, BB)
-│   │   ├── registry.py       # StrategyRegistry
-│   │   ├── _template.py      # Strategy scaffold template
-│   │   ├── sma_crossover.py  # SMA crossover strategy
-│   │   ├── rsi.py            # RSI mean-reversion strategy
-│   │   ├── macd.py           # MACD crossover strategy
-│   │   └── bollinger_bands.py # Bollinger Bands strategy
-│   ├── backtesting/
-│   │   └── engine.py         # BacktestEngine + BacktestConfig
-│   └── portfolio/
-│       └── tracker.py        # PortfolioTracker
-├── tests/                    # pytest test suite
-├── data/                     # Runtime data (gitignored)
-│   ├── market_cache/         # Cached candle JSON files
-│   └── strategy_results/     # Backtest result JSON files
-└── pyproject.toml            # uv project config
-
-platform_docs/                # Documentation for all agents
-├── architecture.md           # This file
-├── getting-started.md        # Setup and first backtest
-├── writing-strategies.md     # How to create new strategies
-├── cli-reference.md          # All CLI commands
-├── backtesting-guide.md      # Backtesting deep-dive
-└── indicators.md             # Indicator function reference
+cryplative/                   # Project root
+├── .venv/                    # Root virtual environment (uv-managed Python 3.12)
+│                              #   source .venv/bin/activate → import cryplative anywhere
+├── .gitignore                # Includes .venv/
+├── platform/                 # Platform source code (engineering domain)
+│   ├── src/cryplative/       # Python package (installed as editable into root .venv)
+│   │   ├── cli.py            # CLI entry point
+│   │   ├── config.py         # Pydantic settings
+│   │   ├── core/
+│   │   │   ├── models.py     # All Pydantic data models
+│   │   │   ├── interfaces.py # Strategy, DataProvider, ExecutionHandler ABCs
+│   │   │   └── exceptions.py # Custom exceptions
+│   │   ├── market_fetcher/
+│   │   │   ├── fetcher.py    # MarketFetcher (ccxt + Binance)
+│   │   │   └── cache.py      # JSON file cache
+│   │   ├── strategies/
+│   │   │   ├── indicators.py # Pure indicator functions (SMA, EMA, RSI, MACD, BB)
+│   │   │   ├── registry.py   # StrategyRegistry
+│   │   │   ├── _template.py  # Strategy scaffold template
+│   │   │   ├── sma_crossover.py
+│   │   │   ├── rsi.py
+│   │   │   ├── macd.py
+│   │   │   └── bollinger_bands.py
+│   │   ├── backtesting/
+│   │   │   └── engine.py     # BacktestEngine + BacktestConfig
+│   │   └── portfolio/
+│   │       └── tracker.py    # PortfolioTracker
+│   ├── tests/                # pytest test suite
+│   ├── data/                 # Runtime data (gitignored)
+│   │   ├── market_cache/     # Cached candle JSON files
+│   │   └── strategy_results/ # Backtest result JSON files
+│   └── pyproject.toml        # uv project config
+├── data/                     # Research team workspace (research domain)
+├── platform_docs/            # Documentation for all agents
+│   ├── architecture.md       # This file
+│   ├── getting-started.md    # Setup and first backtest
+│   ├── public-api.md         # Public API contract for programmatic use
+│   ├── writing-strategies.md # How to create new strategies
+│   ├── cli-reference.md      # All CLI commands
+│   ├── backtesting-guide.md  # Backtesting deep-dive
+│   └── indicators.md         # Indicator function reference
+└── .agentic/                 # Agent configuration and expertise
 ```
 
 ---
@@ -178,12 +184,24 @@ class ExecutionHandler(ABC):
 ## Quick Start
 
 ```bash
-cd platform
-uv sync                                          # Install dependencies
-uv run cryplative strategies                     # List available strategies
-uv run cryplative fetch --symbol BTC/USDT --interval 1h --start 2025-01-01 --end 2025-06-01
-uv run cryplative backtest --strategy sma_crossover --symbol BTC/USDT --interval 1h --start 2025-01-01 --end 2025-06-01
+# Activate the root virtual environment (from project root)
+source .venv/bin/activate
+
+# List available strategies
+cryplative strategies
+
+# Fetch market data
+cryplative fetch --symbol BTC/USDT --interval 1h --start 2025-01-01 --end 2025-06-01
+
+# Run a backtest
+cryplative backtest --strategy sma_crossover --symbol BTC/USDT --interval 1h --start 2025-01-01 --end 2025-06-01
+
+# Use programmatically in Python
+python -c "from cryplative.backtesting.engine import BacktestEngine; print('OK')"
 ```
+
+> **Alternative**: For platform development (inside `platform/`), use `uv run` instead.
+> See [Getting Started](getting-started.md) for the two usage modes.
 
 ---
 

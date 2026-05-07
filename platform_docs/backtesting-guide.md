@@ -1,5 +1,37 @@
 # Backtesting Guide
 
+## Using Backtests
+
+You can run backtests two ways:
+
+**CLI** (after `source .venv/bin/activate`):
+
+```bash
+cryplative backtest --strategy sma_crossover --symbol BTC/USDT --interval 1h --start 2025-01-01 --end 2025-06-01
+```
+
+**Programmatic** (for parameter sweeps, batch testing):
+
+```python
+from cryplative.backtesting.engine import BacktestEngine, BacktestConfig
+from cryplative.core.models import StrategyResult
+
+config = BacktestConfig(
+    strategy_id="sma_crossover",
+    symbol="BTC/USDT",
+    interval="1h",
+    start_date="2025-01-01",
+    end_date="2025-06-01",
+    parameters={"fast_period": 10, "slow_period": 20},
+)
+result = engine.run(config)
+print(f"Return: {result.metrics.total_return:.2f}%")
+```
+
+See [Public API Reference](public-api.md) for the full programmatic API.
+
+---
+
 ## How Backtesting Works
 
 The backtest engine simulates running a strategy against historical data through a simple loop:
@@ -139,7 +171,7 @@ Backtest results are saved as JSON files in `data/strategy_results/`. Each file 
 - `metrics`: Performance metrics (total return, Sharpe ratio, etc.)
 - `created_at`: When the backtest was run
 
-You can load results programmatically:
+You can load results programmatically (from any directory with `source .venv/bin/activate`):
 
 ```python
 from cryplative.core.models import StrategyResult

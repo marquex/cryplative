@@ -7,7 +7,7 @@ hierarchy:
   subordinates:
     - agent: platform-developer
       role: "Python trading platform engineer"
-      status: "ACTIVE — Phase 2.5 Step 1 (list-pairs) complete, Steps 2-8 pending"
+      status: "ACTIVE — Phase 2.5 Step 1 (list-pairs) + Step 3 (docs) complete, Steps 2,4-8 pending"
       capabilities: "Full-stack Python: Pydantic models, ccxt integration, strategy pattern, backtesting, CLI, testing, indicators library, multi-position support, auto-discovery, list-pairs"
       quality: "High — 93% coverage Phase 1, follows spec precisely, adds polish commits"
       communication: "Returns structured summary of work done via delegation output"
@@ -43,7 +43,7 @@ external_agents:
     notes: "External agent with questions about platform capabilities. NOT a CTO subordinate. Answered 5 questions in cto-platform-answers.md + 7 follow-ups in cto-platform-answers-2.md."
     trigger: "ACTIVE — onboarding, designing research workflow, unblocked for immediate research"
 
-expertise_status: "Active — SPEC-002 written and validated; Step 1 (list-pairs) implemented; Steps 2-8 pending delegation"
+expertise_status: "Active — SPEC-002 written and validated; Step 1 (list-pairs) + Step 3 (docs) complete; Steps 2,4-8 pending"
 
 expertise_entries:
   - file: architecture-rationale.md
@@ -115,6 +115,7 @@ key_decisions:
   - "Root venv setup COMPLETE (2026-05-07) — uv-provided Python 3.12.13, editable install, all 22 modules importable. Homebrew Python broken (libexpat/system libexpat mismatch), uv is the working solution."
   - "Platform-developer CANNOT execute tasks outside platform/ — cross-domain infra tasks (root .venv, root .gitignore) must be executed directly, not delegated (2026-05-07)"
   - "Environment: macOS system Python 3.9.6 too old; Homebrew Python 3.12/3.13 broken (pyexpat _XML_SetAllocTrackerActivationThreshold); uv-managed Python 3.12.13 works perfectly"
+  - "Platform documentation updated (Step 3): new public-api.md defines import contract for research team; all 7 docs updated for root venv setup (2026-05-07)"
   - "Platform-developer CANNOT execute tasks outside platform/ — cross-domain infra tasks (root .venv, root .gitignore) must be executed directly, not delegated (2026-05-07)"
 
 development_roadmap:
