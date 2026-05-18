@@ -1,7 +1,0 @@
-{
-  "database": "dolt",
-  "backend": "dolt",
-  "dolt_mode": "embedded",
-  "dolt_database": "cryplative",
-  "project_id": "58dd6b04-b4b0-4f82-b468-1d454eabc403"
-}
