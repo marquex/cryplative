@@ -1095,3 +1095,122 @@ class TestCLIResultsCatalog:
 
         assert result.exit_code == 0
         assert "Deleted result #1" in result.output
+
+
+class TestCLIBacktestCatalog:
+    """Tests for --catalog flag on backtest command."""
+
+    def test_backtest_with_catalog_flag(self, tmp_path: Path) -> None:
+        """backtest --catalog inserts into catalog after run."""
+        config = CryplativeConfig(
+            data_dir=str(tmp_path),
+            strategy_results_dir=str(tmp_path / "results"),
+        )
+
+        from cryplative.core.models import Candle
+
+        test_candles = [
+            Candle(
+                symbol="BTC/USDT",
+                interval="1h",
+                open_time=1704067200000 + i * 3600000,
+                open=100.0 + i * 0.5,
+                high=105.0 + i * 0.5,
+                low=95.0 + i * 0.5,
+                close=102.0 + i * 0.5,
+                volume=100.0,
+                close_time=1704067200000 + i * 3600000 + 3599999,
+                closed=True,
+            )
+            for i in range(50)
+        ]
+
+        with patch("cryplative.market_fetcher.fetcher.MarketFetcher") as mock_fetcher:
+            mock_instance = MagicMock()
+            mock_fetcher.return_value = mock_instance
+            mock_instance.get_candles.return_value = test_candles
+
+            with (
+                patch("cryplative.cli.CryplativeConfig", return_value=config),
+                patch("cryplative.cli.setup_logging"),
+            ):
+                result = runner.invoke(
+                    app,
+                    [
+                        "backtest",
+                        "--strategy",
+                        "sma_crossover",
+                        "--symbol",
+                        "BTC/USDT",
+                        "--interval",
+                        "1h",
+                        "--start",
+                        "2024-01-01",
+                        "--end",
+                        "2024-01-03",
+                        "--catalog",
+                        "--hypothesis",
+                        "H2",
+                        "--data-split",
+                        "TEST",
+                    ],
+                )
+
+        assert result.exit_code == 0
+        assert "Backtest Results" in result.output
+        assert "cataloged as #" in result.output
+        assert "split=TEST" in result.output
+
+    def test_backtest_without_catalog_no_change(self, tmp_path: Path) -> None:
+        """backtest without --catalog produces identical behavior (no catalog output)."""
+        config = CryplativeConfig(
+            data_dir=str(tmp_path),
+            strategy_results_dir=str(tmp_path / "results"),
+        )
+
+        from cryplative.core.models import Candle
+
+        test_candles = [
+            Candle(
+                symbol="BTC/USDT",
+                interval="1h",
+                open_time=1704067200000 + i * 3600000,
+                open=100.0 + i * 0.5,
+                high=105.0 + i * 0.5,
+                low=95.0 + i * 0.5,
+                close=102.0 + i * 0.5,
+                volume=100.0,
+                close_time=1704067200000 + i * 3600000 + 3599999,
+                closed=True,
+            )
+            for i in range(50)
+        ]
+
+        with patch("cryplative.market_fetcher.fetcher.MarketFetcher") as mock_fetcher:
+            mock_instance = MagicMock()
+            mock_fetcher.return_value = mock_instance
+            mock_instance.get_candles.return_value = test_candles
+
+            with (
+                patch("cryplative.cli.CryplativeConfig", return_value=config),
+                patch("cryplative.cli.setup_logging"),
+            ):
+                result = runner.invoke(
+                    app,
+                    [
+                        "backtest",
+                        "--strategy",
+                        "sma_crossover",
+                        "--symbol",
+                        "BTC/USDT",
+                        "--interval",
+                        "1h",
+                        "--start",
+                        "2024-01-01",
+                        "--end",
+                        "2024-01-03",
+                    ],
+                )
+
+        assert result.exit_code == 0
+        assert "cataloged" not in result.output

@@ -330,6 +330,24 @@ def backtest(
         "--max-positions",
         help="Maximum concurrent open positions",
     ),
+    catalog_flag: bool = typer.Option(
+        False, "--catalog", help="Save result to the strategy catalog after backtest"
+    ),
+    hypothesis: str | None = typer.Option(
+        None, "--hypothesis", help="Hypothesis ID tag (e.g., H2)"
+    ),
+    experiment: str | None = typer.Option(
+        None, "--experiment", help="Experiment batch ID (e.g., sweep_20260518)"
+    ),
+    data_split: str = typer.Option(
+        "FULL", "--data-split", help="Data split: TRAIN, TEST, FULL, OUT_OF_SAMPLE"
+    ),
+    train_result: int | None = typer.Option(
+        None, "--train-result", help="ID of the training result (for TEST splits)"
+    ),
+    verdict: str | None = typer.Option(
+        None, "--verdict", help="Verdict tag: PASS, FAIL, or MARGINAL"
+    ),
 ) -> None:
     """Run a backtest with a strategy against historical data."""
     config = CryplativeConfig()
@@ -464,6 +482,39 @@ def backtest(
     # Save location
     results_dir = config.resolve_strategy_results_dir()
     console.print(f"\n[dim]Full results saved to {results_dir}/[/dim]")
+
+    # Catalog integration
+    if catalog_flag:
+        from cryplative.catalog import ResultsCatalog
+
+        cat = ResultsCatalog(db_path=str(config.resolve_data_dir() / "catalog.db"))
+        try:
+            saved_path = ResultsCatalog.build_results_path(
+                strategy_id=strategy,
+                symbol=symbol,
+                interval=interval,
+                start_date=start,
+                end_date=end,
+            )
+            row_id = cat.insert_from_strategy_result(
+                result=result,
+                symbol=symbol,
+                interval=interval,
+                results_file=saved_path,
+                hypothesis_id=hypothesis,
+                experiment_id=experiment,
+                data_split=data_split,
+                train_result_id=train_result,
+                verdict=verdict,
+            )
+            console.print(
+                f"[green]Result cataloged as #{row_id} "
+                f"({strategy}, {symbol}, {interval}, split={data_split})[/green]"
+            )
+        except Exception as e:
+            console.print(f"[red]Catalog insert failed: {e}[/red]")
+        finally:
+            cat.close()
 
 
 @app.command("compare")

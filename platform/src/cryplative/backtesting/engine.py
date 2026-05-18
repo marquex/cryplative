@@ -262,12 +262,8 @@ class BacktestEngine:
 
         # Profit factor
         gross_profit = sum(t.pnl for t in wins if t.pnl is not None) if wins else 0.0
-        gross_loss = (
-            abs(sum(t.pnl for t in losses if t.pnl is not None)) if losses else 0.0
-        )
-        profit_factor = (
-            gross_profit / gross_loss if gross_loss > 0 else float("inf")
-        )
+        gross_loss = abs(sum(t.pnl for t in losses if t.pnl is not None)) if losses else 0.0
+        profit_factor = gross_profit / gross_loss if gross_loss > 0 else float("inf")
 
         # Sharpe ratio from trade returns
         sharpe_ratio = 0.0
@@ -285,15 +281,9 @@ class BacktestEngine:
                 )
                 std_ret = math.sqrt(variance) if variance > 0 else 0.0
                 if std_ret > 0:
-                    sharpe_ratio = (mean_ret / std_ret) * math.sqrt(
-                        len(trade_returns)
-                    )
+                    sharpe_ratio = (mean_ret / std_ret) * math.sqrt(len(trade_returns))
 
-        pf_value = (
-            round(profit_factor, 2)
-            if profit_factor != float("inf")
-            else profit_factor
-        )
+        pf_value = round(profit_factor, 2) if profit_factor != float("inf") else profit_factor
 
         return StrategyMetrics(
             total_return=round(total_return, 2),
@@ -304,8 +294,11 @@ class BacktestEngine:
             profit_factor=pf_value,
         )
 
-    def _save_result(self, result: StrategyResult, config: BacktestConfig) -> None:
-        """Save the strategy result as JSON to the results directory."""
+    def _save_result(self, result: StrategyResult, config: BacktestConfig) -> str:
+        """Save the strategy result as JSON to the results directory.
+
+        Returns the relative path from data/ to the saved file.
+        """
         results_dir = self._config.resolve_strategy_results_dir()
         results_dir.mkdir(parents=True, exist_ok=True)
 
@@ -319,3 +312,10 @@ class BacktestEngine:
         filepath.write_text(result.model_dump_json(indent=2), encoding="utf-8")
 
         logger.debug("result_saved", path=str(filepath))
+
+        # Return relative path from data/
+        return f"strategy_results/{filename}"
+
+    def save_result(self, result: StrategyResult, config: BacktestConfig) -> str:
+        """Public wrapper for _save_result. Returns the relative path from data/."""
+        return self._save_result(result, config)
