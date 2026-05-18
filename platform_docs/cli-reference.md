@@ -91,6 +91,12 @@ uv run cryplative backtest \
 | `--capital` | `10000.0` | Initial capital for the simulation |
 | `--params` | `{}` | Strategy parameters as JSON string or path to `.json` file |
 | `--max-positions` | `1` | Maximum concurrent open positions |
+| `--catalog` | `false` | Save result to the strategy catalog after backtest |
+| `--hypothesis` | — | Hypothesis ID tag (e.g., `H2`) |
+| `--experiment` | — | Experiment batch ID (e.g., `sweep_20260518`) |
+| `--data-split` | `FULL` | Data split: `TRAIN`, `TEST`, `FULL`, `OUT_OF_SAMPLE` |
+| `--train-result` | — | ID of the training result (for TEST splits) |
+| `--verdict` | — | Verdict tag: `PASS`, `FAIL`, or `MARGINAL` |
 
 ### Examples
 
@@ -139,6 +145,17 @@ uv run cryplative backtest \
     --start 2025-01-01 \
     --end 2025-06-01 \
     --capital 50000
+
+# Backtest with catalog integration
+uv run cryplative backtest \
+    --strategy sma_crossover \
+    --symbol BTC/USDT \
+    --interval 1h \
+    --start 2025-01-01 \
+    --end 2025-06-01 \
+    --catalog \
+    --hypothesis H2 \
+    --data-split TEST
 ```
 
 ### Output
@@ -203,3 +220,143 @@ A comparison table with columns for each strategy and rows for each metric:
 | Profit Factor | 1.80 | 1.20 |
 
 Best values are highlighted in green, worst in red.
+
+---
+
+## cryplative results
+
+Query and manage the strategy results catalog. The catalog is a lightweight SQLite index over the JSON result files in `data/strategy_results/`.
+
+### Subcommands
+
+#### `cryplative results list`
+
+List strategy results from the catalog with optional filters.
+
+```bash
+uv run cryplative results list
+uv run cryplative results list --symbol BTC/USDT --data-split TEST
+uv run cryplative results list --min-sharpe 1.0 --limit 50
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--strategy` | — | Filter by strategy ID |
+| `--hypothesis` | — | Filter by hypothesis ID |
+| `--experiment` | — | Filter by experiment ID |
+| `--symbol` | — | Filter by trading pair |
+| `--interval` | — | Filter by interval |
+| `--verdict` | — | Filter by verdict |
+| `--data-split` | — | Filter by data split |
+| `--min-sharpe` | — | Minimum Sharpe ratio threshold |
+| `--min-return` | — | Minimum return (%) threshold |
+| `--limit` | `20` | Maximum results to display |
+
+#### `cryplative results best`
+
+Show top N results by a given metric.
+
+```bash
+uv run cryplative results best --metric sharpe_ratio --top 5
+uv run cryplative results best --metric total_return_pct --data-split TEST
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--metric` | `sharpe_ratio` | Metric to rank by |
+| `--top` | `10` | Number of top results |
+| `--strategy` | — | Filter by strategy |
+| `--symbol` | — | Filter by symbol |
+| `--hypothesis` | — | Filter by hypothesis |
+| `--data-split` | — | Filter by data split |
+
+#### `cryplative results show`
+
+Display full details of a single result.
+
+```bash
+uv run cryplative results show 12
+```
+
+#### `cryplative results compare`
+
+Compare results across multiple hypotheses.
+
+```bash
+uv run cryplative results compare H2 H5
+uv run cryplative results compare H2 H5 --data-split TEST
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--metric` | `sharpe_ratio` | Metric to compare |
+| `--data-split` | `TEST` | Data split filter |
+
+#### `cryplative results summary`
+
+Show catalog overview.
+
+```bash
+uv run cryplative results summary
+```
+
+#### `cryplative results rebuild`
+
+Rebuild catalog by scanning the results directory.
+
+```bash
+uv run cryplative results rebuild
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--results-dir` | `data/strategy_results` | Results directory path |
+
+#### `cryplative results tag`
+
+Add or update hypothesis, experiment, verdict, or notes for a result.
+
+```bash
+uv run cryplative results tag 12 --hypothesis H2 --verdict PASS --notes "Strong on BTC"
+```
+
+#### `cryplative results delete`
+
+Delete a result from the catalog (does NOT delete the JSON file).
+
+```bash
+uv run cryplative results delete 5
+```
+
+---
+
+## Python API: ResultsCatalog
+
+For programmatic use, the catalog is available as a Python class:
+
+```python
+from cryplative.catalog import ResultsCatalog
+
+catalog = ResultsCatalog()  # defaults to data/catalog.db
+
+# Query
+results = catalog.find(symbol="BTC/USDT", data_split="TEST", min_sharpe=1.0)
+best = catalog.best(metric="sharpe_ratio", n=5)
+entry = catalog.get(12)
+
+# Insert
+row_id = catalog.insert_from_strategy_result(
+    result, symbol="BTC/USDT", interval="4h",
+    results_file="strategy_results/test.json",
+    hypothesis_id="H2", data_split="TEST",
+)
+
+# Tag
+catalog.tag(12, verdict="PASS", notes="Strong on BTC")
+
+# Rebuild from existing files
+catalog.rebuild()
+
+# Export
+df = catalog.to_dataframe()
+```
