@@ -7,8 +7,8 @@ hierarchy:
   subordinates:
     - agent: platform-developer
       role: "Python trading platform engineer"
-      status: "ACTIVE — Phase 2.5 Step 1 (list-pairs) + Step 3 (docs) complete, Steps 2,4-8 pending"
-      capabilities: "Full-stack Python: Pydantic models, ccxt integration, strategy pattern, backtesting, CLI, testing, indicators library, multi-position support, auto-discovery, list-pairs"
+      status: "ACTIVE — SPEC-004 complete (5 commits, 294 tests pass, 92% coverage). Available for next task."
+      capabilities: "Full-stack Python: Pydantic models, ccxt integration, strategy pattern, backtesting, CLI, testing, indicators library, multi-position support, auto-discovery, list-pairs, SQLite catalog"
       quality: "High — 93% coverage Phase 1, follows spec precisely, adds polish commits"
       communication: "Returns structured summary of work done via delegation output"
     - agent: backend-developer
@@ -43,7 +43,7 @@ external_agents:
     notes: "External agent with questions about platform capabilities. NOT a CTO subordinate. Answered 5 questions in cto-platform-answers.md + 7 follow-ups in cto-platform-answers-2.md."
     trigger: "ACTIVE — onboarding, designing research workflow, unblocked for immediate research"
 
-expertise_status: "Active — SPEC-002 partially implemented (Steps 1,3 done, Steps 2,4-8 pending); SPEC-004 v2 updated per research team review (3 critical + 4 suggestions incorporated); ready for CEO go-ahead to delegate implementation"
+expertise_status: "Active — SPEC-004 Strategy Results Catalog COMPLETE (5 commits, 294 tests, 92% coverage, ruff/mypy clean). SPEC-002 partially implemented (Steps 1,3 done, Steps 2,4-8 pending)."
 
 expertise_entries:
   - file: architecture-rationale.md
@@ -100,7 +100,7 @@ specs_authored:
   - file: 004-strategy-results-catalog.md
     description: "Strategy results catalog — SQLite index of backtest metadata for querying, comparing, and analyzing strategy results across hypotheses"
     date: 2026-05-18
-    status: DRAFT v2 — research team review incorporated (3 critical + 4 suggestions); engine return path change specified; ready for implementation
+    status: COMPLETE — 5 commits (1a280d6..2c91d91), 294 tests pass, 92% coverage, ruff/mypy clean
 
 research_team_readiness:
   assessed: 2026-05-18
@@ -160,7 +160,9 @@ key_decisions:
   - "StrategyResult does NOT have top-level symbol/interval — these come from BacktestConfig. Any catalog insert method must receive them explicitly. (discovered during SPEC-004 validation)"
   - "JSON result filenames encode symbol and interval — rebuild() must parse filenames since JSON lacks these top-level fields. Two filename patterns exist: engine format (with T00:00:00Z timestamps) and old format (bare dates). Non-result files (e.g., H2-detailed-results.json) must be skipped. (discovered during SPEC-004 validation, confirmed by research review C2)"
   - "BacktestEngine._save_result() returns None — must be updated to return saved file path for catalog integration. Non-breaking change (nobody checks return value). Public save_result() wrapper added. (discovered during SPEC-004 research review C3)"
-  - "Research methodology requires train/test split tracking — catalog data_split field (TRAIN/TEST/FULL/OUT_OF_SAMPLE) + train_result_id linking prevents train/test contamination in compare_hypotheses(). Default to TEST-only comparisons. (from research team review C1, 2026-05-18)"  - "Platform documentation updated (Step 3): new public-api.md defines import contract for research team; all 7 docs updated for root venv setup (2026-05-07)"
+  - "Research methodology requires train/test split tracking — catalog data_split field (TRAIN/TEST/FULL/OUT_OF_SAMPLE) + train_result_id linking prevents train/test contamination in compare_hypotheses(). Default to TEST-only comparisons. (from research team review C1, 2026-05-18)"
+  - "SPEC-004 COMPLETE (2026-05-18): Strategy Results Catalog delivered. SQLite index over JSON results. 5 commits, 294 tests, 92% coverage. Research team can now: query/filter/compare results, tag hypotheses, track train/test splits, rebuild from existing files. Unblocks Phase 2 research workflow."
+  - "Platform documentation updated (Step 3): new public-api.md defines import contract for research team; all 7 docs updated for root venv setup (2026-05-07)"
   - "Platform-developer CANNOT execute tasks outside platform/ — cross-domain infra tasks (root .venv, root .gitignore) must be executed directly, not delegated (2026-05-07)"
 
 development_roadmap:
@@ -172,6 +174,17 @@ development_roadmap:
   phase_5: "Optimization — parameter tuning, strategy ensembles, advanced analytics"
 
 delegation_history:
+  - task: "SPEC-004 Strategy Results Catalog"
+    assignee: platform-developer
+    delegated: 2026-05-18
+    completed: 2026-05-18
+    outcome: SUCCESS
+    background_task_id: "baqkfvz94"
+    details: "5 commits (1a280d6..2c91d91): catalog module (db.py, query.py, __init__.py), 262-line query API, CLI results subcommands, engine save_result returns path, backtest --catalog flag, docs. 294 tests pass, 92% coverage, ruff/mypy clean. 3,684 lines added across 8 files."
+    notes: "Spec v2 with research team review. Platform-developer combined Steps 2-4+7 into one commit — acceptable. All acceptance criteria met."
+    lessons:
+      - "Platform-developer compressed 8 spec steps into 5 commits (combined Steps 2-4 and Step 7) — all functionality present, just fewer granular commits"
+      - "92% coverage achieved with 71 new catalog tests + 16 new CLI tests — thorough"
   - task: "SPEC-000 Platform Bootstrap"
     assignee: platform-developer
     delegated: 2026-05-05

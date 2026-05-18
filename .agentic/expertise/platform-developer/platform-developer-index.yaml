@@ -1,7 +1,7 @@
 # Platform Developer Expertise Index
 # Agent: platform-developer
 # Domain: Python trading platform — market data, strategies, backtesting, live execution
-# Last updated: 2026-05-18 (SPEC-004 validation review)
+# Last updated: 2026-05-18 (SPEC-004 implementation complete)
 
 hierarchy:
   manager: cto
@@ -10,7 +10,8 @@ hierarchy:
 status: |
   Phase 1 (SPEC-000): Core backtesting platform with SMA Crossover strategy
   Phase 2 (SPEC-001): Multi-position support, indicators library, 3 new strategies, auto-discovery, scaffolding
-  Test coverage: 96% (197 tests)
+  Phase 3 (SPEC-004): Strategy results catalog with SQLite index, CLI commands, backtest integration
+  Test coverage: 92% (292 tests, 71 catalog + 15 catalog CLI)
 
 # =============================================================================
 # KEY LEARNINGS
@@ -100,6 +101,7 @@ architecture:
       strategies/         # Registry, indicators, implementations, template
       backtesting/        # Engine, comparison utilities
       portfolio/          # Multi-position tracking
+      catalog/            # SQLite results index (db.py, query.py, __init__.py)
 
 # =============================================================================
 # GOTCHAS (NOT OBVIOUS FROM CODE)
@@ -201,6 +203,43 @@ gotchas:
     - Column constraint: results_file TEXT NOT NULL UNIQUE
     - Or: CREATE UNIQUE INDEX idx_results_file ON results(results_file)
     Regular CREATE INDEX allows duplicates — sqlite3.IntegrityError will NOT fire.
+
+  spec004_rich_empty_style:
+    insight: |
+      Rich console markup f"[{style}]{text}[/{style}]" breaks when style is empty string.
+      Empty style produces "[]" and "[/]" which raises MarkupError.
+    fix: |
+      Use conditional: if style: f"[{style}]{text}[/{style}]" else: text
+      Or use a named style like "bold" / "not bold" instead of empty string.
+
+  spec004_max_drawdown_sorting:
+    insight: |
+      max_drawdown_pct is stored as negative values (e.g., -0.42, -10.0).
+      "Best" drawdown = closest to 0 (least negative) = highest value numerically.
+      Therefore max_drawdown_pct should be in HIGHER_IS_BETTER set (sort DESC).
+      The spec says "lower is better" which is semantically correct for drawdown magnitude,
+      but since values are stored as negatives, SQL DESC puts the best first.
+
+  spec004_catalog_module_structure:
+    insight: |
+      catalog/ module has 3 files: __init__.py (exports), db.py (schema + dataclasses),
+      query.py (ResultsCatalog class with all methods). This separation keeps schema
+      concerns separate from query logic. init_db() is in db.py and called by constructor.
+
+  spec004_rebuild_filename_parsing:
+    insight: |
+      Two filename patterns exist in strategy_results/:
+      1. Engine format: {strategy_id}_{BASE}_{QUOTE}_{interval}_{start}T00:00:00Z_{end}T23:59:59Z.json
+      2. Old format: {strategy_id}_{BASE}_{QUOTE}_{interval}_{start}_{end}.json
+      Non-matching files (H2-detailed-results.json) are silently skipped via _parse_filename().
+      Files matching a pattern but with invalid JSON are counted as parse errors.
+
+  spec004_backtest_catalog_integration:
+    insight: |
+      Catalog insert happens in the CLI layer, NOT in the engine. The engine's job is
+      just running backtests. The CLI uses build_results_path() to construct the path
+      since engine.run() returns StrategyResult (not the saved path). The engine's
+      _save_result() now returns the path string but run() doesn't capture it.
 
 # =============================================================================
 # DECISIONS & TRADEOFFS

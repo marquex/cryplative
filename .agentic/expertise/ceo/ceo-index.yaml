@@ -102,11 +102,11 @@ platform:
   supports: ["market orders", "limit orders", "stop loss", "take profit"]
 
 current_status:
-  phase: "Research pipeline — H2 rejected, H5 spec not yet written, catalog spec aligned between teams"
-  platform: "Operational — root .venv with editable install, clean imports working, docs updated"
+  phase: "SPEC-004 catalog shipped — H5 spec writing is the next priority"
+  platform: "Operational — catalog module added, engine updated, CLI expanded, docs written"
   immediate_priorities:
-    - "H5 (ADX + SMA filter) — need head-of-research to write spec and assign to strategy-implementer"
-    - "SPEC-004 (Strategy Results Catalog) — spec v2 aligned between engineering and research, awaiting go-ahead to build"
+    - "H5 (ADX + SMA filter) — delegate to head-of-research to write spec and assign to strategy-implementer"
+    - "Validate SPEC-004 catalog with real research data"
   execution_sequence:
     step_1:
       what: "H2 implementation (RSI divergence + trend filter)"
@@ -131,10 +131,14 @@ current_status:
     step_5:
       what: "SPEC-004 Strategy Results Catalog — cross-team review"
       result: "CTO wrote spec v1, research lead reviewed (APPROVE_WITH_SUGGESTIONS), CTO updated to v2 incorporating all feedback"
-      status: "DONE — spec aligned, awaiting build go-ahead"
+      status: "DONE — spec aligned"
+    step_6:
+      what: "SPEC-004 Strategy Results Catalog — implementation"
+      result: "5 commits: catalog module (db.py + query.py), CLI commands, engine update (--catalog flag), pandas export, docs. 3684 lines added."
+      status: "DONE — shipped across commits 1a280d6..2c91d91"
   next_steps:
     - "H5 (ADX + SMA filter) — delegate to head-of-research to write spec + assign to strategy-implementer"
-    - "SPEC-004 build — delegate to platform-developer when ready"
+    - "Validate SPEC-004 catalog with real backtest data (rebuild against existing results)"
     - "Define measurable targets for aggressive growth (profit, risk, drawdown metrics)"
     - "Define risk management framework"
     - "Consider H1 (Vol breakout + volume) after H5"
@@ -165,7 +169,7 @@ platform_feature_requests:
     blocking: "resolved"
   - feature: "Strategy Results Catalog (SPEC-004)"
     purpose: "SQLite index over strategy backtest JSON files for querying, comparing, and analyzing results across strategies"
-    status: "spec v2 aligned between engineering and research — awaiting build go-ahead"
+    status: "shipped — 5 commits (1a280d6..2c91d91), catalog module + CLI + engine integration + docs"
     spec: ".agentic/specs/engineering/004-strategy-results-catalog.md"
     review: ".agentic/specs/research/catalog-spec-review.md"
     response: ".agentic/specs/engineering/004-review-response.md"
