@@ -1,7 +1,7 @@
 # Platform Developer Expertise Index
 # Agent: platform-developer
 # Domain: Python trading platform — market data, strategies, backtesting, live execution
-# Last updated: 2026-05-07 (Root venv setup documentation)
+# Last updated: 2026-05-18 (SPEC-004 validation review)
 
 hierarchy:
   manager: cto
@@ -167,6 +167,40 @@ gotchas:
     - BacktestConfig is plain class, StrategyMetrics is Pydantic BaseModel
     - All indicator signatures use list[float] input, list[float | None] output
     - ATR signature exception: takes (highs, lows, closes) not just closes
+
+  spec004_strategy_result_gaps: |
+    StrategyResult model lacks symbol and interval fields. These are on BacktestConfig instead.
+    Critical impact: any integration that consumes StrategyResult (catalog, API, reports) cannot
+    determine market context without additional parameters.
+    - symbol: available via trades[0].signal.symbol (if trades exist), but not top-level
+    - interval: NOWHERE in StrategyResult or the JSON output — only in BacktestConfig and filename
+    Workaround: pass symbol/interval as separate parameters alongside StrategyResult.
+    Future fix: add symbol and interval fields to StrategyResult model.
+
+  spec004_json_result_file_structure: |
+    JSON result files are NOT self-describing for market context. Top-level fields:
+    strategy_id, run_type, start_date, end_date, parameters, trades, metrics, created_at.
+    Missing: symbol, interval. Must parse filename for interval and/or trades for symbol.
+    Filename format: {strategy_id}_{symbol_slash_to_underscore}_{interval}_{start}_{end}.json
+    Date format in filename varies: some use "2025-01-01" others "2024-01-01T00:00:00Z"
+    depending on what was passed to --start/--end.
+    Non-standard files also exist in strategy_results/: H2-detailed-results.json, H2-report.md.
+    Any directory scanner must skip these gracefully.
+
+  spec004_typer_subcommand_groups: |
+    Typer does NOT support nested commands via @app.command(). To create a command group
+    with subcommands (e.g., "cryplative results list"), use app.add_typer() pattern:
+      sub_app = typer.Typer(help="...")
+      app.add_typer(sub_app, name="results")
+      @sub_app.command("list")
+      def results_list(...): ...
+    This is the first subcommand group in the CLI. All existing commands are leaf commands.
+
+  spec004_db_unique_constraint: |
+    SQLite CREATE INDEX does NOT enforce uniqueness. Must use either:
+    - Column constraint: results_file TEXT NOT NULL UNIQUE
+    - Or: CREATE UNIQUE INDEX idx_results_file ON results(results_file)
+    Regular CREATE INDEX allows duplicates — sqlite3.IntegrityError will NOT fire.
 
 # =============================================================================
 # DECISIONS & TRADEOFFS

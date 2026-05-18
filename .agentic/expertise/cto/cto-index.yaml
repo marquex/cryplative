@@ -43,28 +43,13 @@ external_agents:
     notes: "External agent with questions about platform capabilities. NOT a CTO subordinate. Answered 5 questions in cto-platform-answers.md + 7 follow-ups in cto-platform-answers-2.md."
     trigger: "ACTIVE — onboarding, designing research workflow, unblocked for immediate research"
 
-expertise_status: "Active — SPEC-002 partially implemented (Steps 1,3 done, Steps 2,4-8 pending); research team readiness assessment completed for CEO"
+expertise_status: "Active — SPEC-002 partially implemented (Steps 1,3 done, Steps 2,4-8 pending); SPEC-004 drafted (strategy results catalog); research team readiness assessment completed for CEO"
 
 expertise_entries:
   - file: architecture-rationale.md
     description: "Technology stack decisions, rationale, lessons learned, and Phase 2 planning insights"
     date: 2026-05-04
     updated: 2026-05-05
-
-specs_authored:
-  - file: architecture-overview.md
-    description: "High-level system architecture, data models, directory structure, and development roadmap"
-    date: 2026-05-04
-    status: Active
-  - file: 000-platform-bootstrap.md
-    description: "Phase 1 Foundation — project scaffolding, models, interfaces, MarketFetcher, SMA strategy, backtesting, CLI"
-    date: 2026-05-04
-    status: COMPLETE — all 11 steps implemented, all acceptance criteria met
-  - file: 001-researcher-ready-platform.md
-    description: "Phase 2 Researcher-Ready — indicators library, multi-position backtesting, strategy template, RSI/MACD/Bollinger strategies, CLI enhancements, researcher docs"
-    date: 2026-05-05
-    status: COMPLETE — all 12 steps + 3 polish commits, pending human verification
-    commits: 15 total (1cbe49e through d8ce3ee)
 
 communications_authored:
   - file: managers/cto-platform-answers.md
@@ -92,6 +77,25 @@ communications_authored:
     date: 2026-05-07
     audience: CEO (via managers channel)
     purpose: "Escalate cross-domain infrastructure task that requires broader filesystem access than platform-developer has"
+
+specs_authored:
+  - file: architecture-overview.md
+    description: "High-level system architecture, data models, directory structure, and development roadmap"
+    date: 2026-05-04
+    status: Active
+  - file: 000-platform-bootstrap.md
+    description: "Phase 1 Foundation — project scaffolding, models, interfaces, MarketFetcher, SMA strategy, backtesting, CLI"
+    date: 2026-05-04
+    status: COMPLETE — all 11 steps implemented, all acceptance criteria met
+  - file: 001-researcher-ready-platform.md
+    description: "Phase 2 Researcher-Ready — indicators library, multi-position backtesting, strategy template, RSI/MACD/Bollinger strategies, CLI enhancements, researcher docs"
+    date: 2026-05-05
+    status: COMPLETE — all 12 steps + 3 polish commits, pending human verification
+    commits: 15 total (1cbe49e through d8ce3ee)
+  - file: 004-strategy-results-catalog.md
+    description: "Strategy results catalog — SQLite index of backtest metadata for querying, comparing, and analyzing strategy results across hypotheses"
+    date: 2026-05-18
+    status: DRAFT — validated with platform-developer, 4 issues addressed (StrategyResult gaps, filename parsing, UNIQUE constraint, symbol/interval params)
 
 research_team_readiness:
   assessed: 2026-05-18
@@ -147,7 +151,9 @@ key_decisions:
   - "Root venv setup COMPLETE (2026-05-07) — uv-provided Python 3.12.13, editable install, all 22 modules importable. Homebrew Python broken (libexpat/system libexpat mismatch), uv is the working solution."
   - "Platform-developer CANNOT execute tasks outside platform/ — cross-domain infra tasks (root .venv, root .gitignore) must be executed directly, not delegated (2026-05-07)"
   - "Environment: macOS system Python 3.9.6 too old; Homebrew Python 3.12/3.13 broken (pyexpat _XML_SetAllocTrackerActivationThreshold); uv-managed Python 3.12.13 works perfectly"
-  - "Platform documentation updated (Step 3): new public-api.md defines import contract for research team; all 7 docs updated for root venv setup (2026-05-07)"
+  - "Strategy results catalog (SPEC-004): SQLite index layer over existing JSON results, platform-level module at cryplative/catalog/, validated with platform-developer (2026-05-18)"
+  - "StrategyResult does NOT have top-level symbol/interval — these come from BacktestConfig. Any catalog insert method must receive them explicitly. (discovered during SPEC-004 validation)"
+  - "JSON result filenames encode symbol and interval (e.g., {strategy}_{BASE}_{QUOTE}_{interval}_{dates}.json) — rebuild() must parse filenames since JSON lacks these top-level fields (discovered during SPEC-004 validation)"  - "Platform documentation updated (Step 3): new public-api.md defines import contract for research team; all 7 docs updated for root venv setup (2026-05-07)"
   - "Platform-developer CANNOT execute tasks outside platform/ — cross-domain infra tasks (root .venv, root .gitignore) must be executed directly, not delegated (2026-05-07)"
 
 development_roadmap:
