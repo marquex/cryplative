@@ -37,9 +37,7 @@ class TestCLIPairs:
 
         from unittest.mock import MagicMock
 
-        with patch(
-            "cryplative.market_fetcher.fetcher.MarketFetcher"
-        ) as mock_fetcher:
+        with patch("cryplative.market_fetcher.fetcher.MarketFetcher") as mock_fetcher:
             mock_instance = MagicMock()
             mock_fetcher.return_value = mock_instance
             mock_instance.list_pairs.return_value = [
@@ -61,9 +59,10 @@ class TestCLIPairs:
                 },
             ]
 
-            with patch(
-                "cryplative.cli.CryplativeConfig", return_value=config
-            ), patch("cryplative.cli.setup_logging"):
+            with (
+                patch("cryplative.cli.CryplativeConfig", return_value=config),
+                patch("cryplative.cli.setup_logging"),
+            ):
                 result = runner.invoke(app, ["pairs"])
 
         assert result.exit_code == 0
@@ -78,9 +77,7 @@ class TestCLIPairs:
 
         from unittest.mock import MagicMock
 
-        with patch(
-            "cryplative.market_fetcher.fetcher.MarketFetcher"
-        ) as mock_fetcher:
+        with patch("cryplative.market_fetcher.fetcher.MarketFetcher") as mock_fetcher:
             mock_instance = MagicMock()
             mock_fetcher.return_value = mock_instance
             mock_instance.list_pairs.return_value = [
@@ -94,9 +91,10 @@ class TestCLIPairs:
                 },
             ]
 
-            with patch(
-                "cryplative.cli.CryplativeConfig", return_value=config
-            ), patch("cryplative.cli.setup_logging"):
+            with (
+                patch("cryplative.cli.CryplativeConfig", return_value=config),
+                patch("cryplative.cli.setup_logging"),
+            ):
                 result = runner.invoke(app, ["pairs", "--quote", "USDT"])
 
         assert result.exit_code == 0
@@ -110,16 +108,15 @@ class TestCLIPairs:
 
         from cryplative.core.exceptions import MarketDataError
 
-        with patch(
-            "cryplative.market_fetcher.fetcher.MarketFetcher"
-        ) as mock_fetcher:
+        with patch("cryplative.market_fetcher.fetcher.MarketFetcher") as mock_fetcher:
             mock_instance = MagicMock()
             mock_fetcher.return_value = mock_instance
             mock_instance.list_pairs.side_effect = MarketDataError("API rate limit exceeded")
 
-            with patch(
-                "cryplative.cli.CryplativeConfig", return_value=config
-            ), patch("cryplative.cli.setup_logging"):
+            with (
+                patch("cryplative.cli.CryplativeConfig", return_value=config),
+                patch("cryplative.cli.setup_logging"),
+            ):
                 result = runner.invoke(app, ["pairs"])
 
         assert result.exit_code == 1
@@ -131,16 +128,15 @@ class TestCLIPairs:
 
         from unittest.mock import MagicMock
 
-        with patch(
-            "cryplative.market_fetcher.fetcher.MarketFetcher"
-        ) as mock_fetcher:
+        with patch("cryplative.market_fetcher.fetcher.MarketFetcher") as mock_fetcher:
             mock_instance = MagicMock()
             mock_fetcher.return_value = mock_instance
             mock_instance.list_pairs.return_value = []
 
-            with patch(
-                "cryplative.cli.CryplativeConfig", return_value=config
-            ), patch("cryplative.cli.setup_logging"):
+            with (
+                patch("cryplative.cli.CryplativeConfig", return_value=config),
+                patch("cryplative.cli.setup_logging"),
+            ):
                 result = runner.invoke(app, ["pairs"])
 
         # Empty result should exit with 0 (not an error)
@@ -173,23 +169,29 @@ class TestCLIFetch:
             for i in range(10)
         ]
 
-        with patch(
-            "cryplative.market_fetcher.fetcher.MarketFetcher"
-        ) as mock_fetcher:
+        with patch("cryplative.market_fetcher.fetcher.MarketFetcher") as mock_fetcher:
             mock_instance = MagicMock()
             mock_fetcher.return_value = mock_instance
             mock_instance.get_candles.return_value = test_candles
 
-            with patch(
-                "cryplative.cli.CryplativeConfig", return_value=config
-            ), patch("cryplative.cli.setup_logging"):
-                result = runner.invoke(app, [
-                    "fetch",
-                    "--symbol", "BTC/USDT",
-                    "--interval", "1h",
-                    "--start", "2025-01-01",
-                    "--end", "2025-01-31",
-                ])
+            with (
+                patch("cryplative.cli.CryplativeConfig", return_value=config),
+                patch("cryplative.cli.setup_logging"),
+            ):
+                result = runner.invoke(
+                    app,
+                    [
+                        "fetch",
+                        "--symbol",
+                        "BTC/USDT",
+                        "--interval",
+                        "1h",
+                        "--start",
+                        "2025-01-01",
+                        "--end",
+                        "2025-01-31",
+                    ],
+                )
 
         assert result.exit_code == 0
         assert "BTC/USDT" in result.output
@@ -198,23 +200,29 @@ class TestCLIFetch:
         """Fetch with no data should print warning and exit."""
         config = CryplativeConfig(market_cache_dir=str(tmp_path / "cache"))
 
-        with patch(
-            "cryplative.market_fetcher.fetcher.MarketFetcher"
-        ) as mock_fetcher:
+        with patch("cryplative.market_fetcher.fetcher.MarketFetcher") as mock_fetcher:
             mock_instance = MagicMock()
             mock_fetcher.return_value = mock_instance
             mock_instance.get_candles.return_value = []
 
-            with patch(
-                "cryplative.cli.CryplativeConfig", return_value=config
-            ), patch("cryplative.cli.setup_logging"):
-                result = runner.invoke(app, [
-                    "fetch",
-                    "--symbol", "BTC/USDT",
-                    "--interval", "1h",
-                    "--start", "2025-01-01",
-                    "--end", "2025-01-31",
-                ])
+            with (
+                patch("cryplative.cli.CryplativeConfig", return_value=config),
+                patch("cryplative.cli.setup_logging"),
+            ):
+                result = runner.invoke(
+                    app,
+                    [
+                        "fetch",
+                        "--symbol",
+                        "BTC/USDT",
+                        "--interval",
+                        "1h",
+                        "--start",
+                        "2025-01-01",
+                        "--end",
+                        "2025-01-31",
+                    ],
+                )
 
         assert result.exit_code != 0
 
@@ -230,15 +238,24 @@ class TestCLIBacktest:
             patch("cryplative.cli.CryplativeConfig", return_value=config),
             patch("cryplative.cli.setup_logging"),
         ):
-            result = runner.invoke(app, [
-                "backtest",
-                "--strategy", "sma_crossover",
-                "--symbol", "BTC/USDT",
-                "--interval", "1h",
-                "--start", "2025-01-01",
-                "--end", "2025-01-31",
-                "--params", "not-valid-json",
-            ])
+            result = runner.invoke(
+                app,
+                [
+                    "backtest",
+                    "--strategy",
+                    "sma_crossover",
+                    "--symbol",
+                    "BTC/USDT",
+                    "--interval",
+                    "1h",
+                    "--start",
+                    "2025-01-01",
+                    "--end",
+                    "2025-01-31",
+                    "--params",
+                    "not-valid-json",
+                ],
+            )
 
         assert result.exit_code != 0
         assert "Invalid JSON" in result.output
@@ -265,25 +282,33 @@ class TestCLIBacktest:
             for i in range(50)
         ]
 
-        with patch(
-            "cryplative.market_fetcher.fetcher.MarketFetcher"
-        ) as mock_fetcher:
+        with patch("cryplative.market_fetcher.fetcher.MarketFetcher") as mock_fetcher:
             mock_instance = MagicMock()
             mock_fetcher.return_value = mock_instance
             mock_instance.get_candles.return_value = test_candles
 
-            with patch(
-                "cryplative.cli.CryplativeConfig", return_value=config
-            ), patch("cryplative.cli.setup_logging"):
-                result = runner.invoke(app, [
-                    "backtest",
-                    "--strategy", "sma_crossover",
-                    "--symbol", "BTC/USDT",
-                    "--interval", "1h",
-                    "--start", "2024-01-01",
-                    "--end", "2024-01-03",
-                    "--capital", "100000",
-                ])
+            with (
+                patch("cryplative.cli.CryplativeConfig", return_value=config),
+                patch("cryplative.cli.setup_logging"),
+            ):
+                result = runner.invoke(
+                    app,
+                    [
+                        "backtest",
+                        "--strategy",
+                        "sma_crossover",
+                        "--symbol",
+                        "BTC/USDT",
+                        "--interval",
+                        "1h",
+                        "--start",
+                        "2024-01-01",
+                        "--end",
+                        "2024-01-03",
+                        "--capital",
+                        "100000",
+                    ],
+                )
 
         assert result.exit_code == 0
         assert "Backtest Results" in result.output
@@ -312,25 +337,33 @@ class TestCLIBacktest:
             for i in range(50)
         ]
 
-        with patch(
-            "cryplative.market_fetcher.fetcher.MarketFetcher"
-        ) as mock_fetcher:
+        with patch("cryplative.market_fetcher.fetcher.MarketFetcher") as mock_fetcher:
             mock_instance = MagicMock()
             mock_fetcher.return_value = mock_instance
             mock_instance.get_candles.return_value = test_candles
 
-            with patch(
-                "cryplative.cli.CryplativeConfig", return_value=config
-            ), patch("cryplative.cli.setup_logging"):
-                result = runner.invoke(app, [
-                    "backtest",
-                    "--strategy", "sma_crossover",
-                    "--symbol", "BTC/USDT",
-                    "--interval", "1h",
-                    "--start", "2024-01-01",
-                    "--end", "2024-01-03",
-                    "--params", str(params_file),
-                ])
+            with (
+                patch("cryplative.cli.CryplativeConfig", return_value=config),
+                patch("cryplative.cli.setup_logging"),
+            ):
+                result = runner.invoke(
+                    app,
+                    [
+                        "backtest",
+                        "--strategy",
+                        "sma_crossover",
+                        "--symbol",
+                        "BTC/USDT",
+                        "--interval",
+                        "1h",
+                        "--start",
+                        "2024-01-01",
+                        "--end",
+                        "2024-01-03",
+                        "--params",
+                        str(params_file),
+                    ],
+                )
 
         assert result.exit_code == 0
 
@@ -356,25 +389,33 @@ class TestCLIBacktest:
             for i in range(50)
         ]
 
-        with patch(
-            "cryplative.market_fetcher.fetcher.MarketFetcher"
-        ) as mock_fetcher:
+        with patch("cryplative.market_fetcher.fetcher.MarketFetcher") as mock_fetcher:
             mock_instance = MagicMock()
             mock_fetcher.return_value = mock_instance
             mock_instance.get_candles.return_value = test_candles
 
-            with patch(
-                "cryplative.cli.CryplativeConfig", return_value=config
-            ), patch("cryplative.cli.setup_logging"):
-                result = runner.invoke(app, [
-                    "backtest",
-                    "--strategy", "sma_crossover",
-                    "--symbol", "BTC/USDT",
-                    "--interval", "1h",
-                    "--start", "2024-01-01",
-                    "--end", "2024-01-03",
-                    "--max-positions", "3",
-                ])
+            with (
+                patch("cryplative.cli.CryplativeConfig", return_value=config),
+                patch("cryplative.cli.setup_logging"),
+            ):
+                result = runner.invoke(
+                    app,
+                    [
+                        "backtest",
+                        "--strategy",
+                        "sma_crossover",
+                        "--symbol",
+                        "BTC/USDT",
+                        "--interval",
+                        "1h",
+                        "--start",
+                        "2024-01-01",
+                        "--end",
+                        "2024-01-03",
+                        "--max-positions",
+                        "3",
+                    ],
+                )
 
         assert result.exit_code == 0
         assert "Max Positions" in result.output
@@ -497,16 +538,26 @@ class TestInputValidation:
         """Invalid symbol format should error."""
         config = CryplativeConfig(strategy_results_dir=str(tmp_path / "results"))
 
-        with patch("cryplative.cli.CryplativeConfig", return_value=config), \
-             patch("cryplative.cli.setup_logging"):
-            result = runner.invoke(app, [
-                "backtest",
-                "--strategy", "sma_crossover",
-                "--symbol", "INVALID",
-                "--interval", "1h",
-                "--start", "2025-01-01",
-                "--end", "2025-01-31",
-            ])
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "backtest",
+                    "--strategy",
+                    "sma_crossover",
+                    "--symbol",
+                    "INVALID",
+                    "--interval",
+                    "1h",
+                    "--start",
+                    "2025-01-01",
+                    "--end",
+                    "2025-01-31",
+                ],
+            )
 
         assert result.exit_code == 1
         assert "Invalid symbol format" in result.output
@@ -515,16 +566,26 @@ class TestInputValidation:
         """Invalid interval should error with valid options."""
         config = CryplativeConfig(strategy_results_dir=str(tmp_path / "results"))
 
-        with patch("cryplative.cli.CryplativeConfig", return_value=config), \
-             patch("cryplative.cli.setup_logging"):
-            result = runner.invoke(app, [
-                "backtest",
-                "--strategy", "sma_crossover",
-                "--symbol", "BTC/USDT",
-                "--interval", "99m",
-                "--start", "2025-01-01",
-                "--end", "2025-01-31",
-            ])
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "backtest",
+                    "--strategy",
+                    "sma_crossover",
+                    "--symbol",
+                    "BTC/USDT",
+                    "--interval",
+                    "99m",
+                    "--start",
+                    "2025-01-01",
+                    "--end",
+                    "2025-01-31",
+                ],
+            )
 
         assert result.exit_code == 1
         assert "Invalid interval" in result.output
@@ -534,16 +595,26 @@ class TestInputValidation:
         """Invalid date format should error."""
         config = CryplativeConfig(strategy_results_dir=str(tmp_path / "results"))
 
-        with patch("cryplative.cli.CryplativeConfig", return_value=config), \
-             patch("cryplative.cli.setup_logging"):
-            result = runner.invoke(app, [
-                "backtest",
-                "--strategy", "sma_crossover",
-                "--symbol", "BTC/USDT",
-                "--interval", "1h",
-                "--start", "not-a-date",
-                "--end", "2025-01-31",
-            ])
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "backtest",
+                    "--strategy",
+                    "sma_crossover",
+                    "--symbol",
+                    "BTC/USDT",
+                    "--interval",
+                    "1h",
+                    "--start",
+                    "not-a-date",
+                    "--end",
+                    "2025-01-31",
+                ],
+            )
 
         assert result.exit_code == 1
         assert "Invalid" in result.output
@@ -552,16 +623,26 @@ class TestInputValidation:
         """Unknown strategy should list available strategies."""
         config = CryplativeConfig(strategy_results_dir=str(tmp_path / "results"))
 
-        with patch("cryplative.cli.CryplativeConfig", return_value=config), \
-             patch("cryplative.cli.setup_logging"):
-            result = runner.invoke(app, [
-                "backtest",
-                "--strategy", "nonexistent_strategy",
-                "--symbol", "BTC/USDT",
-                "--interval", "1h",
-                "--start", "2025-01-01",
-                "--end", "2025-01-31",
-            ])
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "backtest",
+                    "--strategy",
+                    "nonexistent_strategy",
+                    "--symbol",
+                    "BTC/USDT",
+                    "--interval",
+                    "1h",
+                    "--start",
+                    "2025-01-01",
+                    "--end",
+                    "2025-01-31",
+                ],
+            )
 
         assert result.exit_code == 1
         assert "not found" in result.output
@@ -571,17 +652,28 @@ class TestInputValidation:
         """Zero or negative capital should error."""
         config = CryplativeConfig(strategy_results_dir=str(tmp_path / "results"))
 
-        with patch("cryplative.cli.CryplativeConfig", return_value=config), \
-             patch("cryplative.cli.setup_logging"):
-            result = runner.invoke(app, [
-                "backtest",
-                "--strategy", "sma_crossover",
-                "--symbol", "BTC/USDT",
-                "--interval", "1h",
-                "--start", "2025-01-01",
-                "--end", "2025-01-31",
-                "--capital", "0",
-            ])
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "backtest",
+                    "--strategy",
+                    "sma_crossover",
+                    "--symbol",
+                    "BTC/USDT",
+                    "--interval",
+                    "1h",
+                    "--start",
+                    "2025-01-01",
+                    "--end",
+                    "2025-01-31",
+                    "--capital",
+                    "0",
+                ],
+            )
 
         assert result.exit_code == 1
         assert "positive" in result.output
@@ -621,22 +713,28 @@ class TestCompareLogic:
     def test_build_comparison_data(self) -> None:
         """build_comparison_data produces correct table structure."""
         results = [
-            ("sma_crossover", {
-                "total_return": 15.3,
-                "sharpe_ratio": 1.24,
-                "max_drawdown": -8.5,
-                "win_rate": 55.0,
-                "total_trades": 20,
-                "profit_factor": 1.8,
-            }),
-            ("rsi", {
-                "total_return": 8.2,
-                "sharpe_ratio": 0.85,
-                "max_drawdown": -12.3,
-                "win_rate": 48.0,
-                "total_trades": 35,
-                "profit_factor": 1.2,
-            }),
+            (
+                "sma_crossover",
+                {
+                    "total_return": 15.3,
+                    "sharpe_ratio": 1.24,
+                    "max_drawdown": -8.5,
+                    "win_rate": 55.0,
+                    "total_trades": 20,
+                    "profit_factor": 1.8,
+                },
+            ),
+            (
+                "rsi",
+                {
+                    "total_return": 8.2,
+                    "sharpe_ratio": 0.85,
+                    "max_drawdown": -12.3,
+                    "win_rate": 48.0,
+                    "total_trades": 35,
+                    "profit_factor": 1.2,
+                },
+            ),
         ]
 
         metrics, names, rows = build_comparison_data(results)
@@ -678,8 +776,10 @@ class TestCompareCommand:
         f2.write_text(json.dumps(result_data_b), encoding="utf-8")
 
         config = CryplativeConfig()
-        with patch("cryplative.cli.CryplativeConfig", return_value=config), \
-             patch("cryplative.cli.setup_logging"):
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
             result = runner.invoke(app, ["compare", str(f1), str(f2)])
 
         assert result.exit_code == 0
@@ -691,9 +791,307 @@ class TestCompareCommand:
     def test_compare_empty_files(self) -> None:
         """Compare with no valid files should error."""
         config = CryplativeConfig()
-        with patch("cryplative.cli.CryplativeConfig", return_value=config), \
-             patch("cryplative.cli.setup_logging"):
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
             result = runner.invoke(app, ["compare", "/nonexistent/file.json"])
 
         assert result.exit_code == 1
         assert "No valid" in result.output
+
+
+class TestCLIResultsCatalog:
+    """Tests for the results catalog CLI commands."""
+
+    def _make_catalog_with_data(self, tmp_path: Path) -> str:
+        """Create a catalog DB with sample data and return its path."""
+        from cryplative.catalog import ResultsCatalog
+
+        db_path = str(tmp_path / "catalog.db")
+        cat = ResultsCatalog(db_path=db_path)
+
+        metrics_a = {
+            "total_return_pct": 2.56,
+            "sharpe_ratio": 2.57,
+            "max_drawdown_pct": -0.42,
+            "win_rate_pct": 83.33,
+            "total_trades": 6,
+            "profit_factor": 17.79,
+        }
+        metrics_b = {
+            "total_return_pct": -1.2,
+            "sharpe_ratio": 0.43,
+            "max_drawdown_pct": -10.0,
+            "win_rate_pct": 40.0,
+            "total_trades": 5,
+            "profit_factor": 0.8,
+        }
+
+        cat.insert(
+            strategy_id="h2_rsi_divergence_trend",
+            symbol="BTC/USDT",
+            interval="4h",
+            start_date="2024-01-01",
+            end_date="2025-08-31",
+            run_type="BACKTEST",
+            metrics=metrics_a,
+            results_file="strategy_results/h2_btc_test.json",
+            parameters={"rsi_period": 14},
+            hypothesis_id="H2",
+            data_split="TEST",
+            verdict="PASS",
+        )
+        cat.insert(
+            strategy_id="sma_crossover",
+            symbol="ETH/USDT",
+            interval="1h",
+            start_date="2025-01-01",
+            end_date="2025-01-31",
+            run_type="BACKTEST",
+            metrics=metrics_b,
+            results_file="strategy_results/sma_eth_full.json",
+            parameters={"fast": 10, "slow": 20},
+            data_split="FULL",
+            verdict="FAIL",
+        )
+        cat.insert(
+            strategy_id="h5_macd_breakout",
+            symbol="BTC/USDT",
+            interval="1d",
+            start_date="2024-01-01",
+            end_date="2025-08-31",
+            run_type="BACKTEST",
+            metrics=metrics_a,
+            results_file="strategy_results/h5_btc_test.json",
+            parameters={"macd_fast": 12},
+            hypothesis_id="H5",
+            data_split="TEST",
+            verdict="PASS",
+        )
+
+        cat.close()
+        return db_path
+
+    def test_results_list_displays_table(self, tmp_path: Path) -> None:
+        """results list displays a table of results."""
+        self._make_catalog_with_data(tmp_path)
+        config = CryplativeConfig(data_dir=str(tmp_path))
+
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
+            result = runner.invoke(app, ["results", "list"])
+
+        assert result.exit_code == 0
+        assert "Strategy Results" in result.output
+        assert "h2_rsi_divergence" in result.output
+        assert "sma_crossover" in result.output
+
+    def test_results_list_filters_by_symbol(self, tmp_path: Path) -> None:
+        """results list --symbol filters correctly."""
+        self._make_catalog_with_data(tmp_path)
+        config = CryplativeConfig(data_dir=str(tmp_path))
+
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
+            result = runner.invoke(app, ["results", "list", "--symbol", "BTC/USDT"])
+
+        assert result.exit_code == 0
+        assert "BTC/USDT" in result.output
+        assert "ETH/USDT" not in result.output
+
+    def test_results_list_filters_by_data_split(self, tmp_path: Path) -> None:
+        """results list --data-split filters correctly."""
+        self._make_catalog_with_data(tmp_path)
+        config = CryplativeConfig(data_dir=str(tmp_path))
+
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
+            result = runner.invoke(app, ["results", "list", "--data-split", "TEST"])
+
+        assert result.exit_code == 0
+        assert "TEST" in result.output
+
+    def test_results_list_min_sharpe(self, tmp_path: Path) -> None:
+        """results list --min-sharpe filters by threshold."""
+        self._make_catalog_with_data(tmp_path)
+        config = CryplativeConfig(data_dir=str(tmp_path))
+
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
+            result = runner.invoke(app, ["results", "list", "--min-sharpe", "1.0"])
+
+        assert result.exit_code == 0
+        # Should include H2 and H5 (sharpe > 1) but not sma (0.43)
+        assert "h2_rsi" in result.output
+        assert "sma_crossover" not in result.output
+
+    def test_results_best_displays_top(self, tmp_path: Path) -> None:
+        """results best displays top results."""
+        self._make_catalog_with_data(tmp_path)
+        config = CryplativeConfig(data_dir=str(tmp_path))
+
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
+            result = runner.invoke(app, ["results", "best", "--metric", "sharpe_ratio"])
+
+        assert result.exit_code == 0
+        assert "sharpe_ratio" in result.output
+
+    def test_results_show_displays_details(self, tmp_path: Path) -> None:
+        """results show displays full result details."""
+        self._make_catalog_with_data(tmp_path)
+        config = CryplativeConfig(data_dir=str(tmp_path))
+
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
+            result = runner.invoke(app, ["results", "show", "1"])
+
+        assert result.exit_code == 0
+        assert "Result #1" in result.output
+        assert "h2_rsi_divergence_trend" in result.output
+        assert "BTC/USDT" in result.output
+
+    def test_results_show_not_found(self, tmp_path: Path) -> None:
+        """results show with non-existent ID displays error."""
+        self._make_catalog_with_data(tmp_path)
+        config = CryplativeConfig(data_dir=str(tmp_path))
+
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
+            result = runner.invoke(app, ["results", "show", "999"])
+
+        assert result.exit_code == 1
+        assert "not found" in result.output
+
+    def test_results_compare_hypotheses(self, tmp_path: Path) -> None:
+        """results compare shows side-by-side comparison."""
+        self._make_catalog_with_data(tmp_path)
+        config = CryplativeConfig(data_dir=str(tmp_path))
+
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
+            result = runner.invoke(app, ["results", "compare", "H2", "H5"])
+
+        assert result.exit_code == 0
+        assert "H2" in result.output
+        assert "H5" in result.output
+
+    def test_results_summary_displays_overview(self, tmp_path: Path) -> None:
+        """results summary shows catalog overview."""
+        self._make_catalog_with_data(tmp_path)
+        config = CryplativeConfig(data_dir=str(tmp_path))
+
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
+            result = runner.invoke(app, ["results", "summary"])
+
+        assert result.exit_code == 0
+        assert "Strategy Results Catalog" in result.output
+        assert "Total results" in result.output
+
+    def test_results_rebuild_scans_directory(self, tmp_path: Path) -> None:
+        """results rebuild indexes JSON files."""
+        import json as json_mod
+
+        results_dir = tmp_path / "strategy_results"
+        results_dir.mkdir()
+
+        # Create a result file
+        result_data = {
+            "strategy_id": "sma_crossover",
+            "run_type": "BACKTEST",
+            "start_date": "2024-01-01",
+            "end_date": "2025-01-01",
+            "parameters": {"fast": 10},
+            "trades": [],
+            "metrics": {
+                "total_return": 5.0,
+                "sharpe_ratio": 1.5,
+                "max_drawdown": -2.0,
+                "win_rate": 60.0,
+                "total_trades": 10,
+                "profit_factor": 2.0,
+            },
+            "created_at": "2026-01-01T00:00:00Z",
+        }
+        (results_dir / "sma_BTC_USDT_4h_2024-01-01T00:00:00Z_2025-01-01T23:59:59Z.json").write_text(
+            json_mod.dumps(result_data), encoding="utf-8"
+        )
+
+        config = CryplativeConfig(
+            data_dir=str(tmp_path),
+            strategy_results_dir=str(results_dir),
+        )
+
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
+            result = runner.invoke(app, ["results", "rebuild", "--results-dir", str(results_dir)])
+
+        assert result.exit_code == 0
+        assert "Indexed" in result.output
+
+    def test_results_tag_updates_record(self, tmp_path: Path) -> None:
+        """results tag updates hypothesis and verdict."""
+        self._make_catalog_with_data(tmp_path)
+        config = CryplativeConfig(data_dir=str(tmp_path))
+
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
+            result = runner.invoke(
+                app, ["results", "tag", "2", "--hypothesis", "H3", "--verdict", "PASS"]
+            )
+
+        assert result.exit_code == 0
+        assert "Updated result #2" in result.output
+        assert "hypothesis=H3" in result.output
+
+    def test_results_tag_experiment(self, tmp_path: Path) -> None:
+        """results tag --experiment updates experiment."""
+        self._make_catalog_with_data(tmp_path)
+        config = CryplativeConfig(data_dir=str(tmp_path))
+
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
+            result = runner.invoke(app, ["results", "tag", "1", "--experiment", "sweep_20260518"])
+
+        assert result.exit_code == 0
+        assert "experiment=sweep_20260518" in result.output
+
+    def test_results_delete_removes_record(self, tmp_path: Path) -> None:
+        """results delete removes a catalog entry."""
+        self._make_catalog_with_data(tmp_path)
+        config = CryplativeConfig(data_dir=str(tmp_path))
+
+        with (
+            patch("cryplative.cli.CryplativeConfig", return_value=config),
+            patch("cryplative.cli.setup_logging"),
+        ):
+            result = runner.invoke(app, ["results", "delete", "1"])
+
+        assert result.exit_code == 0
+        assert "Deleted result #1" in result.output
