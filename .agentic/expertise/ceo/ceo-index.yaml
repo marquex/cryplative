@@ -102,9 +102,11 @@ platform:
   supports: ["market orders", "limit orders", "stop loss", "take profit"]
 
 current_status:
-  phase: "Research pipeline — H2 rejected, H5 spec not yet written, pipeline stalled"
+  phase: "Research pipeline — H2 rejected, H5 spec not yet written, catalog spec aligned between teams"
   platform: "Operational — root .venv with editable install, clean imports working, docs updated"
-  immediate_priority: "H5 (ADX + SMA filter) — need head-of-research to write spec and assign to strategy-implementer"
+  immediate_priorities:
+    - "H5 (ADX + SMA filter) — need head-of-research to write spec and assign to strategy-implementer"
+    - "SPEC-004 (Strategy Results Catalog) — spec v2 aligned between engineering and research, awaiting go-ahead to build"
   execution_sequence:
     step_1:
       what: "H2 implementation (RSI divergence + trend filter)"
@@ -126,8 +128,13 @@ current_status:
       result: "Both files cleaned, zero sys.path references remain"
       commit: "b5c8949"
       status: "DONE"
+    step_5:
+      what: "SPEC-004 Strategy Results Catalog — cross-team review"
+      result: "CTO wrote spec v1, research lead reviewed (APPROVE_WITH_SUGGESTIONS), CTO updated to v2 incorporating all feedback"
+      status: "DONE — spec aligned, awaiting build go-ahead"
   next_steps:
     - "H5 (ADX + SMA filter) — delegate to head-of-research to write spec + assign to strategy-implementer"
+    - "SPEC-004 build — delegate to platform-developer when ready"
     - "Define measurable targets for aggressive growth (profit, risk, drawdown metrics)"
     - "Define risk management framework"
     - "Consider H1 (Vol breakout + volume) after H5"
@@ -156,11 +163,26 @@ platform_feature_requests:
     purpose: "Avoid redundant API calls during research and backtesting"
     status: "confirmed working — file-based JSON cache, transparent to caller, auto-deduplication"
     blocking: "resolved"
+  - feature: "Strategy Results Catalog (SPEC-004)"
+    purpose: "SQLite index over strategy backtest JSON files for querying, comparing, and analyzing results across strategies"
+    status: "spec v2 aligned between engineering and research — awaiting build go-ahead"
+    spec: ".agentic/specs/engineering/004-strategy-results-catalog.md"
+    review: ".agentic/specs/research/catalog-spec-review.md"
+    response: ".agentic/specs/engineering/004-review-response.md"
+    key_features:
+      - "ResultsCatalog Python API (find, best, compare_hypotheses, summary, tag)"
+      - "CLI commands: cryplative results list/best/compare/summary/show/tag/rebuild/delete"
+      - "data_split tracking (TRAIN/TEST/FULL) for research methodology"
+      - "experiment_id for grouping parameter sweeps"
+      - "fees_included boolean for result comparability"
+      - "Metric threshold filtering (min_sharpe, min_return_pct, etc.)"
+      - "Engine returns saved file path for clean catalog integration"
+    blocking: "none — ready to build"
 
 research_team_status:
   head_of_research:
     status: "active — awaiting next assignment (H5 spec writing)"
-    current_work: "H2 complete and rejected. Needs to write H5 spec and assign to strategy-implementer."
+    current_work: "H2 complete and rejected. Reviewed SPEC-004 catalog spec (APPROVE_WITH_SUGGESTIONS). Needs to write H5 spec and assign to strategy-implementer."
   strategy_implementer:
     status: "active — idle, awaiting next assignment"
     current_task: "None — H2 rejected, waiting for H5 assignment"

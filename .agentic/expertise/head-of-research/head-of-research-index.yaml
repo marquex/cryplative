@@ -92,10 +92,19 @@ data_management:
     - "Fundamental data when relevant"
 
   strategy_catalog:
-    status: "NOT YET CREATED — priority to create before H5"
-    planned_location: "data/strategy_catalog.json"
-    purpose: "Single source of truth for all strategy hypotheses — id, status, key metrics, verdict, dates"
-    schema_tbd: true
+    status: "CTO SPEC-004 DRAFTED — research review completed 2026-05-18"
+    spec: ".agentic/specs/engineering/004-strategy-results-catalog.md"
+    review: ".agentic/specs/research/catalog-spec-review.md"
+    verdict: "APPROVE_WITH_SUGGESTIONS — critical: add data_split field, fix rebuild filename parsing, resolve results_file path generation"
+    planned_location: "data/catalog.db (SQLite index) + data/strategy_results/ (JSON truth)"
+    purpose: "SQLite index over JSON result files — query, compare, tag strategy backtest results"
+    key_gaps_identified:
+      - "No train/test split tracking (data_split field needed — critical for our methodology)"
+      - "No metric threshold filtering in find() (min_sharpe, min_return_pct, etc.)"
+      - "No experiment grouping (experiment_id for parameter sweeps)"
+      - "No fees_included tracking"
+      - "rebuild() filename parsing fragile for legacy formats"
+      - "results_file path not exposed by engine — fragile for programmatic use"
 
 current_priorities:
   phase: "Pipeline status assessed — ready to draft H5 + create strategy catalog"
@@ -116,6 +125,7 @@ current_priorities:
   immediate_tasks:
     - "DONE: H2 evaluated — REJECTED (too few signals, 3/7 criteria met)"
     - "DONE: Pipeline status assessed (2026-05-18) — gaps identified to CEO"
+    - "DONE: SPEC-004 catalog spec reviewed — APPROVE_WITH_SUGGESTIONS, review at .agentic/specs/research/catalog-spec-review.md"
     - "NEXT: Draft H5 spec (ADX + SMA filter) for immediate delegation"
     - "NEXT: Create strategy catalog (data/strategy_catalog.json) — uniform schema for all hypotheses"
     - "NEXT: Define standardized backtest result schema for consistent deliverables"

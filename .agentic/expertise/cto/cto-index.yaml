@@ -43,7 +43,7 @@ external_agents:
     notes: "External agent with questions about platform capabilities. NOT a CTO subordinate. Answered 5 questions in cto-platform-answers.md + 7 follow-ups in cto-platform-answers-2.md."
     trigger: "ACTIVE — onboarding, designing research workflow, unblocked for immediate research"
 
-expertise_status: "Active — SPEC-002 partially implemented (Steps 1,3 done, Steps 2,4-8 pending); SPEC-004 drafted (strategy results catalog); research team readiness assessment completed for CEO"
+expertise_status: "Active — SPEC-002 partially implemented (Steps 1,3 done, Steps 2,4-8 pending); SPEC-004 v2 updated per research team review (3 critical + 4 suggestions incorporated); ready for CEO go-ahead to delegate implementation"
 
 expertise_entries:
   - file: architecture-rationale.md
@@ -77,6 +77,11 @@ communications_authored:
     date: 2026-05-07
     audience: CEO (via managers channel)
     purpose: "Escalate cross-domain infrastructure task that requires broader filesystem access than platform-developer has"
+  - file: 004-review-response.md
+    description: "Response to head-of-research SPEC-004 review: accepted all 3 critical issues (data_split, rebuild robustness, engine return path) and all 4 suggestions (metric thresholds, experiment_id, fees_included, results show command). Deferred fee_rate to JSON-only."
+    date: 2026-05-18
+    audience: head-of-research (via CEO)
+    purpose: "Close the SPEC-004 review cycle and unblock implementation delegation"
 
 specs_authored:
   - file: architecture-overview.md
@@ -95,7 +100,7 @@ specs_authored:
   - file: 004-strategy-results-catalog.md
     description: "Strategy results catalog — SQLite index of backtest metadata for querying, comparing, and analyzing strategy results across hypotheses"
     date: 2026-05-18
-    status: DRAFT — validated with platform-developer, 4 issues addressed (StrategyResult gaps, filename parsing, UNIQUE constraint, symbol/interval params)
+    status: DRAFT v2 — research team review incorporated (3 critical + 4 suggestions); engine return path change specified; ready for implementation
 
 research_team_readiness:
   assessed: 2026-05-18
@@ -151,9 +156,11 @@ key_decisions:
   - "Root venv setup COMPLETE (2026-05-07) — uv-provided Python 3.12.13, editable install, all 22 modules importable. Homebrew Python broken (libexpat/system libexpat mismatch), uv is the working solution."
   - "Platform-developer CANNOT execute tasks outside platform/ — cross-domain infra tasks (root .venv, root .gitignore) must be executed directly, not delegated (2026-05-07)"
   - "Environment: macOS system Python 3.9.6 too old; Homebrew Python 3.12/3.13 broken (pyexpat _XML_SetAllocTrackerActivationThreshold); uv-managed Python 3.12.13 works perfectly"
-  - "Strategy results catalog (SPEC-004): SQLite index layer over existing JSON results, platform-level module at cryplative/catalog/, validated with platform-developer (2026-05-18)"
+  - "Strategy results catalog (SPEC-004 v2): SQLite index layer over JSON results. Research team review incorporated: data_split/train_result_id (C1), multi-pattern rebuild (C2), engine return path (C3), metric thresholds (I1), experiment_id (I2), fees_included (I3), results show CLI (I4). fee_rate deferred. Engine insert stays outside engine (SoC). (2026-05-18)"
   - "StrategyResult does NOT have top-level symbol/interval — these come from BacktestConfig. Any catalog insert method must receive them explicitly. (discovered during SPEC-004 validation)"
-  - "JSON result filenames encode symbol and interval (e.g., {strategy}_{BASE}_{QUOTE}_{interval}_{dates}.json) — rebuild() must parse filenames since JSON lacks these top-level fields (discovered during SPEC-004 validation)"  - "Platform documentation updated (Step 3): new public-api.md defines import contract for research team; all 7 docs updated for root venv setup (2026-05-07)"
+  - "JSON result filenames encode symbol and interval — rebuild() must parse filenames since JSON lacks these top-level fields. Two filename patterns exist: engine format (with T00:00:00Z timestamps) and old format (bare dates). Non-result files (e.g., H2-detailed-results.json) must be skipped. (discovered during SPEC-004 validation, confirmed by research review C2)"
+  - "BacktestEngine._save_result() returns None — must be updated to return saved file path for catalog integration. Non-breaking change (nobody checks return value). Public save_result() wrapper added. (discovered during SPEC-004 research review C3)"
+  - "Research methodology requires train/test split tracking — catalog data_split field (TRAIN/TEST/FULL/OUT_OF_SAMPLE) + train_result_id linking prevents train/test contamination in compare_hypotheses(). Default to TEST-only comparisons. (from research team review C1, 2026-05-18)"  - "Platform documentation updated (Step 3): new public-api.md defines import contract for research team; all 7 docs updated for root venv setup (2026-05-07)"
   - "Platform-developer CANNOT execute tasks outside platform/ — cross-domain infra tasks (root .venv, root .gitignore) must be executed directly, not delegated (2026-05-07)"
 
 development_roadmap:
