@@ -158,3 +158,35 @@ Key components of Phase 2 (SPEC-001):
 - **"Can I do X?" questions need clear YES/NO + alternatives** — the research team was uncertain whether custom indicators were allowed. A clear "YES" with code examples unblocks immediately. Always provide the answer AND the path forward.
 - **Assumption validation is valuable** — the research team listed 8 assumptions. Two were wrong (fees coming sooner than expected, programmatic API exists). Catching these early prevents workflow design based on incorrect premises.
 - **Indicator library should be additive, not gatekeeping** — the official `indicators.py` is a shared convenience, not a requirement. Strategies can compute anything they want internally. This keeps the research team unblocked while the official library grows organically.
+
+## Research Team Readiness Assessment (2026-05-18)
+
+### CEO Request: Can the research team store and compare backtest results across strategies over time?
+
+**Answer: YES — with caveats.**
+
+The platform has a solid foundation for results storage and comparison:
+- Every backtest produces a standardized `StrategyResult` JSON with full trade history + metrics
+- Files auto-saved to `data/strategy_results/` with unique timestamps
+- `cryplative compare` CLI provides side-by-side comparison with color-coded metrics
+- Programmatic Python API enables parameter sweeps and bulk analysis
+
+**Key gap: Queryability.** Flat JSON files work for individual comparisons but don't scale to "show me all RSI results across 15 pairs over 3 months." The research team would need to build their own aggregation scripts or wait for Phase 4 (Bun.js API + database).
+
+### Identified Slowdowns for Research Team
+
+**Priority 1 (blocks quality)**: Fee modeling not yet implemented — SPEC-002 Step 2 is pending. This is the single biggest distortion in backtest results. Post-processing workaround exists but overstates compounding.
+
+**Priority 2 (blocks efficiency)**: No results query/aggregation tool. Research team needs to manually track and compare files.
+
+**Priority 3 (blocks sophistication)**: No portfolio state visibility in strategies, no multi-TF, no SL/TP auto-triggering — all Phase 3 scope.
+
+### Recommended Next Actions
+1. Complete Phase 2.5 Step 2 (fee modeling) ASAP — 1-2 days of platform-developer time
+2. Consider adding `cryplative results` query/summary command — small spec, high value
+3. Complete remaining Phase 2.5 Steps 4-6 (ATR, ADX, Keltner indicators)
+4. Begin Phase 3 spec planning for multi-TF, SL/TP, portfolio state
+
+### Lesson Learned
+- **The gap between "storing results" and "querying results" is a real friction point** — individual JSON files are fine for 10-20 runs but become unmanageable at 450+ (the parameter sweep the research team planned). A lightweight results catalog or summary command would be high-value, low-effort.
+- **Research team assessment requires looking at the full workflow** — not just individual features. Each feature (storage, comparison, programmatic API) works in isolation, but the end-to-end workflow of "run 50 backtests, find the best, compare over time" has friction at the aggregation layer.

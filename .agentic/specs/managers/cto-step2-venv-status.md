@@ -48,7 +48,6 @@ All five verification commands should print their OK messages.
 ## After Human Execution
 
 Once the above is done:
-- I will close beads issue `cryplative-axc`
 - Step 3 (updating /platform_docs) can proceed
 - Research team can remove sys.path hacks from data/ scripts
 

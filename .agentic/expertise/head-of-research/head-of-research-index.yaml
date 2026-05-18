@@ -91,8 +91,15 @@ data_management:
     - "Multiple timeframes for multi-timeframe analysis"
     - "Fundamental data when relevant"
 
+  strategy_catalog:
+    status: "NOT YET CREATED — priority to create before H5"
+    planned_location: "data/strategy_catalog.json"
+    purpose: "Single source of truth for all strategy hypotheses — id, status, key metrics, verdict, dates"
+    schema_tbd: true
+
 current_priorities:
-  phase: "H2 COMPLETED/REJECTED — Drafting H5 spec next"
+  phase: "Pipeline status assessed — ready to draft H5 + create strategy catalog"
+  pipeline_status_check: "2026-05-18 — CEO requested status report on iteration loop. Full assessment delivered."
   onboarding_report: ".agentic/specs/research/onboarding-report.md"
   research_readiness_assessment: ".agentic/specs/managers/research-readiness-assessment.md"
   team_structure_response: ".agentic/specs/managers/research-team-update-response.md"
@@ -103,13 +110,16 @@ current_priorities:
     H2: ".agentic/specs/research/H2-rsi-divergence-trend-filter.md"  # TESTED+REJECTED 2026-05-07 — too few signals
     H2_evaluation: ".agentic/specs/research/H2-evaluation.md"
     H2_results: "data/strategy_results/H2-report.md"
-    H5: "NOT YET WRITTEN — PRIORITY, draft next"
+    H5: "NOT YET WRITTEN — NEXT PRIORITY, draft after CEO confirmation"
     H1: "NOT YET WRITTEN — requires ATR/ADX helpers"
     H4: "NOT YET WRITTEN — requires ATR/Keltner helpers"
   immediate_tasks:
     - "DONE: H2 evaluated — REJECTED (too few signals, 3/7 criteria met)"
-    - "PRIORITY: Draft H5 spec (ADX + SMA filter) for immediate delegation"
-    - "ALIGN: CEO decisions on target returns, drawdown tolerance, capital allocation (defaults set)"
+    - "DONE: Pipeline status assessed (2026-05-18) — gaps identified to CEO"
+    - "NEXT: Draft H5 spec (ADX + SMA filter) for immediate delegation"
+    - "NEXT: Create strategy catalog (data/strategy_catalog.json) — uniform schema for all hypotheses"
+    - "NEXT: Define standardized backtest result schema for consistent deliverables"
+    - "WAITING: CEO confirmation to proceed with H5 + catalog"
   lessons_learned:
     H2:
       - "RSI divergence is too rare for systematic trading with trend filter — 4-constraint filter on scarce pattern"
@@ -118,6 +128,17 @@ current_priorities:
       - "1d timeframe too few candles for divergence detection with SMA(200) filter"
       - "Negative result valuable — won't revisit divergence without significant changes"
       - "Implementer performed well — competent execution, proper edge case handling, good deliverables"
+    pipeline_gaps_identified:
+      - "Two different backtest result formats (engine CLI JSON vs custom script JSON) — not programmatically comparable"
+      - "No strategy catalog file — pipeline state tracked only in expertise YAML, no shared artifact"
+      - "No cross-strategy comparison mechanism — will be unmanageable after 5-10 strategies"
+      - "Fee adjustment done manually by implementer — inconsistent, should be in engine (Phase 2.5)"
+      - "Metrics reporting not standardized — each script rolls its own summary format"
+    pipeline_working_well:
+      - "Spec format with pre-defined success criteria and failure modes — H2 correctly predicted its own rejection"
+      - "7-point evaluation checklist provides rigorous, fast verdicts"
+      - "Implementer deliverables (JSON + markdown report) comprehensive"
+      - "Data pipeline fully operational — any pair/timeframe on demand"
 
 platform_assessment:
   status: "FULLY ASSESSED — Onboarding complete. All technical questions resolved."

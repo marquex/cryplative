@@ -155,7 +155,6 @@ gotchas:
     3. pip install -e platform/ (installs cryplative package in editable mode)
     4. Verify imports work: cryplative.config, cryplative.core.models, cryplative.market_fetcher.fetcher,
        cryplative.strategies.indicators, cryplative.backtesting.engine
-    Tracked in beads issue cryplative-axc. Package pyproject.toml confirmed ready for editable install.
 
   negative_capital_allowed: |
     PortfolioTracker.open_position() allows capital to go negative. Logs warning

@@ -102,15 +102,15 @@ platform:
   supports: ["market orders", "limit orders", "stop loss", "take profit"]
 
 current_status:
-  phase: "Platform cleanup complete — ready for H5 strategy implementation"
+  phase: "Research pipeline — H2 rejected, H5 spec not yet written, pipeline stalled"
   platform: "Operational — root .venv with editable install, clean imports working, docs updated"
-  immediate_priority: "H5 (ADX + SMA filter) — assign to strategy-implementer"
+  immediate_priority: "H5 (ADX + SMA filter) — need head-of-research to write spec and assign to strategy-implementer"
   execution_sequence:
     step_1:
       what: "H2 implementation (RSI divergence + trend filter)"
       result: "REJECTED — too few signals (3 test trades, needed 20+)"
       commit: "strategy in data/strategies/rsi_divergence_trend.py"
-      status: "DONE"
+      status: "DONE — REJECTED"
     step_2:
       what: "Root .venv with pip install -e ./platform"
       result: "All 22 modules importable cleanly, uv-provided Python 3.12.13"
@@ -127,10 +127,10 @@ current_status:
       commit: "b5c8949"
       status: "DONE"
   next_steps:
-    - "H5 (ADX + SMA filter) — Head of Research to assign to strategy-implementer"
-    - "After H2: root venv fix, platform docs, clean imports"
+    - "H5 (ADX + SMA filter) — delegate to head-of-research to write spec + assign to strategy-implementer"
     - "Define measurable targets for aggressive growth (profit, risk, drawdown metrics)"
     - "Define risk management framework"
+    - "Consider H1 (Vol breakout + volume) after H5"
 
 open_decisions:
   - question: "What does 'aggressive growth' mean in measurable terms?"
@@ -159,14 +159,15 @@ platform_feature_requests:
 
 research_team_status:
   head_of_research:
-    status: "active — assigning H2 to strategy-implementer now"
-    current_work: "Onboarding strategy-implementer and assigning H2; preparing H5 spec in parallel"
+    status: "active — awaiting next assignment (H5 spec writing)"
+    current_work: "H2 complete and rejected. Needs to write H5 spec and assign to strategy-implementer."
   strategy_implementer:
-    status: "active — receiving H2 assignment from head-of-research"
-    current_task: "H2 (RSI divergence + trend filter) — spec at .agentic/specs/research/H2-rsi-divergence-trend-filter.md"
+    status: "active — idle, awaiting next assignment"
+    current_task: "None — H2 rejected, waiting for H5 assignment"
     workspace: "data/ — all implementation and results stored here"
   pipeline:
-    current: "H2 (RSI divergence + trend filter) — IN PROGRESS"
-    next: "H5 (ADX + SMA filter)"
+    current: "STALLED — H5 spec not yet written"
+    next: "H5 (ADX + SMA filter) — spec needs to be written by head-of-research"
     later: "H1 (Vol breakout + volume)"
-    validation: "Week 2 — validate promising strategies"
+    validation: "After 2+ strategies tested — compare and validate promising ones"
+  lesson_from_h2: "RSI divergence produced too few signals (3 trades vs 20+ minimum). Signal frequency matters as much as signal quality — a strategy must produce enough trades to be statistically meaningful."

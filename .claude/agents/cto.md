@@ -17,6 +17,8 @@ access:
     permissions: [read, write, delete]
   - path: platform_docs/**
     permissions: [read, write, delete]
+  - path: data/**
+    permissions: [read]
   - path: "*" # the root directory only
     permissions: [read, write]
   

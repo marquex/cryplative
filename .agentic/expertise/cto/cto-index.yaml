@@ -43,7 +43,7 @@ external_agents:
     notes: "External agent with questions about platform capabilities. NOT a CTO subordinate. Answered 5 questions in cto-platform-answers.md + 7 follow-ups in cto-platform-answers-2.md."
     trigger: "ACTIVE — onboarding, designing research workflow, unblocked for immediate research"
 
-expertise_status: "Active — SPEC-002 written and validated; Step 1 (list-pairs) + Step 3 (docs) complete; Steps 2,4-8 pending"
+expertise_status: "Active — SPEC-002 partially implemented (Steps 1,3 done, Steps 2,4-8 pending); research team readiness assessment completed for CEO"
 
 expertise_entries:
   - file: architecture-rationale.md
@@ -92,6 +92,38 @@ communications_authored:
     date: 2026-05-07
     audience: CEO (via managers channel)
     purpose: "Escalate cross-domain infrastructure task that requires broader filesystem access than platform-developer has"
+
+research_team_readiness:
+  assessed: 2026-05-18
+  question_1_storage_and_comparison:
+    verdict: "YES — platform stores and compares backtest results across strategies today"
+    what_exists:
+      - "Standardized StrategyResult JSON (strategy_id, symbol, interval, params, trades, metrics, equity_curve)"
+      - "Auto-saved to data/strategy_results/{strategy_id}_{symbol}_{interval}_{timestamp}.json"
+      - "cryplative compare CLI for side-by-side Rich table with color-coded best/worst"
+      - "Programmatic Python API for parameter sweeps — typed StrategyResult objects"
+      - "Pydantic validation — safe to load, parse, compare programmatically"
+    gaps:
+      - "No results database — flat JSON files, no query across all runs"
+      - "No tagging/metadata convention for hypothesis, regime, experiment batch"
+      - "No automatic best-result tracking per strategy/pair combo"
+      - "Results are local-only (data/ gitignored)"
+      - "No diff/change tracking when re-running on updated data"
+    recommendation: "Consider adding cryplative results query/summary command in Phase 2.5 or as quick standalone spec"
+  question_2_slowdowns:
+    high_impact:
+      - "Fee modeling NOT YET implemented (Phase 2.5 Step 2 pending) — biggest distortion in backtest results"
+      - "Results aggregation is manual — no turnkey query/summary tool"
+      - "Strategy has no visibility into portfolio state — fixed position sizing only (Phase 3)"
+    medium_impact:
+      - "ATR/ADX/Keltner not in official indicators library (Phase 2.5 Steps 4-6 pending) — workaround: local helpers"
+      - "Multi-timeframe limitation — single TF per backtest (Phase 3)"
+      - "No SL/TP auto-triggering in backtesting (Phase 3)"
+      - "No walk-forward validation mode (could be Phase 2.5 or Phase 5)"
+    low_impact:
+      - "No batch backtest CLI (script loops or Python API work)"
+      - "No fetch-many command (script loops work)"
+      - "Lookback window CLI flag pending (Phase 2.5 Step 3 — trivial)"
 
 key_decisions:
   - "Python for platform (ecosystem > raw performance for strategy research)"

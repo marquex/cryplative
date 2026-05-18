@@ -43,11 +43,6 @@ python -c "from cryplative.backtesting.engine import BacktestEngine; print('Engi
 ### Step 4: Add .venv/ to root .gitignore
 Check if `.venv/` is already in `/Users/javi/projects/cryplative/.gitignore`. If not, add it.
 
-### Step 5: Close beads issue
-```bash
-bd close cryplative-axc
-```
-
 ## Acceptance Criteria
 1. `/Users/javi/projects/cryplative/.venv` exists as valid Python 3.11 venv
 2. `pip show cryplative` shows editable install from `./platform`
