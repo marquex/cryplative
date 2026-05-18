@@ -28,10 +28,12 @@ VALID_METRICS = {
     "total_trades",
     "profit_factor",
 }
-# Metrics where higher is better (sort descending)
+# Metrics where higher is better (sort descending).
+# max_drawdown_pct is stored as negative, so "higher" (closer to 0) is better.
 HIGHER_IS_BETTER = {
     "total_return_pct",
     "sharpe_ratio",
+    "max_drawdown_pct",
     "win_rate_pct",
     "total_trades",
     "profit_factor",
